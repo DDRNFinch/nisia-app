@@ -65,6 +65,13 @@
     return e;
   }
   const joined=()=>{const e=window.eviaData.enrolment();return e&&e.college?e:null};
+  /* Feedback from the assessor: for a piece of evidence, the latest for a unit, and anything new to tell them about. */
+  window.eviaFeedback={
+    forEvidence:id=>(readJson("evia7-nisia-feedback",{})||{})[String(id)]||null,
+    forUnit:unit=>Object.values(readJson("evia7-nisia-feedback",{})||{}).filter(f=>f.unit===unit&&f.kind!=="observation").sort((a,b)=>String(b.at).localeCompare(String(a.at)))[0]||null,
+    unseen:()=>Object.entries(readJson("evia7-nisia-feedback",{})||{}).filter(([,f])=>!f.seen).map(([id,f])=>Object.assign({id},f)).sort((a,b)=>String(b.at).localeCompare(String(a.at))),
+    markSeen:ids=>{const all=readJson("evia7-nisia-feedback",{})||{};(ids||Object.keys(all)).forEach(i=>{if(all[i])all[i].seen=true});writeJson("evia7-nisia-feedback",all)}
+  };
 
   /* ---------- Sync ---------- */
   const readJson=(k,f)=>{try{const v=JSON.parse(localStorage.getItem(k)||"null");return v??f}catch(_){return f}};
@@ -153,7 +160,7 @@
      back, restarts Evia with it, then brings the photos and files down on WiFi. Sign-in, the sync bookkeeping and
      things that belong to one device stay where they are. */
   const STORE_SENT_KEY="evia7-nisia-store-sent",RESTORED_KEY="evia7-nisia-restored",FETCH_KEY="evia7-nisia-fetch";
-  const NOT_BACKED_UP=/^evia7-(nisia-(auth|status|media|store-sent|restored|fetch|snap|observations|review-targets)|data-synced|enrolment|learner-id|install-later|errors|offline-|evidence-db|supporting-files|last-backup|downloaded-unit-pdfs)/;
+  const NOT_BACKED_UP=/^evia7-(nisia-(auth|status|media|store-sent|restored|fetch|snap|observations|review-targets|feedback)|data-synced|enrolment|learner-id|install-later|errors|offline-|evidence-db|supporting-files|last-backup|downloaded-unit-pdfs)/;
   /* Most of Evia's data is in IndexedDB behind localStorage (storage.js), so its keys come from there. */
   const backupKeys=()=>{const all=new Set(window.eviaStorage&&window.eviaStorage.keys?window.eviaStorage.keys():[]);
     for(let i=0;i<localStorage.length;i++)all.add(localStorage.key(i));return [...all].filter(k=>k&&k.startsWith("evia7-")&&!NOT_BACKED_UP.test(k))};
@@ -236,6 +243,16 @@
       got[x.id]=new Date().toISOString();writeJson(OBS_KEY,got);
     }
   }
+  /* The assessor's sign-offs and feedback on the learner's own evidence (Milos), kept by Evia's id for each piece. */
+  const FEEDBACK_KEY="evia7-nisia-feedback";
+  async function fetchFeedback(c){
+    const {data,error}=await c.rpc("nisia_my_feedback");if(error)throw error;
+    const was=readJson(FEEDBACK_KEY,{})||{},now={};
+    (data||[]).forEach(f=>{const m=/^(evidence|supporting|observation):(.+)$/.exec(f.client_reference||"");if(!m)return;
+      const id=m[1]==="evidence"?m[2]:m[1]+":"+m[2],prev=was[id];
+      now[id]={kind:m[1],unit:f.unit||"",decision:f.decision,feedback:f.feedback||"",ksbs:f.ksbs||[],at:f.assessed_at,by:f.assessor||"",seen:prev&&prev.at===f.assessed_at?prev.seen:false}});
+    if(JSON.stringify(now)!==JSON.stringify(was)){writeJson(FEEDBACK_KEY,now);try{if(typeof render==="function"&&!document.querySelector(".chat-sheet"))render()}catch(_){}}
+  }
   /* Targets the assessor set at a review in Milos: they replace Evia's current targets for the course, and Evia
      measures them the same way (hours, units, KSBs, tests, confidence, write-ups, lessons). Applied once per review. */
   const REVIEW_TARGETS_KEY="evia7-nisia-review-targets";
@@ -281,6 +298,7 @@
       if(c){const {data}=await c.auth.getSession();if(!data.session)return note({error:"signed-out"})}
       if(c)try{await refreshDetails(c,e)}catch(err){console.warn("Evia: Nisia details",err&&err.message)}
       if(c)try{await fetchTargets(c,e)}catch(err){console.warn("Evia: Nisia targets",err&&err.message)}
+      if(c)try{await fetchFeedback(c)}catch(err){console.warn("Evia: Nisia feedback",err&&err.message)}
       /* Records: small, on any connection, in batches. (The demo keeps them on the phone.) */
       for(let i=0;i<changes.length;i+=50){const batch=changes.slice(i,i+50);if(c)await sendRecords(c,e,batch);D.markSynced(batch)}
       if(c)await sendSnapshot(c,e);

@@ -103,6 +103,7 @@
   }
 
   /* ---------- Evia's nudges, most useful first ---------- */
+  const escHtmlS=v=>String(v??"").replace(/[&<>"']/g,x=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[x]));
   function nudges(s){
     const list=[],ach=achievements(s),day=new Date().getDay();
     const daysAgo=t=>t==null?Infinity:(s.now-t)/DAY;
@@ -110,6 +111,12 @@
       const x=ach.fresh[0];
       list.push({id:"ach-"+x.id,celebrate:true,achievements:ach.fresh.map(f=>f.id),text:"You’ve earned a new achievement: <strong>"+x.label+"</strong>. "+x.desc+".",action:{label:"See my progress",kind:"stats"}});
     }
+    /* New from the assessor: a sign-off (or a request for more) on their evidence, said once. */
+    const fbNew=window.eviaFeedback?window.eviaFeedback.unseen().filter(f=>f.kind!=="observation"):[];
+    if(fbNew.length){const f=fbNew[0];list.push({id:"fb-"+f.id,celebrate:f.decision==="accepted",feedback:f,
+      text:f.decision==="accepted"?(f.by?escHtmlS(f.by.split(" ")[0]):"Your assessor")+" signed off your "+escHtmlS(f.unit||"evidence")+" evidence"+(f.ksbs&&f.ksbs.length?" ("+f.ksbs.length+" KSB"+(f.ksbs.length===1?"":"s")+")":"")+". "+(f.feedback?"They said: “"+escHtmlS(f.feedback.slice(0,160))+(f.feedback.length>160?"…":"")+"”":""):
+        "Your assessor looked at your "+escHtmlS(f.unit||"evidence")+" evidence and would like a bit more."+(f.feedback?" “"+escHtmlS(f.feedback.slice(0,160))+"”":""),
+      action:{label:"See it",kind:"feedback"}})}
     /* Backups: everything lives on this phone, so remind learners before there's a lot to lose. */
     const packsAll=(typeof evidence!=="undefined"?evidence:[]).filter(e=>e&&!e.induction),lastBackup=Date.parse(localStorage.getItem("evia7-last-backup")||"")||null;
     const since=lastBackup?packsAll.filter(e=>(Date.parse(e.savedAt||"")||0)>lastBackup).length:packsAll.length;

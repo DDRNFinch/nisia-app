@@ -2184,3 +2184,11 @@ html body .evia-fab[data-review]{overflow:visible!important}
 html[data-a11y-motion="reduce"] .evia-fab .fab-pulse{box-shadow:0 0 0 5px color-mix(in srgb,var(--evia-accent,#e7b900) 35%,transparent)!important}
 html[data-a11y-motion="reduce"] .ui-action-pulse{box-shadow:0 0 0 3px color-mix(in srgb,var(--evia-accent,#e7b900) 45%,transparent)!important}
 #chat .chat-options .chat-pill.ui-action-pulse{animation:ecIn .34s cubic-bezier(.3,.9,.4,1) both,eviaTilePulse 2.2s ease-out .6s infinite}
+
+/* The assessor's feedback on evidence (from Milos). */
+.ev-fb{margin:12px 0 4px;padding:12px 14px;border-radius:14px;background:#eef8f1;border:1px solid #cfe9d8;display:flex;flex-direction:column;gap:4px}
+.ev-fb.more{background:#fff7e6;border-color:#f3dfb2}
+.ev-fb strong{font-size:14px;color:#1f6b3d}.ev-fb.more strong{color:#8a5a00}
+.ev-fb small{font-size:12px;color:var(--ui-muted,#687386);font-weight:600}
+.ev-fb p{margin:2px 0 0;font-size:14px;line-height:1.45;color:var(--ui-ink,#172033)}
+.ev-unit-fb{margin:0 0 12px}.ev-unit-fb-k{display:block;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ui-muted,#687386);margin-bottom:-4px}

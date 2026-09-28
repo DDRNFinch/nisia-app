@@ -87,7 +87,7 @@
     const fire=()=>{
       if(screen!=="course"||!document.getElementById("ui-course-head")||document.querySelector(".chat-sheet"))return;
       if(document.querySelector(".evidence-toast")){bubbleTimer=setTimeout(fire,2400);return} /* wait for "Saved"-style messages to clear */
-      const dismiss=()=>{localStorage.setItem(TIP_KEY,JSON.stringify({day:today,id:n.id}));if(n.achievements)window.eviaStats.markSeen(n.achievements)};
+      const dismiss=()=>{localStorage.setItem(TIP_KEY,JSON.stringify({day:today,id:n.id}));if(n.achievements)window.eviaStats.markSeen(n.achievements);if(n.feedback&&window.eviaFeedback)window.eviaFeedback.markSeen([n.feedback.id])};
       const lead=n.celebrate?(name?"Well done "+escHtml(name)+"! ":"Well done! "):partOfDay()+(name?" "+escHtml(name):"")+". ";
       eviaSay(lead+n.text,[{label:n.action.label,primary:true,run:()=>{dismiss();runNudge(n)}},{label:"Not now",run:dismiss}]);
       if(n.celebrate&&window.eviaMood)window.eviaMood("happy");
@@ -102,6 +102,8 @@
     else if(kind==="course")go(()=>nav("course"));
     else if(kind==="learning"){const run=()=>window.eviaCoachFlows&&window.eviaCoachFlows.hours?window.eviaCoachFlows.hours():nav("hours");if(inChat)queue=queue.then(run);else{window.chat({quiet:true});setTimeout(run,50)}}
     else if(kind==="backup")go(async()=>{try{await window.eviaStorage.backup();if(typeof showEvidenceToast==="function")showEvidenceToast("Backup saved to your downloads. Keep a copy somewhere safe, like your email")}catch(e){console.error(e);if(typeof showEvidenceToast==="function")showEvidenceToast("Couldn’t make the backup. Try again from Profile",true)}});
+    else if(kind==="feedback"){const f=n.feedback;if(window.eviaFeedback)window.eviaFeedback.markSeen([f.id]);const d=typeof data==="function"?data():null,i=d?d.u.findIndex(u=>u[0]===f.unit):-1;
+      go(()=>{if(i>=0&&window.openUnit)window.openUnit(i);else nav("course");setTimeout(()=>{const e=typeof evidence!=="undefined"?evidence.find(x=>String(x.id)===f.id):null;if(e)viewPack(e)},500)})}
     else if(kind==="prep"){const run=()=>{userSays("Get ready for my review");window.eviaCoachFlows.prepare()};if(inChat)queue=queue.then(run);else{window.chat({quiet:true});setTimeout(run,50)}}
     else if(kind==="targets"||kind==="review"){
       const run=kind==="targets"?targetsFromMenu:reviewFromMenu;
@@ -214,18 +216,30 @@
     const words=e=>String(e.w||"").trim()?String(e.w).trim().split(/\s+/).length:0,count=e=>(e.photoIds||e.p||[]).length;
     /* With more than one saved, "Share all" puts every one of them in a single PDF, oldest first. */
     page.insertAdjacentHTML("beforeend",'<div class="ev-saved-line"></div><section class="ev-saved"><div class="ev-saved-head"><h3>Saved evidence</h3>'+(entries.length>1?'<button type="button" class="ev-share-all" id="ev-share-all">'+SHARE_ICON+'Share all '+entries.length+'</button>':"")+'</div>'+
-      entries.map(e=>tileHtml(escHtml(e.id),icon(ICONS.camera,20),"Saved "+savedDay(entryTime(e)),count(e)+" photo"+(count(e)===1?"":"s")+" · "+words(e)+" words",sharedAt("pack:"+e.id))).join("")+'</section>');
+      entries.map(e=>{const f=window.eviaFeedback&&window.eviaFeedback.forEvidence(e.id);return tileHtml(escHtml(e.id),icon(ICONS.camera,20),"Saved "+savedDay(entryTime(e)),count(e)+" photo"+(count(e)===1?"":"s")+" · "+words(e)+" words"+(f?(f.decision==="accepted"?" · ✓ Signed off":" · More wanted"):""),sharedAt("pack:"+e.id))}).join("")+'</section>');
+    /* The assessor's latest feedback on this unit, above the saved evidence: what to get next time. */
+    const uf=window.eviaFeedback&&window.eviaFeedback.forUnit(unitName);
+    if(uf&&uf.feedback){const sv=page.querySelector(".ev-saved");if(sv)sv.insertAdjacentHTML("afterbegin",'<div class="ev-unit-fb"><span class="ev-unit-fb-k">From your assessor</span>'+feedbackHtml(uf)+'</div>')}
     entries.forEach(async e=>{const src=await photoOf(e),el=page.querySelector('[data-ev-img="'+CSS.escape(String(e.id))+'"]');if(src&&el)el.innerHTML='<img src="'+src+'" alt="">'});
     page.querySelectorAll("[data-ev-open]").forEach(b=>b.onclick=()=>viewPack(entries.find(e=>String(e.id)===b.dataset.evOpen)));
     const all=page.querySelector("#ev-share-all");if(all)all.onclick=()=>window.eviaOpenSendToPortfolio&&window.eviaOpenSendToPortfolio(unitName);
     page.querySelectorAll("[data-ev-share]").forEach(b=>b.onclick=()=>{const e=entries.find(x=>String(x.id)===b.dataset.evShare);if(e&&window.eviaOpenSendToPortfolio)window.eviaOpenSendToPortfolio(unitName,e.id)});
   }
   /* A saved pack, to look back at: its photos and write-up. */
+  /* The assessor's sign-off and feedback on a piece of evidence (from Milos, through Nisia). */
+  function feedbackHtml(f){
+    if(!f)return"";
+    const day=f.at?new Date(f.at).toLocaleDateString("en-GB",{day:"numeric",month:"short"}):"";
+    return '<div class="ev-fb '+(f.decision==="accepted"?"ok":"more")+'"><strong>'+(f.decision==="accepted"?"✓ Signed off":"Your assessor would like a bit more")+(f.by?" by "+escHtml(f.by):"")+(day?", "+escHtml(day):"")+'</strong>'+
+      (f.decision==="accepted"&&f.ksbs&&f.ksbs.length?'<small>'+escHtml(f.ksbs.join(", "))+'</small>':"")+(f.feedback?'<p>'+escHtml(f.feedback)+'</p>':"")+'</div>';
+  }
+  window.eviaFeedbackHtml=feedbackHtml;
   async function viewPack(e){
     if(!e)return;
+    if(window.eviaFeedback)window.eviaFeedback.markSeen([String(e.id)]);
     const sh=uiSheet("SAVED "+savedDay(entryTime(e)).toUpperCase(),e.u,
       '<div class="ev-view-photos" id="ev-view-photos"></div>'+
-      (String(e.w||"").trim()?'<p class="ev-view-text">'+escHtml(e.w)+'</p>':"")+
+      (String(e.w||"").trim()?'<p class="ev-view-text">'+escHtml(e.w)+'</p>':"")+feedbackHtml(window.eviaFeedback&&window.eviaFeedback.forEvidence(e.id))+
       '<div class="pr-actions"><button type="button" class="secondary ui-danger" id="ev-view-del">Delete</button><button type="button" class="secondary" id="ev-view-share">'+SHARE_ICON+' Share</button></div>');
     sh.el.querySelector("#ev-view-share").onclick=()=>{sh.close();window.eviaOpenSendToPortfolio&&window.eviaOpenSendToPortfolio(e.u,e.id)};
     sh.el.querySelector("#ev-view-del").onclick=()=>{
