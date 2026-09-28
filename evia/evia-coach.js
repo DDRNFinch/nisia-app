@@ -41,12 +41,29 @@
   function logHours(){
     const k=K();
     k.say(k.pick(["Nice one. What did you do?","Let’s log it. What was it?","Good stuff. What kind of learning was it?"]));
-    k.replies(KINDS.map(([label,desc,start])=>({label,run:()=>askTime(desc,start)})));
+    k.replies(KINDS.map(([label,desc,start])=>({label,run:()=>askWhen(desc,start)})));
   }
-  function askTime(desc,start){
+  /* When it happened, so learning can be logged afterwards: today, yesterday, or any day since the course started. */
+  const dayStart=d=>{const x=new Date(d);x.setHours(0,0,0,0);return x.getTime()};
+  const isoDay=t=>{const d=new Date(t);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+  function askWhen(desc,start){
+    const k=K(),today=dayStart(Date.now()),ok=on=>{k.userSays(on===today?"Today":on===today-864e5?"Yesterday":new Date(on).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"}));askTime(desc,start,on)};
+    k.say("When was it?");
+    k.replies([{label:"Today",run:()=>ok(today)},{label:"Yesterday",run:()=>ok(today-864e5)},{label:"Another day",run:()=>{
+      const en=window.eviaData.enrolment&&window.eviaData.enrolment(),first=en&&en.start?en.start:isoDay(today-365*864e5);
+      k.say("Which day?");
+      k.widget('<div class="hw-when"><input type="date" min="'+esc(first)+'" max="'+isoDay(today)+'" value="'+isoDay(today-2*864e5)+'" aria-label="The day it happened"><p class="hw-readout hw-when-err" aria-live="polite"></p><div class="hw-note-actions"><button type="button" class="chat-pill ui-pill-primary hw-when-ok"><strong>Next</strong></button></div></div>',el=>{
+        const inp=el.querySelector("input");
+        el.querySelector(".hw-when-ok").onclick=()=>{const v=inp.value,t=v?dayStart(v+"T12:00:00"):NaN;
+          if(!v||isNaN(t)||t>today||v<first){el.querySelector(".hw-when-err").textContent="Pick a day between "+new Date(first+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})+" and today.";return}
+          el.querySelectorAll("button,input").forEach(x=>x.disabled=true);el.classList.add("done");ok(t)};
+      });
+    }}]);
+  }
+  function askTime(desc,start,on){
     const k=K();
     k.say("How long did it take? Scroll to set it, or tap a quick one.");
-    k.widget(wheelHtml(),el=>bindWheel(el,start,hrs=>askNote(desc,hrs)));
+    k.widget(wheelHtml(),el=>bindWheel(el,start,hrs=>askNote(desc,hrs,on)));
   }
   /* Two short questions: what you did, then (more importantly) what you learned. */
   const DID_HINT={"College day":"cavity walls and wall ties","Toolbox talk":"working at height","Training course":"abrasive wheels","Research and reading":"reading up on mortar mixes","Shadowing":"watching the setting out of a new block"};
@@ -64,20 +81,20 @@
       const sk=el.querySelector(".hw-skip");if(sk)sk.onclick=()=>finish("");
     });
   }
-  function askNote(desc,hrs){
+  function askNote(desc,hrs,on){
     const k=K();
     k.userSays(hm(hrs));
     textStep(desc?"What did you do? A few words is plenty.":"What did you do?","For example: "+(DID_HINT[desc]||"toolbox talk on manual handling"),true,did=>
       textStep("And what did you learn from it? This is the bit your assessor cares about most.","For example: how to space wall ties and why they matter",true,learned=>{
         const what=[desc,did].filter(Boolean).join(": ")||desc||"Learning hours";
-        save(hrs,what+(learned?". What I learned: "+learned:""),did,learned);
+        save(hrs,what+(learned?". What I learned: "+learned:""),did,learned,on);
       }));
   }
-  function save(hrs,text,did,learned){
-    const k=K(),now=Date.now();
-    window.eviaData.put("hours",{minutes:Math.round(hrs*60),description:text,did:did||"",learned:learned||"",source:"evia",createdAt:now});
+  function save(hrs,text,did,learned,on){
+    const k=K(),now=Date.now(),earlier=on!=null&&on<dayStart(now);
+    window.eviaData.put("hours",{minutes:Math.round(hrs*60),description:text,did:did||"",learned:learned||"",source:"evia",createdAt:now,...(earlier?{occurredAt:on+12*36e5}:{})});
     if(window.eviaCheckTargets)window.eviaCheckTargets();
-    const week=hours.filter(x=>Number(x.createdAt)>=weekStart()).reduce((n,x)=>n+Number(x.n||0),0);
+    const week=hours.filter(x=>Number(x.on||x.createdAt)>=weekStart()).reduce((n,x)=>n+Number(x.n||0),0);
     if(window.eviaMood)window.eviaMood("happy");
     k.say((learned?k.pick(["Great learning.","That’s a good one to have learned.","Nice, that’s worth knowing."])+" ":"")+"Logged <strong>"+esc(hm(hrs))+"</strong>. "+(week>=6?"That’s <strong>"+esc(hm(week))+"</strong> this week, which is brilliant.":"That’s <strong>"+esc(hm(week))+"</strong> this week so far."));
     k.replies([{label:"Log more",run:logHours},{label:"See my learning logs",run:()=>{k.closeChat();setTimeout(()=>window.eviaOpenLearningLogs&&window.eviaOpenLearningLogs(),120)}},{label:"Something else",run:k.somethingElse}]);

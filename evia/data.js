@@ -80,7 +80,7 @@
       return (G("hours")||readJson("evia7-hours",[])||[]).filter(Boolean).map(x=>{
         const made=iso(x.createdAt)||iso(x.savedAt);
         return base(x.id,{minutes:Math.round(x.mins!=null?Number(x.mins):Number(x.n||0)*60),description:x.description||"",did:x.did||"",learned:x.learned||"",
-          source:x.auto?"auto":("did" in x||"learned" in x)?"evia":"manual",activityKey:x.autoKey||null,occurredAt:made,createdAt:made,
+          source:x.auto?"auto":("did" in x||"learned" in x)?"evia":"manual",activityKey:x.autoKey||null,occurredAt:iso(x.on)||made,createdAt:made,
           updatedAt:iso(x.updatedAt)||made,deletedAt:null,confirmed:x.confirmed||null,exportedIn:batchOf(x)});
       });
     },
@@ -150,6 +150,9 @@
         const minutes=Math.max(0,Math.round(Number(r.minutes)||0)),t=r.createdAt?ms(r.createdAt):Date.now();
         const legacy={id:String(r.id||("otj-"+Date.now()+"-"+Math.random().toString(36).slice(2,8))),n:Math.round(minutes/60*100)/100,mins:minutes,description:r.description||"",
           createdAt:t,savedAt:typeof formatDateTime==="function"?formatDateTime(t):new Date(t).toLocaleString("en-GB"),updatedAt:Date.now()};
+        /* The day it happened, when that isn't the day it was logged (backdated). createdAt stays the logging time, so
+           the next learning hours PDF still picks it up. */
+        if(r.occurredAt!=null)legacy.on=ms(r.occurredAt);
         if(r.source==="evia"||r.did!=null||r.learned!=null){legacy.did=r.did||"";legacy.learned=r.learned||""}
         if(r.source==="auto"){legacy.auto=true;legacy.autoKey=r.activityKey||null}
         const i=arr.findIndex(x=>x&&x.id===legacy.id);
@@ -177,7 +180,9 @@
         if(r.induction)legacy.induction=true;
         arr.push(legacy);save();return legacy.id;
       },
-      remove(id){const arr=G("evidence");const i=arr?arr.findIndex(x=>x&&String(x.id)===String(id)):-1;if(i<0)return false;arr.splice(i,1);save();return true}
+      /* Deleting a saved pack: the record, then its photos. (Nisia keeps anything the assessor has already accepted.) */
+      remove(id){const arr=G("evidence");const i=arr?arr.findIndex(x=>x&&String(x.id)===String(id)):-1;if(i<0)return false;
+        const gone=arr.splice(i,1)[0];save();(gone.photoIds||[]).forEach(pid=>{try{window.eviaDeleteEvidencePhoto&&window.eviaDeleteEvidencePhoto(pid)}catch(_){}});return true}
     },
     /* Supporting evidence details. The file itself is stored first (eviaSupportingFilePut) under the same id. */
     supporting:{
@@ -192,7 +197,8 @@
         if(x)rec.updatedAt=new Date().toISOString();else list.push(rec);
         writeJson("evia7-supporting-evidence",list.slice(-500));return rec.id;
       },
-      remove(id){const list=readJson("evia7-supporting-evidence",[])||[],i=list.findIndex(v=>v&&v.id===String(id));if(i<0)return false;list.splice(i,1);writeJson("evia7-supporting-evidence",list);return true}
+      remove(id){const list=readJson("evia7-supporting-evidence",[])||[],i=list.findIndex(v=>v&&v.id===String(id));if(i<0)return false;list.splice(i,1);writeJson("evia7-supporting-evidence",list);
+        try{window.eviaSupportingFileDelete&&window.eviaSupportingFileDelete(String(id))}catch(_){}return true}
     },
     /* An NVQ knowledge answer, by question id. Empty text removes it. */
     nvqAnswers:{

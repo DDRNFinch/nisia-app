@@ -24,7 +24,7 @@
     while(weeks.has(w)){streak++;w-=WEEK}
     let longest=0,run=0,prev=null;
     [...weeks].sort((x,y)=>x-y).forEach(t=>{run=prev!==null&&Math.round((t-prev)/WEEK)===1?run+1:1;longest=Math.max(longest,run);prev=t});
-    const otjSince=t=>hours.filter(x=>Number(x.createdAt)>=t).reduce((n,x)=>n+Number(x.n||0),0);
+    const otjSince=t=>hours.filter(x=>Number(x.on||x.createdAt)>=t).reduce((n,x)=>n+Number(x.n||0),0);
     /* Pace: weeks left for each unit that has no evidence yet. */
     const unitsLeft=a.units.filter(u=>!u.started).length;
     const weeksLeft=a.endDate?Math.max(0,Math.round((a.endDate.getTime()-now)/WEEK)):null;

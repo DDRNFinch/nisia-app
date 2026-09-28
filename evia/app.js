@@ -79,7 +79,7 @@ function buildOTJPrintWindow(entries,title,downloadedAt){
  (p.end?'<span><strong>Apprenticeship end:</strong> '+esc(p.end)+'</span>':"")+
  '<span><strong>PDF generated:</strong> '+esc(formatDateTime(downloadedAt))+'</span></div></header>'+
  '<div class="summary"><strong>'+window.eviaHM(total)+'</strong> across '+entries.length+' learning entries included in this download.</div>'+
- entries.slice().sort((a,b)=>Number(a.createdAt)-Number(b.createdAt)).map(x=>'<article class="entry"><div class="entry-date">'+esc(x.savedAt||formatDateTime(x.createdAt))+'</div><div class="entry-hours">'+esc(window.eviaHM(x.n))+'</div><div class="entry-description">'+esc(x.description||"No description recorded.")+'</div></article>').join("")+
+ entries.slice().sort((a,b)=>Number(a.on||a.createdAt)-Number(b.on||b.createdAt)).map(x=>'<article class="entry"><div class="entry-date">'+esc(x.on?new Date(x.on).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})+" (logged "+(x.savedAt||formatDateTime(x.createdAt))+")":x.savedAt||formatDateTime(x.createdAt))+'</div><div class="entry-hours">'+esc(window.eviaHM(x.n))+'</div><div class="entry-description">'+esc(x.description||"No description recorded.")+'</div></article>').join("")+
  '<div class="footer">This document contains the learning hours entries included at the time of this download. The next Evia learning hours download will contain new entries recorded after this download.</div>'+
  '</body></html>');
  w.document.close();w.focus();setTimeout(()=>w.print(),250);return true;

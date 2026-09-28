@@ -2165,3 +2165,6 @@ html body .rw-toast{bottom:auto;top:calc(max(12px,env(safe-area-inset-top)) + 8p
 }
 /* Something waiting to go to the college (nisia.js) */
 #profile-btn.nisia-waiting::after{content:"";position:absolute;top:2px;right:2px;width:10px;height:10px;border-radius:50%;background:#f79009;border:2px solid #fff}
+.ui-danger{color:#b42318!important;border-color:rgba(180,35,24,.25)!important}
+.hw-when input[type=date]{width:100%;min-height:46px;border-radius:14px;padding:8px 12px;font-size:16px;margin-bottom:8px}
+.hw-when{display:flex;flex-direction:column;gap:8px}.hw-when .hw-when-err:empty{display:none}

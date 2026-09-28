@@ -225,8 +225,12 @@
     const sh=uiSheet("SAVED "+savedDay(entryTime(e)).toUpperCase(),e.u,
       '<div class="ev-view-photos" id="ev-view-photos"></div>'+
       (String(e.w||"").trim()?'<p class="ev-view-text">'+escHtml(e.w)+'</p>':"")+
-      '<div class="pr-actions"><button type="button" class="secondary" id="ev-view-share">'+SHARE_ICON+' Share</button></div>');
+      '<div class="pr-actions"><button type="button" class="secondary ui-danger" id="ev-view-del">Delete</button><button type="button" class="secondary" id="ev-view-share">'+SHARE_ICON+' Share</button></div>');
     sh.el.querySelector("#ev-view-share").onclick=()=>{sh.close();window.eviaOpenSendToPortfolio&&window.eviaOpenSendToPortfolio(e.u,e.id)};
+    sh.el.querySelector("#ev-view-del").onclick=()=>{
+      if(!confirm("Delete this evidence and its photos from Evia? If your assessor has already signed it off, your college keeps their copy."))return;
+      if(window.eviaData.remove("evidence",e.id)){sh.close();const t=document.querySelector('[data-ev-open="'+CSS.escape(String(e.id))+'"]');if(t)t.closest(".ev-tile").remove();if(typeof showEvidenceToast==="function")showEvidenceToast("Evidence deleted")}
+    };
     try{const photos=window.eviaGetEvidencePhotoData?await window.eviaGetEvidencePhotoData(e):(e.p||[]);const g=sh.el.querySelector("#ev-view-photos");if(g)g.innerHTML=photos.map(src=>'<img src="'+src+'" alt="Evidence photo">').join("")}catch(_){}
   }
   window.eviaSavedTiles=savedTiles;
@@ -248,8 +252,12 @@
     const sh=uiSheet((x.type||"file").toUpperCase()+" · "+savedDay(addedOf(x)).toUpperCase(),x.title||"Supporting evidence",
       '<div class="sp-preview" id="sp-preview"><span class="sp-loading">Loading…</span></div>'+
       '<p class="sp-meta">'+escHtml(typeof supportingSummary==="function"?supportingSummary(x):"")+(x.size?" · "+(x.size>1048576?(x.size/1048576).toFixed(1)+" MB":Math.max(1,Math.round(x.size/1024))+" KB"):"")+(shared?' · <b class="ev-shared-tag">Shared '+escHtml(savedDay(shared))+'</b>':"")+'</p>'+
-      '<div class="pr-actions"><button type="button" class="secondary" id="sp-edit">Edit details</button><button type="button" class="primary" id="sp-share">'+(shared?"Share again":"Share")+'</button></div>');
+      '<div class="pr-actions"><button type="button" class="secondary ui-danger" id="sp-del">Delete</button><button type="button" class="secondary" id="sp-edit">Edit details</button><button type="button" class="primary" id="sp-share">'+(shared?"Share again":"Share")+'</button></div>');
     sh.el.querySelector("#sp-edit").onclick=()=>{sh.close();openSupportingDetails(x.id,false,window.openSupportingEvidence)};
+    sh.el.querySelector("#sp-del").onclick=()=>{
+      if(!confirm("Delete this file from Evia? If your assessor has already signed it off, your college keeps their copy."))return;
+      if(window.eviaData.remove("supporting",x.id)){sh.close();if(typeof showEvidenceToast==="function")showEvidenceToast("Deleted");window.openSupportingEvidence()}
+    };
     sh.el.querySelector("#sp-share").onclick=()=>shareSupporting(x,()=>{sh.close();window.openSupportingEvidence()});
     try{
       const blob=await fileOf(x),url=URL.createObjectURL(blob),mime=blob.type||x.mime||"",box=sh.el.querySelector("#sp-preview");if(!box)return;
@@ -302,7 +310,7 @@
         '<div class="ui-page">'+'<button type="button" class="primary ui-log-add" id="ui-log-add">+ Log hours</button>'+
           '<section class="ui-card ui-hours-sum"><div><strong>'+escHtml(hmText(total))+'</strong><small>logged in total</small></div><div><strong>'+hours.length+'</strong><small>entr'+(hours.length===1?"y":"ies")+'</small></div></section>'+
           (hours.length?'<section class="ui-card ui-logs-dl"><div><strong>'+(fresh.length?fresh.length+" new entr"+(fresh.length===1?"y":"ies"):"Everything’s downloaded")+'</strong><small>'+(fresh.length?(last?"Since your last download on "+escHtml(savedDay(last.downloadedAt)):"Not downloaded yet"):"New entries will be ready to download here")+'</small></div>'+(fresh.length?'<button type="button" class="primary" id="download-otj">Download PDF</button>':"")+'</section>':"")+
-          (hours.length?'<h2 class="ui-hours-h">Your log</h2><div class="ui-card ui-hours-list">'+hours.slice().sort((a,b)=>Number(b.createdAt)-Number(a.createdAt)).map(x=>{const isNew=Number(x.createdAt)>cutoff;return '<div class="ui-hours-item'+(isNew?"":" done")+'"><span class="ui-hours-n">'+escHtml(hmText(Number(x.n||0)))+'</span><span class="ui-hours-copy"><strong>'+escHtml(x.description||"No description recorded.")+'</strong><small>'+escHtml(day(x.createdAt))+' · '+(isNew?"<em>New</em>":"Downloaded")+(x.auto?' · <span class="ui-auto-tag">Logged by Evia</span>':"")+'</small></span>'+(x.auto&&isNew?'<button type="button" class="ui-auto-x" data-rm-auto="'+escHtml(x.id)+'" aria-label="Remove this entry">×</button>':"")+'</div>'}).join("")+'</div>'+
+          (hours.length?'<h2 class="ui-hours-h">Your log</h2><div class="ui-card ui-hours-list">'+hours.slice().sort((a,b)=>Number(b.on||b.createdAt)-Number(a.on||a.createdAt)).map(x=>{const isNew=Number(x.createdAt)>cutoff;return '<div class="ui-hours-item'+(isNew?"":" done")+'"><span class="ui-hours-n">'+escHtml(hmText(Number(x.n||0)))+'</span><span class="ui-hours-copy"><strong>'+escHtml(x.description||"No description recorded.")+'</strong><small>'+escHtml(day(x.on||x.createdAt))+' · '+(isNew?"<em>New</em>":"Downloaded")+(x.auto?' · <span class="ui-auto-tag">Logged by Evia</span>':"")+'</small></span>'+('<button type="button" class="ui-auto-x" data-rm-log="'+escHtml(x.id)+'"'+(isNew?"":' data-downloaded="1"')+' aria-label="Delete this entry">×</button>')+'</div>'}).join("")+'</div>'+
             (hours.some(x=>x.auto)?'<p class="ui-auto-note">Evia logs Teach me lessons and writing up your evidence automatically, counting only the time you’re actively working. Learning hours only count in your paid working hours (or if your employer gives you the time back), so remove any entry that doesn’t.</p>':"")
             :'<div class="ui-card ui-empty"><span class="ui-icon-chip">'+icon(ICONS.clock)+'</span><p>No learning hours logged yet. Tap <strong>Log hours</strong> above to add some.</p></div>')+
           (batches.length?'<h2 class="ui-hours-h">Past downloads</h2><div class="ui-card ui-hours-list">'+batches.map(b=>'<div class="ui-hours-item ui-batch"><span class="ui-hours-copy"><strong>'+escHtml(savedDay(b.downloadedAt))+'</strong><small>'+(b.entryIds||[]).length+' entr'+((b.entryIds||[]).length===1?"y":"ies")+'</small></span><button type="button" class="secondary" data-batch="'+escHtml(b.id)+'">Download again</button></div>').join("")+'</div>':"")+
@@ -311,7 +319,7 @@
       $("#ui-log-add").onclick=()=>{window.chat({quiet:true});setTimeout(()=>window.eviaCoachFlows&&window.eviaCoachFlows.hours(),120)};
       const dl=$("#download-otj");if(dl)dl.onclick=()=>downloadOTJPDF("new");
       document.querySelectorAll("[data-batch]").forEach(b=>b.onclick=()=>downloadOTJPDF(b.dataset.batch));
-      document.querySelectorAll("[data-rm-auto]").forEach(b=>b.onclick=()=>{if(!confirm("Remove this entry from your learning log?"))return;if(window.eviaData.remove("hours",b.dataset.rmAuto))openLearningLogs()});
+      document.querySelectorAll("[data-rm-log]").forEach(b=>b.onclick=()=>{if(!confirm("Delete this entry from your learning log?"+(b.dataset.downloaded?" It’s already in a learning hours PDF you downloaded, so tell your assessor.":"")))return;if(window.eviaData.remove("hours",b.dataset.rmLog)){if(typeof persist==="function")persist();openLearningLogs()}});
       window.scrollTo(0,0);
     });
   }

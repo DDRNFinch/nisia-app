@@ -45,6 +45,14 @@
       tx.onabort=()=>{db.close();reject(tx.error||new Error("Could not save file"))};
     });
   };
+  window.eviaSupportingFileDelete=async function(id){
+    const db=await openDB();
+    return new Promise((resolve,reject)=>{
+      const tx=db.transaction(STORE,"readwrite");tx.objectStore(STORE).delete(id);
+      tx.oncomplete=()=>{db.close();resolve()};
+      tx.onerror=()=>{db.close();reject(tx.error||new Error("Could not delete file"))};
+    });
+  };
   window.eviaSupportingFileGet=async function(id){
     const db=await openDB();
     return new Promise((resolve,reject)=>{

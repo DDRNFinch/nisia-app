@@ -100,7 +100,8 @@
       }
       if(ch.collection==="evidence"||ch.collection==="supporting"){
         const id=uuidFor(ch.collection+":"+r.id);
-        if(gone){await c.from("evidence").delete().eq("id",id);continue}
+        /* Deleted in Evia: its photos and files go too. (Anything the assessor has accepted stays; the rules refuse.) */
+        if(gone){const {data:fl}=await c.from("evidence_files").select("storage_path").eq("evidence_id",id);if(fl&&fl.length)await c.storage.from("evidence").remove(fl.map(f=>f.storage_path));await c.from("evidence").delete().eq("id",id);continue}
         const type=ch.collection==="evidence"?((r.photoIds||[]).length?"photo":"written"):(EVIDENCE_TYPES.includes(r.type)?r.type:"document");
         const {error:ee}=await c.from("evidence").upsert(Object.assign({},base,{id,course_id:e.courseId,created_by_member_id:e.memberId,evidence_type:type,
           title:String(r.unit||r.title||"Evidence").slice(0,300),client_reference:ch.collection+":"+r.id,

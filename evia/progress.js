@@ -115,7 +115,7 @@
     const verdict=gap==null?null:a.timePct<5&&a.ksbPct<5?{cls:"ontrack",text:"Just getting started",icon:"✓"}:gap>10?{cls:"behind",text:"A little behind",icon:"!"}:gap<-5?{cls:"ahead",text:"Ahead of schedule",icon:"↑"}:{cls:"ontrack",text:"On track",icon:"✓"};
     /* Off-the-job: the last 8 weeks, Monday to Sunday. */
     const thisWeek=weekStart(Date.now()),otjWeeks=[];
-    for(let i=7;i>=0;i--){const ws=thisWeek-i*WEEK;otjWeeks.push({start:ws,h:hours.filter(x=>{const t=Number(x.createdAt);return t>=ws&&t<ws+WEEK}).reduce((n,x)=>n+Number(x.n||0),0)})}
+    for(let i=7;i>=0;i--){const ws=thisWeek-i*WEEK;otjWeeks.push({start:ws,h:hours.filter(x=>{const t=Number(x.on||x.createdAt);return t>=ws&&t<ws+WEEK}).reduce((n,x)=>n+Number(x.n||0),0)})}
     /* Activity by day: evidence, hours and supporting files. */
     const counts=new Map(),add=t=>{if(t>0){const d=dayStart(t);counts.set(d,(counts.get(d)||0)+1)}};
     a.entries.forEach(e=>add(entryTime(e)));hours.forEach(x=>add(Number(x.createdAt)));
@@ -261,7 +261,7 @@
       el.querySelectorAll("[data-ksb]").forEach(b=>b.onclick=()=>{const it=all.find(x=>x[0]===b.dataset.ksb);if(it&&typeof ksbDetail==="function")ksbDetail(it[0],it[1],a.evidenced.has(it[0]))});
     }
     else if(id==="otj"){
-      const wk=D.otjWeeks,log=hours.slice().sort((x,y)=>Number(y.createdAt)-Number(x.createdAt));
+      const wk=D.otjWeeks,log=hours.slice().sort((x,y)=>Number(y.on||y.createdAt)-Number(x.on||x.createdAt));
       const el=sheet("MY PROGRESS","Learning hours",
         '<div class="pv-deep-hero">'+hmBig(S.otjTotal)+'<span>logged in total</span></div>'+
         (wk.some(w=>w.h>0)?'<p class="pv-caption">Each bar is a week, Monday to Sunday.</p>'+columns(wk.map(w=>w.h),wk.map((w,i)=>i===wk.length-1?"This wk":i%2===1?shortDate(w.start):""),Math.max(OTJ_WEEK_GOAL*1.4,...wk.map(w=>w.h)),{h:130,goal:OTJ_WEEK_GOAL,goalLabel:OTJ_WEEK_GOAL+" h a week",aria:"Learning hours each week",highlight:wk.length-1}):'<span class="pv-empty">Nothing logged in the last 8 weeks.</span>')+
