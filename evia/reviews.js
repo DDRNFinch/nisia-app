@@ -233,12 +233,24 @@
       say(s.scen.every(t=>t.done===t.total)?"You’ve completed every real-life scenario. Brilliant.":"These cover safeguarding, Prevent, British values and equality. Each takes about 5 minutes.")+
       ""});
     const c=r.reflection||{},q=r.ksbFollowUp;
+    /* A short check-in before the review with the assessor: they read it first, and it fills in their review. */
+    const dsl=(window.eviaData.learner()||{}).safeguarding||{};
+    const pick=(k,q,opts)=>'<label class="rv-q"><span>'+q+'</span>'+(readOnly?'<p class="rv-a">'+escHtml(c[k]||"Not answered.")+'</p>':'<select data-reflect="'+k+'"><option value="">Choose…</option>'+opts.map(o=>'<option'+(c[k]===o?" selected":"")+'>'+escHtml(o)+'</option>').join("")+'</select>')+'</label>';
+    const note=(k,q)=>readOnly?(c[k]?'<label class="rv-q"><span>'+q+'</span><p class="rv-a">'+escHtml(c[k])+'</p></label>':""):'<label class="rv-q"><span>'+q+' <small>If yes</small></span><textarea data-reflect="'+k+'" rows="2">'+escHtml(c[k]||"")+'</textarea></label>';
+    out.push({title:"How things are",body:
+      pick("feelsSafe","Do you feel safe at work and at college?",["Yes","No","I’d like to talk about it"])+
+      pick("knowsReporting","If something worried you, do you know who to tell?"+(dsl.name?" <small>Your safeguarding lead is "+escHtml(dsl.name)+(dsl.phone?", "+escHtml(dsl.phone):"")+".</small>":""),["Yes","No"])+
+      pick("changes","Has anything changed at work: your employer, job, hours or contract?",["No","Yes"])+note("changesDetail","What’s changed?")+
+      pick("hsIncident","Any accidents, near misses or health and safety worries at work?",["No","Yes"])+note("hsDetail","What happened?")+
+      pick("otjHappening","Is your training time happening during your paid working hours?",["Yes","Mostly","No"])});
     out.push({title:"Your comments",body:
       '<label class="rv-q"><span>How are you finding your apprenticeship? <small>Optional</small></span>'+(readOnly?'<p class="rv-a">'+escHtml(c.learnerFeedback||"No comment.")+'</p>':'<textarea data-reflect="learnerFeedback" rows="3">'+escHtml(c.learnerFeedback||"")+'</textarea>')+'</label>'+
       '<label class="rv-q"><span>Is there anything that would help you learn? For example extra help with reading, writing or maths, or support for dyslexia, a disability or anything else. <small>Optional</small></span>'+(readOnly?'<p class="rv-a">'+escHtml(c.support||"No comment.")+'</p>':'<textarea data-reflect="support" rows="2">'+escHtml(c.support||"")+'</textarea>')+'</label>'+
       '<label class="rv-q"><span>What would you like to do after your apprenticeship? <small>Optional</small></span>'+(readOnly?'<p class="rv-a">'+escHtml(c.nextSteps||"No comment.")+'</p>':'<textarea data-reflect="nextSteps" rows="2" placeholder="e.g. stay on as a bricklayer, go on to Level 3, become a site supervisor…">'+escHtml(c.nextSteps||"")+'</textarea>')+'</label>'+
       (readOnly&&q&&c.ksbFollowUp?'<label class="rv-q"><span>'+escHtml(q.question)+'</span><p class="rv-a">'+escHtml(c.ksbFollowUp)+'</p></label>':"")});
-    out.push({title:readOnly?"Targets set":"Your new targets",body:
+    if(collegeSets()&&!readOnly)out.push({title:"Your targets",body:'<ol class="rv-targets">'+mine().map(t=>{const p=progress(t,stats());return '<li><strong>'+escHtml(t.title)+'</strong><small>'+escHtml(t.done?"Done":p.text||"")+'</small><em>Due '+ukDate(t.due+"T12:00:00")+'</em></li>'}).join("")+'</ol>'+
+      say("Your assessor sets your new targets with you at the review. I’ll track them for you here.")});
+    else out.push({title:readOnly?"Targets set":"Your new targets",body:
       (!readOnly&&s.prevTargets?'<p class="pg-note">These replace your current targets ('+s.prevTargets.done+' of '+s.prevTargets.total+' done).</p>':"")+
       '<ol class="rv-targets">'+r.targets.map(t=>'<li><strong>'+escHtml(t.title)+'</strong><small>'+escHtml(t.why)+'</small><em>Due '+ukDate(t.due+"T12:00:00")+'</em></li>').join("")+'</ol>'+
       say(readOnly?"You can see how you’re getting on with your current targets in My targets.":"These become your targets when you save the review. I’ll track them for you.")});
@@ -374,9 +386,12 @@
     };
     step(0);
   }
+  /* Connected to a college, the assessor sets the targets at the review (they arrive from Nisia); Evia's own review
+     is the learner's side of it, so it keeps the targets they have. */
+  const collegeSets=()=>!!(window.eviaNisia&&window.eviaNisia.joined());
   function save(r){
     window.eviaData.put("reviews",r);
-    setTargets(r.targets.map(t=>Object.assign({},t,{reviewId:r.id,reviewDate:r.date})));
+    if(!collegeSets())setTargets(r.targets.map(t=>Object.assign({},t,{reviewId:r.id,reviewDate:r.date})));
   }
   function startReview(resume){
     if(resume&&resume.type)resume=null; /* called straight from a click */

@@ -124,7 +124,9 @@
         packs:S.packs,daysSince:S.daysSince,lastUpload:S.lastUpload?new Date(S.lastUpload).toISOString():null,
         otj:{total:S.otjTotal,month:S.otjMonth,week:S.otjWeek},streak:S.streak,writeupCoverage:S.coverage,
         tests:(S.tests||[]).map(t=>({type:t.type,name:t.name,count:t.count,best:t.best,latest:t.latest?{pct:t.latest.pct,takenAt:t.latest.takenAt}:null})),
-        confidence:S.confidence,teach:S.teach,maths:S.maths,english:S.english,ppeDone:S.ppeDone};
+        confidence:S.confidence,teach:S.teach,maths:S.maths,english:S.english,ppeDone:S.ppeDone,
+        /* Each target and how far along it is, so the next review marks it met, partly met or not met. */
+        targets:(window.eviaTargets?window.eviaTargets.mine():[]).map(t=>{const p=window.eviaTargets.progress(t,S);return {id:t.id,nisiaId:t.nisiaId||null,title:t.title,due:t.due,done:!!t.done,doneAt:t.doneAt||null,pct:Math.round((p.pct||0)*100),text:p.text||"",reviewId:t.reviewId||null}})};
     }catch(err){console.warn("Evia: snapshot",err&&err.message);return null}
   }
   async function sendSnapshot(c,e){
@@ -151,7 +153,7 @@
      back, restarts Evia with it, then brings the photos and files down on WiFi. Sign-in, the sync bookkeeping and
      things that belong to one device stay where they are. */
   const STORE_SENT_KEY="evia7-nisia-store-sent",RESTORED_KEY="evia7-nisia-restored",FETCH_KEY="evia7-nisia-fetch";
-  const NOT_BACKED_UP=/^evia7-(nisia-(auth|status|media|store-sent|restored|fetch|snap|observations)|data-synced|enrolment|learner-id|install-later|errors|offline-|evidence-db|supporting-files|last-backup|downloaded-unit-pdfs)/;
+  const NOT_BACKED_UP=/^evia7-(nisia-(auth|status|media|store-sent|restored|fetch|snap|observations|review-targets)|data-synced|enrolment|learner-id|install-later|errors|offline-|evidence-db|supporting-files|last-backup|downloaded-unit-pdfs)/;
   /* Most of Evia's data is in IndexedDB behind localStorage (storage.js), so its keys come from there. */
   const backupKeys=()=>{const all=new Set(window.eviaStorage&&window.eviaStorage.keys?window.eviaStorage.keys():[]);
     for(let i=0;i<localStorage.length;i++)all.add(localStorage.key(i));return [...all].filter(k=>k&&k.startsWith("evia7-")&&!NOT_BACKED_UP.test(k))};
@@ -234,6 +236,22 @@
       got[x.id]=new Date().toISOString();writeJson(OBS_KEY,got);
     }
   }
+  /* Targets the assessor set at a review in Milos: they replace Evia's current targets for the course, and Evia
+     measures them the same way (hours, units, KSBs, tests, confidence, write-ups, lessons). Applied once per review. */
+  const REVIEW_TARGETS_KEY="evia7-nisia-review-targets";
+  async function fetchTargets(c,e){
+    const {data,error}=await c.from("targets").select("id,review_id,title,description,due_date,measure,created_at").eq("enrolment_id",e.enrolmentId).not("measure","is",null).order("created_at",{ascending:false}).limit(20);
+    if(error)throw error;
+    const latest=(data||[])[0];if(!latest||!latest.review_id)return;
+    if(readJson(REVIEW_TARGETS_KEY,null)===latest.review_id)return;
+    const set=data.filter(t=>t.review_id===latest.review_id).reverse(),when=Date.parse(latest.created_at)||Date.now();
+    const list=set.map(t=>{const m=t.measure||{};return {id:"nt-"+t.id,nisiaId:t.id,course:typeof course==="string"?course:"",kind:m.kind,title:t.title,why:t.description||"",
+      target:Number(m.target)||1,baseline:Number(m.baseline)||0,param:m.param??null,due:t.due_date||new Date(when+42*864e5).toISOString().slice(0,10),createdAt:when,done:false,reviewId:t.review_id,reviewDate:new Date(when).toISOString().slice(0,10)}});
+    if(!list.length)return;
+    window.eviaData.replace("targets",{course:list[0].course},list);
+    writeJson(REVIEW_TARGETS_KEY,latest.review_id);
+    try{window.eviaTargets&&window.eviaTargets.check(false)}catch(_){}
+  }
   /* The college's current details for this learner (name, dates, assessor, safeguarding lead, next review), so a
      change made in Nisia reaches Evia on the next sync. */
   async function refreshDetails(c,e){
@@ -262,6 +280,7 @@
       const c=e.live?await sb():null;
       if(c){const {data}=await c.auth.getSession();if(!data.session)return note({error:"signed-out"})}
       if(c)try{await refreshDetails(c,e)}catch(err){console.warn("Evia: Nisia details",err&&err.message)}
+      if(c)try{await fetchTargets(c,e)}catch(err){console.warn("Evia: Nisia targets",err&&err.message)}
       /* Records: small, on any connection, in batches. (The demo keeps them on the phone.) */
       for(let i=0;i<changes.length;i+=50){const batch=changes.slice(i,i+50);if(c)await sendRecords(c,e,batch);D.markSynced(batch)}
       if(c)await sendSnapshot(c,e);
