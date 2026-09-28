@@ -131,7 +131,7 @@
   const coach=name=>inChat(()=>{const C=window.eviaCoachFlows||{};if(C[name])C[name]()});
   const kit=name=>inChat(()=>{const k=window.eviaChatKit;if(k&&k[name])k[name]()});
   const ACTS={
-    review:[["Start my review",inChat(()=>window.eviaChatReview&&window.eviaChatReview()),1],["Past reviews",()=>window.openSavedReviews&&window.openSavedReviews()]],
+    review:[["Get ready for my review",coach("prepare"),1],["Start my review",inChat(()=>window.eviaChatReview&&window.eviaChatReview())],["Past reviews",()=>window.openSavedReviews&&window.openSavedReviews()]],
     where:[["Go to My course",()=>nav("course")]],
     ksb:[["Add evidence",()=>{let q=null;try{q=window.eviaChatKit.analyse().quickest}catch(_){}if(q&&window.openUnit)window.openUnit(q.index);else nav("course")},1]],
     otj:[["Log hours",coach("hours"),1],["Learning logs",()=>window.eviaOpenLearningLogs&&window.eviaOpenLearningLogs()]],

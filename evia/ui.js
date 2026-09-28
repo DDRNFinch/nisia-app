@@ -102,6 +102,7 @@
     else if(kind==="course")go(()=>nav("course"));
     else if(kind==="learning"){const run=()=>window.eviaCoachFlows&&window.eviaCoachFlows.hours?window.eviaCoachFlows.hours():nav("hours");if(inChat)queue=queue.then(run);else{window.chat({quiet:true});setTimeout(run,50)}}
     else if(kind==="backup")go(async()=>{try{await window.eviaStorage.backup();if(typeof showEvidenceToast==="function")showEvidenceToast("Backup saved to your downloads. Keep a copy somewhere safe, like your email")}catch(e){console.error(e);if(typeof showEvidenceToast==="function")showEvidenceToast("Couldn’t make the backup. Try again from Profile",true)}});
+    else if(kind==="prep"){const run=()=>{userSays("Get ready for my review");window.eviaCoachFlows.prepare()};if(inChat)queue=queue.then(run);else{window.chat({quiet:true});setTimeout(run,50)}}
     else if(kind==="targets"||kind==="review"){
       const run=kind==="targets"?targetsFromMenu:reviewFromMenu;
       if(inChat)queue=queue.then(run);else{window.chat({quiet:true});setTimeout(run,50)}
@@ -641,7 +642,7 @@
      confidence, college tasks and scenarios are opened from their section of My progress. */
   const ACTIONS=[
     ["evidence","Evidence check",'<path d="m5 12.5 4.5 4.5L19 7.5"/>'],
-    ["quick","Quick review",'<path d="M4 20h16"/><rect x="5.5" y="12" width="3" height="6" rx="1"/><rect x="10.5" y="8" width="3" height="10" rx="1"/><rect x="15.5" y="4" width="3" height="14" rx="1"/>'],
+    ["prep","Get ready for review",'<path d="M9 4.5h6a1 1 0 0 1 1 1V7H8V5.5a1 1 0 0 1 1-1Z"/><path d="M8 5.5H6.5A1.5 1.5 0 0 0 5 7v12.5A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V7a1.5 1.5 0 0 0-1.5-1.5H16"/><path d="m8.5 13.5 2.3 2.3 4.7-4.8"/>'],
     ["targets","Show targets",'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>'],
     ["epa",(window.eviaNvq&&window.eviaNvq.on())?"Knowledge tests":"EPA mocks",'<path d="M7 3.5h10a1.5 1.5 0 0 1 1.5 1.5v15l-3-1.8-3 1.8-3-1.8-3 1.8V5A1.5 1.5 0 0 1 7 3.5Z"/><path d="M9 8.5h6M9 12h6"/>']
   ];
@@ -649,7 +650,7 @@
     const C=window.eviaCoachFlows||{};
     return {
       evidence:()=>{userSays("Evidence check");C.evidenceCheck?C.evidenceCheck():writeups()},
-      quick:()=>{userSays("Quick review");if(C.quickReview)C.quickReview()},
+      prep:()=>{userSays("Get ready for my review");if(C.prepare)C.prepare()},
       targets:()=>{userSays("Show targets");C.targets?C.targets():targetsFromMenu()},
       epa:()=>{userSays(ACTIONS[3][1]);if(C.epa)C.epa()}
     }[id];
@@ -662,12 +663,29 @@
       const box=document.createElement("div");box.className="chat-options ui-actions";
       ACTIONS.forEach(([id,label,path],i)=>{
         const b=document.createElement("button");b.type="button";b.className="chat-pill ui-action";b.style.setProperty("--i",i);b.dataset.action=id;
-        b.innerHTML='<span class="ui-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true">'+path+'</svg></span><strong>'+escHtml(label)+'</strong>';
+        const n=id==="prep"?prepBadge():0;
+        b.innerHTML='<span class="ui-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true">'+path+'</svg></span><strong>'+escHtml(label)+(n?'<em class="ui-action-count" aria-label="'+n+' to do">'+n+'</em>':"")+'</strong>';
         b.onclick=()=>{userTurns++;box.remove();actionRun(id)()};box.appendChild(b);
       });
       c.appendChild(box);scrollChat();
     });
   }
+  /* ---------- Review coming up: a count on Evia's button and on "Get ready for review" ----------
+     From 21 days before the review (or once it's overdue), the number of things to get ready. */
+  function prepBadge(){
+    try{const rd=window.eviaReviewDue&&window.eviaReviewDue();if(!rd||rd.days>21)return 0;return window.eviaReviewPrepCount?window.eviaReviewPrepCount():0}catch(_){return 0}
+  }
+  function drawFabBadge(){
+    const fab=document.getElementById("evia-fab");if(!fab)return;
+    let b=fab.querySelector(".fab-badge");const n=document.body.classList.contains("evia-onboarding")?0:prepBadge();
+    if(!n){if(b)b.remove();fab.removeAttribute("data-review");return}
+    if(!b){b=document.createElement("span");b.className="fab-badge";b.setAttribute("aria-hidden","true");fab.appendChild(b)}
+    b.textContent=n;fab.dataset.review="1";fab.setAttribute("aria-label","Open Evia: "+n+" thing"+(n===1?"":"s")+" to get ready for your review");
+  }
+  window.eviaDrawFabBadge=drawFabBadge;
+  setTimeout(drawFabBadge,1600);
+  let badgeT=null;if(window.eviaData&&window.eviaData.on)window.eviaData.on("change",()=>{clearTimeout(badgeT);badgeT=setTimeout(drawFabBadge,400)});
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden)drawFabBadge()});
   function enhanceChat(opts){
     const c=chatBox();if(!c)return;
     queue=Promise.resolve();chatGen++;

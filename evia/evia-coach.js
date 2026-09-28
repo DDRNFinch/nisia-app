@@ -94,9 +94,12 @@
     const k=K(),now=Date.now(),earlier=on!=null&&on<dayStart(now);
     window.eviaData.put("hours",{minutes:Math.round(hrs*60),description:text,did:did||"",learned:learned||"",source:"evia",createdAt:now,...(earlier?{occurredAt:on+12*36e5}:{})});
     if(window.eviaCheckTargets)window.eviaCheckTargets();
-    const week=hours.filter(x=>Number(x.on||x.createdAt)>=weekStart()).reduce((n,x)=>n+Number(x.n||0),0);
+    /* The week it happened in: backdated to an earlier week, that week's total, said as such. */
+    const when=earlier?on+12*36e5:now,wk=(()=>{const d=new Date(when);d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));return d.getTime()})(),thisWeek=wk===weekStart();
+    const week=hours.filter(x=>{const t=Number(x.on||x.createdAt);return t>=wk&&t<wk+7*864e5}).reduce((n,x)=>n+Number(x.n||0),0);
+    const dayName=new Date(when).toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"short"});
     if(window.eviaMood)window.eviaMood("happy");
-    k.say((learned?k.pick(["Great learning.","That’s a good one to have learned.","Nice, that’s worth knowing."])+" ":"")+"Logged <strong>"+esc(hm(hrs))+"</strong>. "+(week>=6?"That’s <strong>"+esc(hm(week))+"</strong> this week, which is brilliant.":"That’s <strong>"+esc(hm(week))+"</strong> this week so far."));
+    k.say((learned?k.pick(["Great learning.","That’s a good one to have learned.","Nice, that’s worth knowing."])+" ":"")+"Logged <strong>"+esc(hm(hrs))+"</strong>"+(earlier?" for "+esc(dayName):"")+". "+(thisWeek?(week>=6?"That’s <strong>"+esc(hm(week))+"</strong> this week, which is brilliant.":"That’s <strong>"+esc(hm(week))+"</strong> this week so far."):"That makes <strong>"+esc(hm(week))+"</strong> for the week of "+esc(new Date(wk).toLocaleDateString("en-GB",{day:"numeric",month:"short"}))+"."));
     k.replies([{label:"Log more",run:logHours},{label:"See my learning logs",run:()=>{k.closeChat();setTimeout(()=>window.eviaOpenLearningLogs&&window.eviaOpenLearningLogs(),120)}},{label:"Something else",run:k.somethingElse}]);
   }
 
@@ -324,6 +327,61 @@
     k.replies(work.slice(0,4).map((x,i)=>({label:"Open "+x.title,primary:!i,run:()=>x.id==="teach"?(k.closeChat(),setTimeout(()=>nav("teach"),60)):openProgress(x.id==="tests"&&!window.eviaData.list("tests").some(t=>t&&t.course===course)?"tests":x.id)})).concat([{label:"Something else",run:k.somethingElse}]));
   }
 
+  /* ---------- Get ready for my review: what's low, one thing at a time, then their comments ----------
+     Each area Evia checks (areas()) that needs work becomes a task with one way to do it. A task is done when the
+     area looks good again, so coming back shows only what's left. The last task is the check-in and comments the
+     assessor reads first (reviews.js). Skipped tasks come back last. */
+  const PREP_KEY="evia7-review-prep";
+  const ORDER=["where","quality","otj","targets","tests","conf","teach"];
+  const DOIT={
+    where:{label:"Add evidence",why:"Your assessor looks at how much of your course has evidence. Adding a pack now makes the biggest difference.",
+      run:()=>{const a=K().analyse();a.quickest?K().openUnitFromChat(a.quickest):(K().closeChat(),setTimeout(()=>nav("course"),60))}},
+    quality:{label:"Check my write-ups",why:"Strong write-ups cover the things to mention on each unit. I’ll show you what’s missing.",run:()=>evidenceCheck()},
+    otj:{label:"Log hours",why:"Your off-the-job hours are checked at every review. Log anything you haven’t yet: training, toolbox talks, research.",run:()=>logHours()},
+    targets:{label:"Look at my targets",why:"Your assessor goes through your targets first. Let’s see which ones you can still tick off.",run:()=>targets()},
+    tests:{label:"Take a practice test",why:"A test score shows your assessor what you know.",run:()=>epa()},
+    conf:{label:"Rate my skills",why:"Your assessor uses this to plan what you practise next.",run:()=>confidence()},
+    teach:{label:"Open Teach me",why:"A lesson this week shows you’re keeping your knowledge up.",run:()=>{K().closeChat();setTimeout(()=>nav("teach"),80)}}
+  };
+  const prepState=()=>{try{return JSON.parse(localStorage.getItem(PREP_KEY)||"null")||{}}catch(_){return{}}};
+  const prepSave=st=>{try{localStorage.setItem(PREP_KEY,JSON.stringify(st))}catch(_){}};
+  /* The tasks now, in order (skipped ones last), and whether the comments are in. */
+  function prepTasks(){
+    const rd=window.eviaReviewDue&&window.eviaReviewDue(),key=rd?rd.due.toISOString().slice(0,10):"",st=prepState();
+    const skipped=st.key===key?(st.skipped||[]):[];
+    const list=areas().filter(x=>!x.ok&&DOIT[x.id]).sort((a,b)=>ORDER.indexOf(a.id)-ORDER.indexOf(b.id));
+    const todo=list.filter(x=>!skipped.includes(x.id)).concat(list.filter(x=>skipped.includes(x.id)));
+    const commentsDone=rd?(rd.college?!!rd.commentsDone:(window.eviaGetReviews?window.eviaGetReviews():[]).some(r=>Date.now()-Date.parse(r.date)<21*864e5)):false;
+    return {rd,key,todo,commentsDone,all:areas()};
+  }
+  window.eviaReviewPrepCount=()=>{try{const p=prepTasks();return p.todo.length+(p.commentsDone?0:1)}catch(_){return 0}};
+  function prepare(){
+    const k=K(),p=prepTasks(),rd=p.rd;
+    const when=rd?(rd.days<0?"Your review was due on <strong>"+rd.due.toLocaleDateString("en-GB",{day:"numeric",month:"long"})+"</strong>.":rd.days===0?"Your review is <strong>today</strong>.":"Your review is on <strong>"+rd.due.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})+"</strong>, in "+k.plural(rd.days,"day")+"."):"";
+    const left=p.todo.length+(p.commentsDone?0:1);
+    if(window.eviaMood)window.eviaMood(left?"think":"happy");
+    k.say((when?when+" ":"")+(left?"Let’s get you ready. "+(p.todo.length?"There "+(p.todo.length===1?"is <strong>1 thing</strong>":"are <strong>"+p.todo.length+" things</strong>")+" to look at"+(p.commentsDone?"":", then your comments for your assessor")+". One at a time.":"Just your comments for your assessor to do."):"You’re all ready. Everything looks good and your comments are in. Brilliant."));
+    k.widget('<div class="qr prep">'+p.all.filter(x=>x.id!=="review").map(x=>'<div class="qr-row '+(x.ok?"ok":"no")+'"><span class="qr-ic" aria-hidden="true">'+(x.ok?"✓":"!")+'</span><span><strong>'+esc(x.title)+'</strong><small>'+esc(x.text)+'</small></span></div>').join("")+
+      '<div class="qr-row '+(p.commentsDone?"ok":"no")+'"><span class="qr-ic" aria-hidden="true">'+(p.commentsDone?"✓":"!")+'</span><span><strong>Your comments</strong><small>'+(p.commentsDone?"Done: your assessor can read them":"How it’s going, how things are at work, any help you need")+'</small></span></div></div>');
+    if(!left)return k.replies([{label:"Something else",run:k.somethingElse}]);
+    passed=new Set();nextPrep();
+  }
+  let passed=new Set();   /* skipped in this go, so "Skip for now" moves on */
+  function nextPrep(){
+    const k=K(),p=prepTasks(),t=p.todo.find(x=>!passed.has(x.id));
+    if(!t){
+      if(p.commentsDone){k.say("That’s everything. You’re ready for your review.");return k.replies([{label:"Something else",run:k.somethingElse}])}
+      k.say("Last one: your comments. Your assessor reads them before the review, and they fill in part of it, so it’s quicker on the day.");
+      return k.replies([{label:"Add my comments",primary:true,run:()=>{window.eviaChatReview?window.eviaChatReview():(k.closeChat(),setTimeout(window.eviaStartReview,80))}},{label:"Later",run:k.somethingElse}]);
+    }
+    const d=DOIT[t.id];
+    k.say("<strong>"+esc(t.title)+"</strong>: "+esc(t.text)+". "+esc(d.why));
+    k.replies([{label:d.label,primary:true,run:()=>d.run()},
+      {label:"Skip for now",run:()=>{const st=prepState();const s2={key:p.key,skipped:[...new Set([...(st.key===p.key?st.skipped||[]:[]),t.id])]};prepSave(s2);
+        passed.add(t.id);nextPrep()}},
+      {label:"Something else",run:k.somethingElse}]);
+  }
+
   /* ---------- Show targets: what's done, what's left, and the most urgent one to do now ---------- */
   function targetDo(t){
     const k=K(),C=window.eviaCoachFlows,a=k.analyse();
@@ -435,5 +493,5 @@
   /* EPA mode ends when the chat closes. */
   const mr=document.getElementById("modal-root");
   if(mr)new MutationObserver(()=>{if(!mr.querySelector(".chat-sheet"))epaMode(false)}).observe(mr,{childList:true});
-  window.eviaCoachFlows={hours:logHours,confidence,upskill,evidence,input,evidenceCheck,quickReview,targets,epa,epaMode};
+  window.eviaCoachFlows={hours:logHours,confidence,upskill,evidence,input,evidenceCheck,quickReview,prepare,targets,epa,epaMode};
 })();
