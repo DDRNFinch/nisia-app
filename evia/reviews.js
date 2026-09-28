@@ -397,7 +397,16 @@
   window.eviaResumeReview=resumeReview;
   /* Reviews are due every 3 calendar months: 3 months after the last one, or after the course start. */
   window.eviaReviewDue=()=>{
-    const last=reviewsNow().pop(),p=window.eviaData.learner();
+    const all=reviewsNow(),last=all[all.length-1],p=window.eviaData.learner();
+    /* Connected to a college: the review is the one the assessor holds in Milos, when Nisia says it's due. From 7 days
+       before, the learner's comments are wanted: done once they've finished a review here with something written. */
+    const en=window.eviaData.enrolment&&window.eviaData.enrolment(),nd=en&&en.reviewDue?new Date(en.reviewDue+"T12:00:00"):null;
+    if(nd&&!isNaN(nd)){
+      const from=Math.max(nd-7*864e5,en.lastReview?Date.parse(en.lastReview):0);
+      const said=r=>r&&r.reflection&&Object.values(r.reflection).some(v=>String(v||"").trim());
+      const commentsDone=all.some(r=>Date.parse(r.date)>=from&&said(r));
+      return {due:nd,days:Math.ceil((nd-Date.now())/864e5),first:!en.lastReview,college:true,commentsDone};
+    }
     const from=last?new Date(last.date):p.start?new Date(p.start+"T12:00:00"):null;if(!from||isNaN(from))return null;
     const due=new Date(from);due.setMonth(due.getMonth()+3);
     const days=Math.ceil((due-Date.now())/864e5);return {due,days,first:!last};

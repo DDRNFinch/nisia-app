@@ -122,7 +122,11 @@
     if(overdue.length)list.push({id:"target-overdue",text:"Your target “"+overdue[0].title+"” is past its date. Want to take a look?",action:{label:"My targets",kind:"targets"}});
     const reviews=window.eviaData.list("reviews",{course}).map(r=>r.detail),lastReview=reviews.length?Date.parse(reviews[reviews.length-1].date):null;
     const rd=window.eviaReviewDue?window.eviaReviewDue():null,dueTxt=rd?rd.due.toLocaleDateString("en-GB",{day:"numeric",month:"short"}):"";
-    if(rd&&rd.days<=14&&(s.packs>=1||!rd.first))list.push({id:"review",text:rd.days<0?"Your progress review was due on "+dueTxt+". It takes about 3 minutes and sets your next targets.":rd.days===0?"Your progress review is due today. It takes about 3 minutes and sets your next targets.":"Your next progress review is due on "+dueTxt+". It takes about 3 minutes and sets your next targets.",action:{label:"Start a review",kind:"review"}});
+    if(rd&&rd.college){
+      /* Every day from 7 days before the review until their comments are in: first thing Evia says. */
+      if(!rd.commentsDone&&rd.days<=7)list.splice(ach.fresh.length?1:0,0,{id:"review-comments",text:(rd.days<0?"Your progress review was due on "+dueTxt+".":rd.days===0?"Your progress review is today.":"Your progress review is on "+dueTxt+", in "+rd.days+" day"+(rd.days===1?"":"s")+".")+" Add your comments now so your assessor can read them first: how it’s going, any help you need, and your plans.",action:{label:"Add my comments",kind:"review"}});
+    }
+    else if(rd&&rd.days<=14&&(s.packs>=1||!rd.first))list.push({id:"review",text:rd.days<0?"Your progress review was due on "+dueTxt+". It takes about 3 minutes and sets your next targets.":rd.days===0?"Your progress review is due today. It takes about 3 minutes and sets your next targets.":"Your next progress review is due on "+dueTxt+". It takes about 3 minutes and sets your next targets.",action:{label:"Start a review",kind:"review"}});
     else if(!rd&&s.packs>=2&&(lastReview==null||daysAgo(lastReview)>70))list.push({id:"review",text:lastReview?"It’s been over 10 weeks since your last progress review. It takes about 3 minutes and sets your next targets.":"Ready for your first progress review? It takes about 3 minutes and sets your targets.",action:{label:"Start a review",kind:"review"}});
     if(s.otjWeek===0&&(day===0||day>=4))list.push({id:"otj-week",text:"No learning hours logged this week yet. Training, toolbox talks and research all count.",action:{label:"Log learning hours",kind:"learning"}});
     const timePct=s.a.timePct;

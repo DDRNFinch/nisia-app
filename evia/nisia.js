@@ -43,7 +43,7 @@
     if(!r.ok||d.error)throw new Error(d.error||"That code didn’t work. Ask your assessor for a new one.");
     return {code:k,live:true,token_hash:d.token_hash,learnerId:d.learnerId,organisationId:d.organisationId,enrolmentId:d.enrolmentId,courseId:d.courseId,memberId:d.memberId,
       name:d.name,course:d.course,start:d.start,end:d.end,college:d.college,employer:d.employer,employerContact:d.employerContact,assessor:d.assessor,tutor:d.tutor,
-      plannedOtjHours:d.plannedOtjHours,nvqOptional:d.nvqOptional&&d.nvqOptional.length?d.nvqOptional:undefined};
+      plannedOtjHours:d.plannedOtjHours,safeguarding:d.safeguarding||undefined,reviewDue:d.reviewDue||null,nvqOptional:d.nvqOptional&&d.nvqOptional.length?d.nvqOptional:undefined};
   }
   /* The learner confirmed it's them: sign in with the one-time token, then the enrolment and their details come
      from Nisia from now on. */
@@ -117,7 +117,8 @@
       const S=window.eviaStats.compute(),a=S.a;
       return {at:new Date().toISOString(),course:typeof course==="string"?course:"",
         ksb:{met:a.met,total:a.total,pct:a.ksbPct,timePct:a.timePct,evidenced:[...(a.evidenced||[])]},
-        units:(a.units||[]).map(u=>({name:u.name,total:(u.codes||[]).length,missing:(u.missing||[]).slice(),started:!!u.started,packs:(u.entries||[]).length})),
+        units:(a.units||[]).map(u=>({name:u.name,total:(u.codes||[]).length,missing:(u.missing||[]).slice(),started:!!u.started,packs:(u.entries||[]).length,
+          strength:typeof unitStrengthForCourse==="function"?unitStrengthForCourse(u.name):window.eviaStrength?window.eviaStrength.unit(u.name):null})),
         packs:S.packs,daysSince:S.daysSince,lastUpload:S.lastUpload?new Date(S.lastUpload).toISOString():null,
         otj:{total:S.otjTotal,month:S.otjMonth,week:S.otjWeek},streak:S.streak,writeupCoverage:S.coverage,
         tests:(S.tests||[]).map(t=>({type:t.type,name:t.name,count:t.count,best:t.best,latest:t.latest?{pct:t.latest.pct,takenAt:t.latest.takenAt}:null})),
@@ -206,6 +207,24 @@
     }
     try{localStorage.removeItem(FETCH_KEY)}catch(_){}
   }
+  /* The college's current details for this learner (name, dates, assessor, safeguarding lead, next review), so a
+     change made in Nisia reaches Evia on the next sync. */
+  async function refreshDetails(c,e){
+    const {data:d,error}=await c.rpc("nisia_my_details");
+    if(error||!d)return;
+    const keep=v=>v===null||v===undefined?undefined:v;
+    const next=Object.assign({},e,{name:keep(d.name)??e.name,college:keep(d.college)??e.college,start:keep(d.start)??e.start,end:keep(d.end)??e.end,
+      employer:keep(d.employer)??e.employer,employerContact:keep(d.employerContact)??e.employerContact,assessor:keep(d.assessor)??e.assessor,tutor:keep(d.tutor)??e.tutor,
+      plannedOtjHours:keep(d.plannedOtjHours)??e.plannedOtjHours,reviewDue:d.reviewDue||null,lastReview:d.lastReview||null,safeguarding:d.safeguarding||e.safeguarding});
+    const pick=o=>JSON.stringify([o.name,o.college,o.start,o.end,o.employer,o.employerContact,o.assessor,o.tutor,o.plannedOtjHours,o.reviewDue,o.lastReview,o.safeguarding]);
+    if(pick(next)!==pick(e))window.eviaData.enrol(next);
+    const L=window.eviaData.learner()||{},upd={};
+    if(d.name&&d.name!==L.name)upd.name=d.name;
+    if(d.start&&d.start!==L.start)upd.start=d.start;
+    if(d.end&&d.end!==L.end)upd.end=d.end;
+    if(d.safeguarding&&JSON.stringify(d.safeguarding)!==JSON.stringify(L.safeguarding||null))upd.safeguarding=d.safeguarding;
+    if(Object.keys(upd).length){window.eviaData.put("learner",upd);if(typeof render==="function")try{render()}catch(_){}}
+  }
   let running=null;
   function sync(){
     if(running)return running;
@@ -215,6 +234,7 @@
       const D=window.eviaData,e=joined(),changes=D.changesSince();
       const c=e.live?await sb():null;
       if(c){const {data}=await c.auth.getSession();if(!data.session)return note({error:"signed-out"})}
+      if(c)try{await refreshDetails(c,e)}catch(err){console.warn("Evia: Nisia details",err&&err.message)}
       /* Records: small, on any connection, in batches. (The demo keeps them on the phone.) */
       for(let i=0;i<changes.length;i+=50){const batch=changes.slice(i,i+50);if(c)await sendRecords(c,e,batch);D.markSynced(batch)}
       if(c)await sendSnapshot(c,e);
