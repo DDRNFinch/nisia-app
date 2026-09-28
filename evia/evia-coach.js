@@ -305,7 +305,19 @@
     const gap=a.timePct==null?0:a.timePct-a.ksbPct;
     add("where","Evidence",gap<=10,a.ksbPct+"% of "+(window.eviaTerm?window.eviaTerm().many:"KSBs")+" have evidence"+(gap>10?", a little behind for this point in your course":a.timePct!=null?", on track":""));
     add("quality","Evidence quality",S.coverage!=null&&S.coverage>=70,S.coverage==null?"No write-ups checked yet":"Write-ups cover "+S.coverage+"% of the things to mention");
-    add("otj","Learning hours",S.otjWeek>=6,S.otjWeek?hm(S.otjWeek)+" this week (aim for 6 h)":"Nothing logged this week");
+    /* Learning hours over the review period (since the last review, at most 12 weeks, at least 1), by the day each
+       entry happened, so backdated hours count. The aim is the planned hours spread over the programme when the
+       college has set them, otherwise 6 hours a week. */
+    {
+      const DAY=864e5,now=Date.now(),en=window.eviaData.enrolment&&window.eviaData.enrolment(),p=window.eviaData.learner()||{};
+      const lastRev=[en&&en.lastReview?Date.parse(en.lastReview):0,...(window.eviaGetReviews?window.eviaGetReviews():[]).map(r=>Date.parse(r.date)||0)].reduce((a,b)=>Math.max(a,b),0);
+      const startP=Date.parse((en&&en.start)||p.start||"")||0,endP=Date.parse((en&&en.end)||p.end||"")||0;
+      const from=Math.max(lastRev||startP||now-28*DAY,now-84*DAY,startP||0),weeks=Math.max(1,(now-from)/(7*DAY));
+      const inPeriod=hours.filter(x=>Number(x.on||x.createdAt)>=from).reduce((n,x)=>n+Number(x.n||0),0),avg=inPeriod/weeks;
+      const planned=Number(en&&en.plannedOtjHours),aim=planned>0&&endP>startP?Math.round(planned/((endP-startP)/(7*DAY))*10)/10:6;
+      const since=new Date(from).toLocaleDateString("en-GB",{day:"numeric",month:"short"});
+      add("otj","Learning hours",avg>=aim*0.9,inPeriod?hm(Math.round(inPeriod*100)/100)+" since "+since+", about "+hm(Math.round(avg*10)/10)+" a week (aim for "+hm(aim)+")":"Nothing logged since "+since+" (aim for "+hm(aim)+" a week)");
+    }
     const sc=S.confidence.scores,low=sc.filter(x=>x.score<=2);
     add("conf","Confidence",sc.length>=3&&!low.length,sc.length<3?"Skills not rated yet":low.length?"Low in "+K().listText(low.slice(0,2).map(x=>x.area)):"Confident across your skills");
     const T=window.eviaTeach,st=T&&T.stats?T.stats():{days:{}},sum=T&&T.summary?T.summary():{done:0,total:0};
@@ -337,7 +349,7 @@
     where:{label:"Add evidence",why:"Your assessor looks at how much of your course has evidence. Adding a pack now makes the biggest difference.",
       run:()=>{const a=K().analyse();a.quickest?K().openUnitFromChat(a.quickest):(K().closeChat(),setTimeout(()=>nav("course"),60))}},
     quality:{label:"Check my write-ups",why:"Strong write-ups cover the things to mention on each unit. I’ll show you what’s missing.",run:()=>evidenceCheck()},
-    otj:{label:"Log hours",why:"Your off-the-job hours are checked at every review. Log anything you haven’t yet: training, toolbox talks, research.",run:()=>logHours()},
+    otj:{label:"Log hours",why:"Your off-the-job hours are checked at every review. Log anything you haven’t yet, on the day it happened: training, toolbox talks, research.",run:()=>logHours()},
     targets:{label:"Look at my targets",why:"Your assessor goes through your targets first. Let’s see which ones you can still tick off.",run:()=>targets()},
     tests:{label:"Take a practice test",why:"A test score shows your assessor what you know.",run:()=>epa()},
     conf:{label:"Rate my skills",why:"Your assessor uses this to plan what you practise next.",run:()=>confidence()},
