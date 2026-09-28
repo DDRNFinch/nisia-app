@@ -16,9 +16,12 @@
   const bestTestSince=(types,since,full)=>window.eviaData.list("tests").filter(t=>t&&t.course===course&&types.includes(t.type)&&Date.parse(t.takenAt)>=since&&(!full||t.full||t.total>=20)).reduce((n,t)=>Math.max(n,typeof t.pct==="number"?t.pct:Math.round((t.score||0)/(t.total||1)*100)),-1);
   const startedUnits=S=>S.a.units.filter(u=>u.started).length;
 
+  const loggedSince=when=>{const d=new Date(Number(when)||Date.parse(when));d.setHours(0,0,0,0);const from=d.getTime();
+    return Math.round(window.eviaData.list("hours").filter(h=>Date.parse(h.createdAt)>=from).reduce((n,h)=>n+(Number(h.minutes)||0),0)/60*10)/10};
   /* ---------- What each kind of target measures ---------- */
   const KINDS={
-    otj:{measure:(t,S)=>S.otjTotal-t.baseline,unit:"hours",action:["Log hours","learning"]},
+    /* Hours logged from the day the target was set (so hours logged earlier that day, before a review, count too). */
+    otj:{measure:(t,S)=>t.createdAt?loggedSince(t.createdAt):S.otjTotal-t.baseline,unit:"hours",action:["Log hours","learning"]},
     units:{measure:(t,S)=>startedUnits(S)-t.baseline,unit:"units",action:["Capture evidence","course"]},
     ksb:{measure:(t,S)=>S.a.met-t.baseline,unit:"KSBs",action:["Capture evidence","course"]},
     epa:{measure:t=>bestTestSince(["epa"],t.createdAt,true),pct:true,action:["Take a full mock","epa-full"]},
@@ -41,7 +44,7 @@
     if(t.kind==="skill")pct=t.target>t.baseline?(v-t.baseline)/(t.target-t.baseline):v>=t.target?1:0;
     else pct=t.target?Math.max(0,v)/t.target:0;
     pct=clamp(pct);
-    const text=k.pct?(v<0?"Not tried since this target was set · aim "+t.target+"%":"Best since set: "+v+"% · aim "+t.target+"%"):t.kind==="skill"?["","Need training","Basics","Confident","Mastered"][v]+" · aim Confident":t.kind==="scenarios"?Math.max(0,v)+" of "+t.target+" done":t.kind==="quiz"||t.kind==="rate"?(pct>=1?"Done":"Not done yet"):(Math.round(Math.max(0,v)*10)/10)+" of "+t.target+" "+(k.unit||"");
+    const text=k.pct?(v<0?"Not tried since this target was set · aim "+t.target+"%":"Best since set: "+v+"% · aim "+t.target+"%"):t.kind==="skill"?["","Need training","Basics","Confident","Mastered"][v]+" · aim Confident":t.kind==="scenarios"?Math.max(0,v)+" of "+t.target+" done":t.kind==="quiz"||t.kind==="rate"?(pct>=1?"Done":"Not done yet"):(Math.round(Math.max(0,v)*10)/10)+" of "+t.target+" "+(k.unit||"")+(t.kind==="otj"&&t.createdAt?" logged since "+new Date(Number(t.createdAt)||Date.parse(t.createdAt)).toLocaleDateString("en-GB",{day:"numeric",month:"short"}):"");
     return {pct,value:v,text};
   }
 
@@ -259,13 +262,23 @@
     const pad=(who,label,hint)=>{const v=so[who]||{};return '<div class="rv-sign" data-sign="'+who+'"><div class="rv-sign-top"><strong>'+label+'</strong>'+(v.sig?'<span class="rv-signed">✓ Signed '+escHtml(ukDate(v.date||r.date))+'</span>':'<small>'+hint+'</small>')+'</div>'+
       '<input type="text" class="rv-sign-name" placeholder="Their name" value="'+escHtml(v.name||"")+'" aria-label="'+label+' name">'+
       '<div class="rv-sign-pad"><canvas width="600" height="170" aria-label="'+label+' signature"></canvas><button type="button" class="rv-sign-clear">Clear</button></div></div>'};
-    out.push({title:"Sign off",body:
+    /* Connected to a college, everyone signs the review with the assessor in Milos, so there's nothing to sign here.
+       Otherwise the apprentice signs, and shares the PDF with their employer and college. */
+    if(!collegeSets())out.push({title:"Sign off",body:
       '<div class="rv-sign rv-sign-me"><div class="rv-sign-top"><strong>Apprentice</strong>'+(pf.signature?'<span class="rv-signed">✓ Signed</span>':'<small>Add your signature in Profile</small>')+'</div>'+(pf.signature?'<img src="'+pf.signature+'" alt="Your signature">':"")+'</div>'+
-      pad("employer","Employer","If they’re with you, they can sign here")+
-      pad("provider","Tutor or assessor","If they’re with you, they can sign here")+
-      say("A review should be agreed by you, your employer and your college. If they’re not with you now, share the review PDF and they can sign that instead.")});
+      say("Share the review PDF with your employer and college so they can see it and agree it.")});
+    void pad;
     return out;
   }
+  /* Quick actions from a review section (the slides' buttons, and "Improve this" in the chat). */
+  const QUICK={
+    otj:()=>window.eviaCoachFlows&&window.eviaCoachFlows.hours?(window.chat&&window.chat({quiet:true}),setTimeout(()=>window.eviaCoachFlows.hours(),120)):nav("learning"),
+    quiz:()=>window.eviaStartTest&&window.eviaStartTest("epa",5,(window.eviaNvq&&window.eviaNvq.on())?"Quick quiz":"EPA quick quiz"),
+    maths:()=>window.eviaStartTest&&window.eviaStartTest("maths",5,"Maths"),
+    english:()=>window.eviaStartTest&&window.eviaStartTest("english",5,"English"),
+    skills:()=>window.eviaPractice&&window.eviaPractice.openConfidence(),
+    teach:()=>nav("teach")
+  };
   /* A review left part-way through for a quick action: where it was, and any comments typed so far. */
   const DRAFT="evia7-review-draft";
   function hideResume(){const b=document.getElementById("rv-resume");if(b)b.remove()}
@@ -319,14 +332,6 @@
     };
     root.querySelector("#rv-close").onclick=()=>{keepComments();root.innerHTML="";if(!readOnly)localStorage.removeItem(DRAFT)};
     /* Quick actions: save the place (and any comments), do the thing, then offer the way back. */
-    const QUICK={
-      otj:()=>{nav("hours");setTimeout(()=>{const h=document.getElementById("hrs");if(h)h.focus()},400)},
-      quiz:()=>window.eviaStartTest&&window.eviaStartTest("epa",5,(window.eviaNvq&&window.eviaNvq.on())?"Quick quiz":"EPA quick quiz"),
-      maths:()=>window.eviaStartTest&&window.eviaStartTest("maths",5,"Maths"),
-      english:()=>window.eviaStartTest&&window.eviaStartTest("english",5,"English"),
-      skills:()=>window.eviaPractice&&window.eviaPractice.openConfidence(),
-      teach:()=>nav("teach")
-    };
     body.addEventListener("click",e=>{
       const b=e.target.closest("[data-rv-quick]");if(!b||!QUICK[b.dataset.rvQuick])return;
       keepComments();localStorage.setItem(DRAFT,JSON.stringify({i,reflection:r.reflection||{},at:Date.now()}));
@@ -362,6 +367,7 @@
       const sl=list[i],tmp=document.createElement("div");tmp.innerHTML=sl.body;
       /* Evia's line on the slide becomes her message; quick actions are offered once the review is saved. */
       const line=tmp.querySelector(".rv-evia");let words="";if(line){const sp=line.querySelector(":scope > span:last-child");words=sp?sp.innerHTML:"";line.remove()}
+      const improve=[...tmp.querySelectorAll("[data-rv-quick]")].map(b=>b.dataset.rvQuick).find(q=>QUICK[q])||null;
       tmp.querySelectorAll("[data-rv-quick]").forEach(b=>{if(!QUICK_LATER.some(q=>q[0]===b.dataset.rvQuick))QUICK_LATER.push([b.dataset.rvQuick,b.textContent.trim()])});
       tmp.querySelectorAll(".rv-quick").forEach(x=>x.remove());
       if(words)k.say(words);
@@ -373,13 +379,16 @@
       const keep=()=>{const el=[...document.querySelectorAll("#chat .ui-widget")].reverse().find(w=>w.querySelector(".rvc"));if(!el)return;signKeep(el,r);el.querySelectorAll("[data-reflect]").forEach(t=>{r.reflection[t.dataset.reflect]=t.value.trim();t.disabled=true});el.querySelectorAll("canvas,.rv-sign-name,.rv-sign-clear").forEach(x=>{x.style.pointerEvents="none";x.disabled=true})};
       const last=i===list.length-1;
       k.replies(last?[{label:"Save my review",primary:true,run:()=>{keep();finish()}},{label:"Not now",run:()=>{k.say("No problem. We can do it another time.");k.somethingElse()}}]
-        :[{label:i===0?"Let’s go":"Next",primary:true,run:()=>{keep();step(i+1)}},{label:"Stop for now",run:()=>{k.say("No problem. Your review will be here when you’re ready.");k.somethingElse()}}]);
+        :[{label:i===0?"Let’s go":"Next",primary:true,run:()=>{keep();step(i+1)}},
+          /* Something in this section to improve: go and do it now, and come back to the review after. */
+          improve?{label:"Improve this",run:()=>{keep();localStorage.setItem(DRAFT,JSON.stringify({i,reflection:r.reflection||{},at:Date.now()}));k.closeChat();setTimeout(()=>{QUICK[improve]();setTimeout(showResume,400)},150)}}
+            :{label:"Finish later",run:()=>{keep();localStorage.setItem(DRAFT,JSON.stringify({i,reflection:r.reflection||{},at:Date.now()}));k.say("No problem. Your review will be here when you’re ready.");k.somethingElse()}}]);
     };
     const finish=()=>{
       save(r);localStorage.removeItem(DRAFT);
       if(window.eviaMood)window.eviaMood("happy");
-      k.say("That’s your review saved, and your new targets are set. I’ll keep track of them for you.");
-      k.say("Share the PDF with your tutor and employer so they can see it and sign it.");
+      if(collegeSets()){k.say("Thanks. Your comments are saved, and your assessor will read them before your review. You’ll sign it together then.")}
+      else{k.say("That’s your review saved, and your new targets are set. I’ll keep track of them for you.");k.say("Share the PDF with your employer and college so they can see it and agree it.")}
       const q={otj:["Log my hours",()=>window.eviaCoachFlows.hours()],quiz:["Test me",()=>window.eviaTestMe&&window.eviaTestMe()],skills:["Confidence check",()=>window.eviaCoachFlows.confidence()],scenario:["A real-life scenario",()=>window.eviaCoachFlows.scenario()]};
       k.replies([{label:"Open the PDF",primary:true,run:()=>{k.closeChat();setTimeout(()=>window.eviaOpenReviewPdf&&window.eviaOpenReviewPdf(r),120)}}].concat(QUICK_LATER.filter(x=>q[x[0]]).slice(0,2).map(x=>({label:q[x[0]][0],run:q[x[0]][1]})),[{label:"Something else",run:k.somethingElse}]));
       if(typeof screen!=="undefined"&&(screen==="learning"||screen==="progress"))setTimeout(()=>{if(!document.querySelector(".chat-sheet"))render()},50);
