@@ -48,14 +48,18 @@
   /* The learner confirmed it's them: sign in with the one-time token, then the enrolment and their details come
      from Nisia from now on. */
   async function accept(en){
+    let c=null;
     if(en.live){
-      const c=await sb();
+      c=await sb();
       const {error}=await c.auth.verifyOtp({token_hash:en.token_hash,type:"magiclink"});
       if(error)throw new Error("That code has already been used. Ask your assessor for a new one.");
     }
     try{if(en.learnerId)localStorage.setItem("evia7-learner-id",en.learnerId)}catch(_){}
     const e=Object.assign({},en,{joinedAt:new Date().toISOString()});delete e.token_hash;
     window.eviaData.enrol(e);
+    /* Evia already in use on another device: bring it all here and restart with it. */
+    if(c){let back=false;try{back=await restore(c,e)}catch(err){console.warn("Evia: restore",err&&err.message)}
+      if(back){try{sessionStorage.setItem("evia7-welcome-back","1");if(window.eviaStorage)await window.eviaStorage.flush()}catch(_){}location.reload();return new Promise(()=>{})}}
     window.eviaData.put("learner",{name:en.name,start:en.start,end:en.end,safeguarding:en.safeguarding,...(en.nvqOptional?{nvqOptional:en.nvqOptional}:{})});
     setTimeout(()=>sync().catch(()=>{}),500);
     return e;
@@ -137,6 +141,70 @@
     if(!error){const {error:fe}=await c.from("evidence_files").insert({organisation_id:e.organisationId,evidence_id:evId,uploaded_by_member_id:e.memberId,storage_path:path,mime_type:blob.type||"application/octet-stream",size_bytes:blob.size});if(fe)console.warn("Evia: Nisia file",fe.message)}
     return new Date().toISOString();
   }
+  /* ---------- A new device (a computer, or a replacement phone) ----------
+     Evia keeps the learner's work on the device. So a new device can start where the old one left off, Evia's own
+     saved data goes to Nisia too, key by key, exactly as it's stored ("store" records). Connecting a new device puts it
+     back, restarts Evia with it, then brings the photos and files down on WiFi. Sign-in, the sync bookkeeping and
+     things that belong to one device stay where they are. */
+  const STORE_SENT_KEY="evia7-nisia-store-sent",RESTORED_KEY="evia7-nisia-restored",FETCH_KEY="evia7-nisia-fetch";
+  const NOT_BACKED_UP=/^evia7-(nisia-(auth|status|media|store-sent|restored|fetch|snap)|data-synced|enrolment|learner-id|install-later|errors|offline-|evidence-db|supporting-files|last-backup|downloaded-unit-pdfs)/;
+  /* Most of Evia's data is in IndexedDB behind localStorage (storage.js), so its keys come from there. */
+  const backupKeys=()=>{const all=new Set(window.eviaStorage&&window.eviaStorage.keys?window.eviaStorage.keys():[]);
+    for(let i=0;i<localStorage.length;i++)all.add(localStorage.key(i));return [...all].filter(k=>k&&k.startsWith("evia7-")&&!NOT_BACKED_UP.test(k))};
+  const hash=s=>{let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return (h>>>0).toString(36)+"."+s.length};
+  async function sendStore(c,e){
+    const sent=readJson(STORE_SENT_KEY,{})||{},now={},rows=[],base={organisation_id:e.organisationId,enrolment_id:e.enrolmentId,learner_member_id:e.memberId,collection:"store"};
+    backupKeys().forEach(k=>{const raw=localStorage.getItem(k);if(raw==null||raw.length>4e6)return;now[k]=hash(raw);if(sent[k]!==now[k])rows.push(Object.assign({},base,{record_id:k,data:{raw},deleted_at:null}))});
+    Object.keys(sent).forEach(k=>{if(!(k in now))rows.push(Object.assign({},base,{record_id:k,data:{raw:null},deleted_at:new Date().toISOString()}))});
+    for(let i=0;i<rows.length;i+=20){const {error}=await c.from("evia_records").upsert(rows.slice(i,i+20),{onConflict:"enrolment_id,collection,record_id"});if(error)throw error}
+    writeJson(STORE_SENT_KEY,now);
+  }
+  /* Straight after connecting: if this learner already has Evia somewhere else, their saved data comes back here.
+     Lists of records with ids are merged (nothing made here is lost); everything else is taken from the backup.
+     Returns true when anything came back, and Evia then restarts to load it. */
+  async function restore(c,e){
+    const {data,error}=await c.from("evia_records").select("record_id,data").eq("enrolment_id",e.enrolmentId).eq("collection","store").is("deleted_at",null);
+    if(error||!data||!data.length)return false;
+    const sent={};
+    data.forEach(r=>{
+      const k=r.record_id,raw=r.data&&r.data.raw;if(typeof raw!=="string"||!/^evia7-/.test(k)||NOT_BACKED_UP.test(k))return;
+      let v=raw;const here=localStorage.getItem(k);
+      if(here!=null&&here!==raw)try{
+        const a=JSON.parse(here),b=JSON.parse(raw);
+        if(Array.isArray(a)&&Array.isArray(b)&&a.concat(b).every(x=>x&&x.id!=null)){const ids=new Set(b.map(x=>String(x.id)));v=JSON.stringify(b.concat(a.filter(x=>!ids.has(String(x.id)))))}
+        else if(k===IDS_KEY)v=JSON.stringify(Object.assign({},a,b));
+      }catch(_){}
+      try{localStorage.setItem(k,v);sent[k]=hash(v)}catch(err){console.warn("Evia: restore",k,err&&err.message)}
+    });
+    if(!Object.keys(sent).length)return false;
+    writeJson(STORE_SENT_KEY,sent);writeJson(RESTORED_KEY,new Date().toISOString());writeJson(FETCH_KEY,{});
+    return true;
+  }
+  /* After the restart: what came back is already in Nisia, so it isn't sent again. */
+  function afterRestore(){
+    if(!readJson(RESTORED_KEY,null))return;
+    try{const D=window.eviaData;D.markSynced(D.changesSince());const sent=readJson(MEDIA_KEY,{})||{};mediaIds().forEach(m=>{sent[m.id]=sent[m.id]||"restored"});writeJson(MEDIA_KEY,sent)}catch(err){console.warn("Evia: after restore",err&&err.message)}
+    try{localStorage.removeItem(RESTORED_KEY)}catch(_){}
+  }
+  /* Photos and files from the other device, on WiFi: each saved where Evia keeps them, then crossed off. */
+  async function fetchMedia(c,e){
+    const done=readJson(FETCH_KEY,null);if(!done)return;
+    const {data:ev,error}=await c.from("evidence").select("id,client_reference").eq("enrolment_id",e.enrolmentId);if(error)throw error;
+    const ref={};(ev||[]).forEach(x=>{ref[x.id]=x.client_reference||""});
+    const ids=Object.keys(ref);if(!ids.length){try{localStorage.removeItem(FETCH_KEY)}catch(_){}return}
+    const {data:files,error:fe}=await c.from("evidence_files").select("evidence_id,storage_path").in("evidence_id",ids);if(fe)throw fe;
+    for(const f of files||[]){
+      if(done[f.storage_path])continue;
+      const id=f.storage_path.split("/").pop().replace(/\.[^.]*$/,""),supporting=/^supporting:/.test(ref[f.evidence_id]);
+      const have=await window.eviaData.files.get(id,supporting?"supporting":"photo").catch(()=>null);
+      if(!have){
+        const {data:blob,error:de}=await c.storage.from("evidence").download(f.storage_path);if(de)throw de;
+        if(supporting)await window.eviaSupportingFilePut({id,blob});else await window.eviaPutEvidencePhoto(id,blob);
+      }
+      done[f.storage_path]=1;writeJson(FETCH_KEY,done);
+    }
+    try{localStorage.removeItem(FETCH_KEY)}catch(_){}
+  }
   let running=null;
   function sync(){
     if(running)return running;
@@ -149,9 +217,11 @@
       /* Records: small, on any connection, in batches. (The demo keeps them on the phone.) */
       for(let i=0;i<changes.length;i+=50){const batch=changes.slice(i,i+50);if(c)await sendRecords(c,e,batch);D.markSynced(batch)}
       if(c)await sendSnapshot(c,e);
-      /* Media: only on WiFi. */
+      if(c)await sendStore(c,e);
+      /* Media: only on WiFi, both ways. */
       const sent=readJson(MEDIA_KEY,{})||{};
       if(onWifi()){
+        if(c)try{await fetchMedia(c,e)}catch(err){console.warn("Evia: Nisia media down",err&&err.message)}
         for(const m of mediaIds().filter(m=>!sent[m.id])){
           try{sent[m.id]=c?await sendMedia(c,e,m):new Date().toISOString();writeJson(MEDIA_KEY,sent)}
           catch(err){console.warn("Evia: Nisia media",m.id,err&&err.message);break}
@@ -183,7 +253,11 @@
   let t=null;const soon=()=>{clearTimeout(t);t=setTimeout(()=>{if(joined())sync().catch(()=>{})},3000)};
   addEventListener("online",soon);
   if(navigator.connection&&navigator.connection.addEventListener)navigator.connection.addEventListener("change",soon);
-  addEventListener("load",()=>{if(window.eviaData&&window.eviaData.on)window.eviaData.on("change",soon);setTimeout(soon,3000);setInterval(soon,5*60000)});
+  addEventListener("load",()=>{
+    afterRestore();
+    let back=false;try{back=sessionStorage.getItem("evia7-welcome-back")==="1";sessionStorage.removeItem("evia7-welcome-back")}catch(_){}
+    if(back)setTimeout(()=>{if(typeof showEvidenceToast==="function")showEvidenceToast("Welcome back. Your work is here, and photos follow on WiFi.")},800);
+    if(window.eviaData&&window.eviaData.on)window.eviaData.on("change",soon);setTimeout(soon,back?500:3000);setInterval(soon,5*60000)});
 
   /* A dot on the profile button while anything is waiting (no signal, or photos waiting for WiFi), so nobody thinks
      their work has reached the college when it hasn't. The profile says what's waiting. */

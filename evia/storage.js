@@ -276,7 +276,7 @@
     };
   }
 
-  window.eviaStorage={flush,backup,restore,estimate,persisted,requestPersist,bindProfileCard,formatBytes};
+  window.eviaStorage={flush,backup,restore,estimate,persisted,requestPersist,bindProfileCard,formatBytes,keys:appDataKeys};
 
   /* ---------- Boot: load data, then the app scripts in order ---------- */
   function loadScripts(me){
