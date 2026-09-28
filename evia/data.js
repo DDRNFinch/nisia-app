@@ -59,7 +59,7 @@
       return (G("evidence")||readJson("evia7-evidence",[])||[]).filter(Boolean).map(e=>{
         const lp=e.learnerProfile||{},made=iso(e.savedAt)||iso(e.d);
         return base(e.id,{course:e.c||"",unitId:e.uid||unitId(e.c,e.u),unit:e.u||"",text:e.w||"",ksbs:(e.k||[]).filter(Boolean),
-          photoIds:Array.isArray(e.photoIds)?e.photoIds.slice():[],inlinePhotos:Array.isArray(e.p)?e.p.length:0,photoTakenAt:(e.photoTimes||[]).map(iso),
+          photoIds:Array.isArray(e.photoIds)?e.photoIds.slice():[],media:(e.media||[]).map(m=>({id:m.id,kind:m.kind,mime:m.mime,secs:m.secs||0})),transcript:(e.media||[]).map(m=>m.transcript||"").filter(Boolean).join("\n\n"),inlinePhotos:Array.isArray(e.p)?e.p.length:0,photoTakenAt:(e.photoTimes||[]).map(iso),
           guidedAreas:(e.guidedAreas||[]).slice(),signedAs:{name:lp.name||""},hasSignature:!!e.signature,
           createdAt:made,updatedAt:iso(e.updatedAt)||made,deletedAt:null,submission:submission("pack:"+e.id)});
       });
@@ -175,6 +175,7 @@
           savedAt:now.toISOString(),photoCount:photoIds.length+inline.length};
         legacy.uid=r.unitId||unitId(legacy.c,legacy.u);   /* the unit's stable id (packs.js), kept even if the unit is renamed */
         if(photoIds.length)legacy.photoIds=photoIds;
+        if(Array.isArray(r.media)&&r.media.length)legacy.media=r.media.map(m=>({id:m.id,kind:m.kind,mime:m.mime,secs:m.secs||0,transcript:m.transcript||""}));
         if(r.photoTakenAt)legacy.photoTimes=r.photoTakenAt.slice();
         if(r.guidedAreas)legacy.guidedAreas=r.guidedAreas.slice();
         if(r.induction)legacy.induction=true;

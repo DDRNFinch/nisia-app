@@ -25,15 +25,17 @@
   /* Areas answered with guided Evia in a working pack. */
   const guidedAreas=p=>{const c=p&&p.guide&&p.guide.covered;return c?[...new Set([].concat(...Object.values(c)))]:[]};
   /* A working pack (before it's submitted). */
+  /* Recordings count too: a video shows the job like a few photos do, and what's said counts like a write-up. */
+  const vids=x=>(x.media||[]).filter(m=>m.kind==="video").length*3,said=x=>(x.media||[]).map(m=>m.transcript||"").join(" ");
   function pack(p,prompts){
-    return combine(photoLevel((p.photos||[]).length),writeLevel(p.write,split(prompts&&prompts.writeup),guidedAreas(p)));
+    return combine(photoLevel((p.photos||[]).length+vids(p)),writeLevel(String(p.write||"")+" "+said(p),split(prompts&&prompts.writeup),guidedAreas(p)));
   }
   /* A unit: all its submitted packs together. */
   function unit(name){
     const es=(typeof evidence!=="undefined"?evidence:[]).filter(e=>e.c===course&&e.u===name);
     if(!es.length)return null;
-    const text=es.map(e=>e.w||"").join("\n"),guided=[].concat(...es.map(e=>e.guidedAreas||[]));
-    return combine(photoLevel(es.reduce((n,e)=>n+photoCount(e),0)),writeLevel(text,split(promptsFor(name).writeup),guided));
+    const text=es.map(e=>(e.w||"")+" "+said(e)).join("\n"),guided=[].concat(...es.map(e=>e.guidedAreas||[]));
+    return combine(photoLevel(es.reduce((n,e)=>n+photoCount(e)+vids(e),0)),writeLevel(text,split(promptsFor(name).writeup),guided));
   }
 
   /* ---------- How to build a strong portfolio ---------- */

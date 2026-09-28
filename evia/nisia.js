@@ -81,7 +81,7 @@
   /* Every photo and file the records point at. */
   function mediaIds(){
     const D=window.eviaData,out=[];
-    D.list("evidence").forEach(e=>(e.photoIds||[]).forEach(id=>out.push({id,kind:"photo",evidence:e.id})));
+    D.list("evidence").forEach(e=>(e.photoIds||[]).concat((e.media||[]).map(m=>m.id)).forEach(id=>out.push({id,kind:"photo",evidence:e.id})));
     D.list("supporting").filter(s=>!s.observation).forEach(s=>out.push({id:s.id,kind:"supporting"}));
     return out;
   }
@@ -111,10 +111,11 @@
         const id=uuidFor(ch.collection+":"+r.id);
         /* Deleted in Evia: its photos and files go too. (Anything the assessor has accepted stays; the rules refuse.) */
         if(gone){const {data:fl}=await c.from("evidence_files").select("storage_path").eq("evidence_id",id);if(fl&&fl.length)await c.storage.from("evidence").remove(fl.map(f=>f.storage_path));await c.from("evidence").delete().eq("id",id);continue}
-        const type=ch.collection==="evidence"?((r.photoIds||[]).length?"photo":"written"):(EVIDENCE_TYPES.includes(r.type)?r.type:"document");
+        const rm=r.media||[],type=ch.collection==="evidence"?((r.photoIds||[]).length?"photo":rm.some(m=>m.kind==="video")?"video":rm.length?"audio":"written"):(EVIDENCE_TYPES.includes(r.type)?r.type:"document");
         const {error:ee}=await c.from("evidence").upsert(Object.assign({},base,{id,course_id:e.courseId,created_by_member_id:e.memberId,evidence_type:type,
           title:String(r.unit||r.title||"Evidence").slice(0,300),client_reference:ch.collection+":"+r.id,
-          source_metadata:{collection:ch.collection,unit:r.unit||null,text:r.text||null,ksbs:r.ksbs||r.criteria||[],photoIds:r.photoIds||[]}}));
+          source_metadata:{collection:ch.collection,unit:r.unit||null,text:r.text||null,ksbs:r.ksbs||r.criteria||[],photoIds:r.photoIds||[],
+            media:rm.map(m=>({id:m.id,kind:m.kind,secs:m.secs||0})),transcript:r.transcript||null}}));
         if(ee)console.warn("Evia: Nisia evidence",ee.message);
       }
     }

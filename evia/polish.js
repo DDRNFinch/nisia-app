@@ -42,7 +42,7 @@
   function newPack(){return {course,unit:data().u[unit][0],unitIndex:unit,photos:[],write:"",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}}
   async function getPack(){const all=readWorking(),key=packKey();if(!all[key]){all[key]=newPack();writeWorking(all)}const pack=all[key];pack.photos=Array.isArray(pack.photos)?pack.photos:[];return pack}
   async function savePack(pack){const all=readWorking();pack.updatedAt=new Date().toISOString();all[packKey()]=pack;return writeWorking(all)}
-  async function removePack(){const all=readWorking(),pack=all[packKey()];if(pack&&Array.isArray(pack.photos))for(const p of pack.photos)if(p.id)await idbDelete(p.id);delete all[packKey()];writeWorking(all)}
+  async function removePack(){const all=readWorking(),pack=all[packKey()];if(pack&&Array.isArray(pack.photos))for(const p of pack.photos)if(p.id)await idbDelete(p.id);if(pack&&Array.isArray(pack.media))for(const m of pack.media)if(m.id)await idbDelete(m.id);delete all[packKey()];writeWorking(all)}
   async function migrateLegacyPack(pack){
     if(!pack||!Array.isArray(pack.photos))return pack;let changed=false;const next=[];
     for(const p of pack.photos){if(p&&p.id){next.push(p);continue}if(p&&p.src){const id="photo-"+Date.now()+"-"+Math.random().toString(36).slice(2);await idbPut({id,blob:await dataUrlToBlob(p.src),addedAt:p.addedAt||new Date().toISOString()});next.push({id,addedAt:p.addedAt||new Date().toISOString()});changed=true}}
@@ -135,19 +135,27 @@
     '</section>';
   }
   async function renderPack(pack){
-    const u=data().u[unit],photos=pack.photos||[],prompts=learnerPrompts();
-    const text=String(pack.write||"").trim(),started=photos.length||text,ready=!!(photos.length||text);
+    const u=data().u[unit],photos=pack.photos||[],media=pack.media||[],prompts=learnerPrompts();
+    const text=String(pack.write||"").trim(),started=photos.length||text||media.length,ready=!!(photos.length||text||media.length);
+    const RA=k=>window.eviaRouteAvatar?window.eviaRouteAvatar(k):'<span class="evia-mini" aria-hidden="true"><span class="evia-face"><i></i><i></i></span></span>';
+    const card=(id,kind,title,sub,cls)=>'<button type="button" class="eg-start'+(cls?" "+cls:"")+'" id="'+id+'">'+RA(kind)+'<span><strong>'+title+'</strong><small>'+sub+'</small></span><span class="eg-start-chev" aria-hidden="true">›</span></button>';
+    /* Catch up: only once the assessor has looked at this unit's evidence and wants more (app.js moreRequired). */
+    const missing=(window.eviaMoreRequired?window.eviaMoreRequired():[]).filter(x=>x.unit===u[0]).map(x=>({code:x.code,text:(u[1].find(k=>code(k)===x.code)||"").split("|").slice(1).join("|")||((typeof allK==="function"?allK():[]).find(y=>y[0]===x.code)||[])[1]||""}));
+    const nv=media.filter(x=>x.kind==="video").length,na=media.filter(x=>x.kind==="audio").length;
+    const mediaSum=[nv?nv+" video"+(nv===1?"":"s"):"",na?na+" voice note"+(na===1?"":"s"):""].filter(Boolean).join(" · ");
     $("#page-title").textContent=u[0];
     $("#screen").innerHTML='<div class="evidence-pack-page">'+
       '<div class="evidence-heading"><div class="evidence-label">EVIDENCE PACK</div><h2>'+esc(u[0])+'</h2><p>Capture the whole job in one pack. Take photos from the <strong>beginning, middle and end</strong> of the job.</p></div>'+
         '<div class="ev-modes">'+
-        (window.eviaGuide?'<button type="button" class="eg-start" id="eg-start"><span class="evia-mini" aria-hidden="true"><span class="evia-face"><i></i><i></i></span></span><span><strong>'+(pack.guide&&!pack.guide.used&&(pack.guide.at||Object.values(pack.guide.answers||{}).some(Boolean))?"Carry on with Evia":"Let Evia guide you")+'</strong><small>'+(pack.guide&&!pack.guide.used&&pack.guide.at?"Pick up where you left off":"Photos one at a time, then a few questions")+'</small></span><span class="eg-start-chev" aria-hidden="true">›</span></button>':"")+
-        '<button type="button" class="eg-start fr-start" id="fr-start"><span class="fr-no" aria-hidden="true"><span class="evia-mini"><span class="evia-face"><i></i><i></i></span></span><b class="fr-strike"></b></span><span><strong>'+(started?"Carry on in free range":"Free range mode")+'</strong><small>'+
-          (started?photos.length+" photo"+(photos.length===1?"":"s")+(String(pack.write||"").trim()?" and a write-up":"")+" so far":"Add whatever you like: all your photos, then your write-up")+'</small></span><span class="eg-start-chev" aria-hidden="true">›</span></button>'+
+        (missing.length&&window.eviaGuide?card("cu-start","catch",pack.catch&&!pack.catch.used&&pack.catch.at?"Carry on catching up":"Catch up","Just what your assessor still needs: "+esc(missing.map(x=>x.code).join(", ")),"catch"):"")+
+        (window.eviaGuide?card("eg-start","guide",pack.guide&&!pack.guide.used&&(pack.guide.at||Object.values(pack.guide.answers||{}).some(Boolean))?"Carry on with Evia":"Let Evia guide you",pack.guide&&!pack.guide.used&&pack.guide.at?"Pick up where you left off":"Photos one at a time, then a few questions"):"")+
+        card("fr-start","free",photos.length||text?"Carry on in free range":"Free range mode",photos.length||text?photos.length+" photo"+(photos.length===1?"":"s")+(text?" and a write-up":"")+" so far":"Add whatever you like: all your photos, then your write-up","fr-start")+
+        (window.eviaGuide&&window.eviaGuide.record?card("rec-start","record",media.length?"Film or talk some more":"Film it or talk it through",media.length?esc(mediaSum)+" so far":"A video of the job, or a voice note explaining it"):"")+
         '</div>'+aimsHtml(u,pack)+
       (started?'<section class="evidence-section fr-progress"><div class="evidence-section-title">IN PROGRESS</div>'+
         '<div class="evidence-thumbs" id="evidence-photos"></div>'+
-        '<p class="fr-progress-sum">'+photos.length+' photo'+(photos.length===1?"":"s")+' · '+(text?text.split(/\s+/).length+' words written':'no write-up yet')+'</p>'+
+        (media.length?'<div class="ev-media-chips">'+media.map((m,i)=>'<span class="ev-media-chip '+m.kind+'"><i aria-hidden="true">'+(m.kind==="video"?"▶":"🎙")+'</i>'+(m.kind==="video"?"Video":"Voice note")+(m.secs?" · "+Math.floor(m.secs/60)+":"+String(m.secs%60).padStart(2,"0"):"")+'<button type="button" data-remove-media="'+i+'" aria-label="Remove recording">×</button></span>').join("")+'</div>':"")+
+        '<p class="fr-progress-sum">'+[photos.length+' photo'+(photos.length===1?"":"s"),mediaSum,text?text.split(/\s+/).length+' words written':(media.length?"":'no write-up yet')].filter(Boolean).join(" · ")+'</p>'+
         (text?'<p class="fr-progress-text">'+esc(text.length>220?text.slice(0,220).replace(/\s+\S*$/,"")+"…":text)+'</p>':"")+
         '<div class="pack-actions fr-actions"><button class="primary" id="submit-evidence" '+(ready?"":"disabled")+'>Submit to Portfolio</button></div>'+
         '<p class="submit-hint">'+(ready?"Ready to submit. Photos, a write-up, or both: whatever shows the job.":"Add a photo or a write-up to submit.")+'</p></section>':"")+
@@ -165,9 +173,20 @@
         await savePack(pack);await renderPack(pack);
       }catch(err){console.error("Evia evidence photo save failed",err);alert("That photo could not be added. Please try again.")}
     };
-    const ctx={unitName:u[0],prompts,ksbs:u[1],pack,addFiles,save:()=>savePack(pack),done:()=>renderPack(pack),submit:async()=>{try{await submitPack(pack)}catch(err){console.error("Evia evidence submission failed",err);alert("Evia could not save this evidence to your portfolio. Please try again.");renderPack(pack)}}};
-    const eg=$("#eg-start");if(eg)eg.onclick=()=>window.eviaGuide.start(Object.assign({},ctx,{done:()=>{renderPack(pack);if(String(pack.write||"").trim())window.eviaGuide.free(ctx,"write")}}));
-    const fr=$("#fr-start");if(fr)fr.onclick=()=>window.eviaGuide.free(ctx);
+    /* A recording: kept with the photos, listed in the pack with its length and what Evia wrote down. */
+    const addMedia=async(blob,mime,info)=>{
+      try{const id="media-"+Date.now()+"-"+Math.random().toString(36).slice(2);await idbPut({id,blob,addedAt:new Date().toISOString()});
+        pack.media=(pack.media||[]).concat({id,kind:info.kind,mime:mime||blob.type,secs:info.secs||0,transcript:info.transcript||"",takenAt:Date.now()});await savePack(pack)}
+      catch(err){console.error("Evia recording save failed",err);alert("That recording could not be saved. Please try again.")}
+    };
+    const ctx={unitName:u[0],prompts,ksbs:u[1],pack,addFiles,addMedia,save:()=>savePack(pack),done:()=>renderPack(pack),submit:async()=>{try{await submitPack(pack)}catch(err){console.error("Evia evidence submission failed",err);alert("Evia could not save this evidence to your portfolio. Please try again.");renderPack(pack)}}};
+    const eg=$("#eg-start");if(eg)eg.onclick=()=>(pack.onlyKsbs&&(delete pack.onlyKsbs,savePack(pack)),window.eviaGuide.start(Object.assign({},ctx,{done:()=>{renderPack(pack);if(String(pack.write||"").trim())window.eviaGuide.free(ctx,"write")}})));
+    const fr=$("#fr-start");if(fr)fr.onclick=()=>{if(pack.onlyKsbs){delete pack.onlyKsbs;savePack(pack)}window.eviaGuide.free(ctx)};
+    const rs=$("#rec-start");if(rs)rs.onclick=()=>window.eviaGuide.record(ctx);
+    /* Catch up on an empty pack makes a pack just for the missing KSBs; added to a pack in progress, the pack keeps the unit's. */
+    const cu=$("#cu-start");if(cu)cu.onclick=()=>{const empty=!photos.length&&!text&&!media.length;if(empty)pack.onlyKsbs=missing.map(x=>x.code);savePack(pack);
+      window.eviaGuide.catchUp(Object.assign({},ctx,{missing,done:()=>renderPack(pack)}))};
+    document.querySelectorAll("[data-remove-media]").forEach(b=>b.onclick=async()=>{const i=+b.dataset.removeMedia,m=(pack.media||[])[i];if(!m||!confirm("Remove this recording?"))return;await idbDelete(m.id);pack.media.splice(i,1);await savePack(pack);renderPack(pack)});
     const how=$("#st-how");if(how)how.onclick=()=>window.eviaStrength.guide();
     document.querySelectorAll("[data-aim-add]").forEach(c=>c.onchange=async()=>{const l=new Set(pack.extraKsbs||[]);c.checked?l.add(c.value):l.delete(c.value);pack.extraKsbs=[...l];await savePack(pack)});
     let submitting=false;
@@ -230,7 +249,7 @@
   window.eviaSupportingFileGet=supportingGet;
 
   async function submitPack(pack){
-    if(!(pack.photos||[]).length&&!String(pack.write||"").trim())return false;
+    if(!(pack.photos||[]).length&&!String(pack.write||"").trim()&&!(pack.media||[]).length)return false;
     const u=data().u[unit];
     const id=Date.now()+"-"+Math.random().toString(36).slice(2,8);
     const photoIds=[];
@@ -242,8 +261,16 @@
       await idbPut({id:permanentId,blob:rec.blob,addedAt:rec.addedAt||new Date().toISOString()});
       photoIds.push(permanentId);
     }
+    /* Recordings, kept the same way as photos, with what Evia wrote down while they were recorded. */
+    const media=[];
+    for(const m of (pack.media||[])){
+      const rec=await idbGet(m.id);if(!rec||!rec.blob)throw new Error("Recording could not be loaded");
+      const permanentId="submitted-media-"+Date.now()+"-"+Math.random().toString(36).slice(2);
+      await idbPut({id:permanentId,blob:rec.blob,addedAt:rec.addedAt||new Date().toISOString()});
+      media.push({id:permanentId,kind:m.kind,mime:m.mime||rec.blob.type,secs:m.secs||0,transcript:m.transcript||""});
+    }
     /* The unit's KSBs, plus any the learner is aiming for that they ticked as shown by this job. */
-    window.eviaData.put("evidence",{id,course,unit:u[0],text:pack.write,ksbs:[...new Set(u[1].map(code).concat(pack.extraKsbs||[]))],photoIds,
+    window.eviaData.put("evidence",{id,course,unit:u[0],text:pack.write,ksbs:[...new Set((pack.onlyKsbs&&pack.onlyKsbs.length?pack.onlyKsbs:u[1].map(code)).concat(pack.extraKsbs||[]))],photoIds,media,
       photoTakenAt:(pack.photos||[]).filter(p=>p&&p.id).map(p=>p.takenAt||null),
       /* Areas answered with guided Evia count in full towards the unit's strength (strength.js). */
       guidedAreas:window.eviaStrength?window.eviaStrength.guidedAreas(pack):[]});

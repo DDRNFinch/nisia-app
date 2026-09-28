@@ -224,7 +224,7 @@
     const words=e=>String(e.w||"").trim()?String(e.w).trim().split(/\s+/).length:0,count=e=>(e.photoIds||e.p||[]).length;
     /* With more than one saved, "Share all" puts every one of them in a single PDF, oldest first. */
     page.insertAdjacentHTML("beforeend",'<div class="ev-saved-line"></div><section class="ev-saved"><div class="ev-saved-head"><h3>Saved evidence</h3>'+(entries.length>1?'<button type="button" class="ev-share-all" id="ev-share-all">'+SHARE_ICON+'Share all '+entries.length+'</button>':"")+'</div>'+
-      entries.map(e=>{const f=window.eviaFeedback&&window.eviaFeedback.forEvidence(e.id);return tileHtml(escHtml(e.id),icon(ICONS.camera,20),"Saved "+savedDay(entryTime(e)),count(e)+" photo"+(count(e)===1?"":"s")+" · "+words(e)+" words"+(f?(f.decision==="accepted"?" · ✓ Signed off":" · More wanted"):""),sharedAt("pack:"+e.id))}).join("")+'</section>');
+      entries.map(e=>{const f=window.eviaFeedback&&window.eviaFeedback.forEvidence(e.id);return tileHtml(escHtml(e.id),icon(ICONS.camera,20),"Saved "+savedDay(entryTime(e)),[count(e)+" photo"+(count(e)===1?"":"s"),(e.media||[]).length?(e.media.length===1?(e.media[0].kind==="video"?"1 video":"1 voice note"):e.media.length+" recordings"):"",words(e)?words(e)+" words":""].filter(Boolean).join(" · ")+(f?(f.decision==="accepted"?" · ✓ Signed off":" · More wanted"):""),sharedAt("pack:"+e.id))}).join("")+'</section>');
     /* The assessor's latest feedback on this unit, above the saved evidence: what to get next time. */
     const uf=window.eviaFeedback&&window.eviaFeedback.forUnit(unitName);
     const more=window.eviaMoreRequired?window.eviaMoreRequired().filter(x=>entries.some(e=>(e.k||[]).includes(x.code))):[];
@@ -256,7 +256,10 @@
     if(window.eviaFeedback)window.eviaFeedback.markSeen([String(e.id)]);
     const sh=uiSheet("SAVED "+savedDay(entryTime(e)).toUpperCase(),e.u,
       '<div class="ev-view-photos" id="ev-view-photos"></div>'+
-      (String(e.w||"").trim()?'<p class="ev-view-text">'+escHtml(e.w)+'</p>':"")+feedbackHtml(window.eviaFeedback&&window.eviaFeedback.forEvidence(e.id),e)+
+      ((e.media||[]).length?'<div class="ev-view-media" id="ev-view-media"></div>':"")+
+      (String(e.w||"").trim()?'<p class="ev-view-text">'+escHtml(e.w)+'</p>':"")+
+      /* What Evia wrote down from the recordings: kept out of the way, there for the assessor's highlighting. */
+      ((e.media||[]).some(m=>m.transcript)?'<details class="rec-transcript"><summary>What Evia wrote down from your recording'+((e.media||[]).length===1?"":"s")+'</summary><p>'+escHtml((e.media||[]).map(m=>m.transcript).filter(Boolean).join("\n\n"))+'</p></details>':"")+feedbackHtml(window.eviaFeedback&&window.eviaFeedback.forEvidence(e.id),e)+
       '<div class="pr-actions"><button type="button" class="secondary ui-danger" id="ev-view-del">Delete</button><button type="button" class="secondary" id="ev-view-share">'+SHARE_ICON+' Share</button></div>');
     sh.el.querySelector("#ev-view-share").onclick=()=>{sh.close();window.eviaOpenSendToPortfolio&&window.eviaOpenSendToPortfolio(e.u,e.id)};
     sh.el.querySelector("#ev-view-del").onclick=()=>{
@@ -264,6 +267,9 @@
       if(window.eviaData.remove("evidence",e.id)){sh.close();const t=document.querySelector('[data-ev-open="'+CSS.escape(String(e.id))+'"]');if(t)t.closest(".ev-tile").remove();if(typeof showEvidenceToast==="function")showEvidenceToast("Evidence deleted")}
     };
     try{const photos=window.eviaGetEvidencePhotoData?await window.eviaGetEvidencePhotoData(e):(e.p||[]);const g=sh.el.querySelector("#ev-view-photos");if(g)g.innerHTML=photos.map(src=>'<img src="'+src+'" alt="Evidence photo">').join("")}catch(_){}
+    const mv=sh.el.querySelector("#ev-view-media");
+    if(mv)for(const m of e.media){try{const b=window.eviaGetEvidencePhoto&&await window.eviaGetEvidencePhoto(m.id);if(!b)continue;const url=URL.createObjectURL(b);
+      mv.insertAdjacentHTML("beforeend",m.kind==="video"?'<video src="'+url+'" controls playsinline preload="metadata"></video>':'<audio src="'+url+'" controls preload="metadata"></audio>')}catch(_){}}
   }
   window.eviaSavedTiles=savedTiles;
   /* Supporting evidence is its own unit: the same capture page, with its files as tiles underneath. Tap one to see
@@ -518,7 +524,7 @@
   const wordCount=t=>String(t||"").trim().split(/\s+/).filter(Boolean).length;
   function checkUnit(u,prompts){
     const latest=u.entries.slice().sort((x,y)=>entryTime(y)-entryTime(x))[0];
-    const text=String(latest.w||"").toLowerCase();
+    const text=(String(latest.w||"")+" "+(latest.media||[]).map(m=>m.transcript||"").join(" ")).toLowerCase();
     const terms=String((prompts[u.name]||{}).writeup||"").split("·").map(t=>t.trim()).filter(Boolean);
     const covered=terms.filter(t=>termMatched(t,text));
     return {u,terms,covered,missing:terms.filter(t=>!covered.includes(t)),words:wordCount(latest.w),photos:photoCount(latest)};

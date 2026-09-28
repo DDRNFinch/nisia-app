@@ -1,8 +1,11 @@
 /* Evia7 camera and recorder.
    eviaCamera.open({title, prompts, onDone(files)}): a full-screen square camera that stays open, so learners can take
    photo after photo; the unit's "Things to capture" sit under the picture as a plain reminder.
-   eviaRecorder.open({type:"video"|"audio", onDone(blob,mime)}): a full-screen recorder with an unmistakable
-   recording state, a 2-minute limit and Keep / Retake before anything is saved. */
+   eviaRecorder.open({type:"video"|"audio", onDone(blob,mime,info)}): a full-screen recorder with an unmistakable
+   recording state, a time limit (2 minutes unless opts.limit) and Keep / Retake before anything is saved.
+   For evidence (guide.js) it also takes opts.prompts with opts.promptsTitle (the unit's things to capture or mention,
+   laid out like the photo camera's), and opts.transcribe: where the phone can turn speech into text, what's said is
+   written down as it's recorded, and each thing to mention lights up once it's been said. info={secs,transcript}. */
 (function(){
   const escHtml=v=>String(v??"").replace(/[&<>"']/g,x=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[x]));
   const supported=()=>!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia);
@@ -94,17 +97,40 @@
 
   /* ---------- Video and voice recorder ---------- */
   const LIMIT=120; /* seconds */
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   function openRecorder(opts){
-    const video=opts.type==="video";
-    let stream=null,recorder=null,chunks=[],blob=null,mime="",started=0,tick=null,audioCtx=null,raf=null;
+    const video=opts.type==="video",limit=opts.limit||LIMIT,prompts=(opts.prompts||[]).map(p=>String(p).trim()).filter(Boolean);
+    const mins=limit%60?fmtLimit(limit):(limit/60)+" minute"+(limit===60?"":"s");
+    /* The transcript: final phrases, plus the one being heard. Restarted if the phone stops listening in a pause. */
+    let heard="",interim="",sr=null,listening=false;
+    const transcript=()=>(heard+" "+interim).replace(/\s+/g," ").trim();
+    let stream=null,recorder=null,chunks=[],blob=null,mime="",started=0,timer=null,audioCtx=null,raf=null,secs=0;
     const el=overlay("cam-rec"+(video?"":" cam-audio"),
       '<header class="cam-top"><button type="button" class="cam-icon" data-cam-close aria-label="Close recorder">'+X+'</button><strong>'+(video?"Record a video":"Record a voice note")+'</strong><span class="cam-rec-badge" aria-live="polite"><i></i><b>0:00</b></span></header>'+
       '<div class="cam-stage">'+(video?'<video playsinline muted autoplay></video>':'<div class="cam-meter" aria-hidden="true">'+Array.from({length:28},()=>'<i></i>').join("")+'</div>')+'<div class="cam-review"></div></div>'+
-      '<p class="cam-hint">'+(video?"Tap the red button to start. Up to 2 minutes.":"Tap the red button and start talking. Up to 2 minutes.")+'</p>'+
+      (prompts.length?'<div class="cam-prompts rec-prompts"><span class="cam-prompts-h">'+escHtml(opts.promptsTitle||(video?"Things to capture":"Things to mention"))+'</span><p>'+prompts.map((p,i)=>'<span class="rec-term" data-term="'+i+'">'+escHtml(p)+'</span>').join('<span class="cam-dot" aria-hidden="true"> · </span>')+'</p></div>':"")+
+      (opts.transcribe&&SR?'<p class="rec-live" aria-live="polite" hidden></p>':"")+
+      (video?'<p class="cam-consent">Film your work. Ask first if anyone else will be in shot.</p>':"")+
+      '<p class="cam-hint">'+(video?"Tap the red button to start. Talk about what you’re doing as you film. Up to "+mins+".":"Tap the red button and talk it through in your own words. Up to "+mins+".")+'</p>'+
       '<footer class="cam-bottom"><button type="button" class="cam-alt" data-retake hidden>Retake</button><button type="button" class="cam-record" aria-label="Start recording"><i></i><svg class="cam-ring" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/></svg></button><button type="button" class="cam-done" data-keep hidden>Keep</button></footer>');
     const live=el.querySelector("video"),rec=el.querySelector(".cam-record"),badge=el.querySelector(".cam-rec-badge b"),hint=el.querySelector(".cam-hint"),review=el.querySelector(".cam-review");
     const keepBtn=el.querySelector("[data-keep]"),retake=el.querySelector("[data-retake]"),ring=el.querySelector(".cam-ring circle");
     const fmt=s=>Math.floor(s/60)+":"+String(Math.floor(s%60)).padStart(2,"0");
+    const liveEl=el.querySelector(".rec-live"),terms=[...el.querySelectorAll(".rec-term")];
+    /* Things to mention light up once they've been said. */
+    const tick=()=>{const t=transcript();if(liveEl){liveEl.hidden=!t;liveEl.textContent=t.length>160?"…"+t.slice(-160):t}
+      if(window.eviaTermMatched)terms.forEach(x=>x.classList.toggle("said",window.eviaTermMatched(prompts[+x.dataset.term],t)))};
+    const listen=()=>{
+      if(!opts.transcribe||!SR)return;
+      try{
+        sr=new SR();sr.lang="en-GB";sr.continuous=true;sr.interimResults=true;listening=true;
+        sr.onresult=e=>{interim="";for(let i=e.resultIndex;i<e.results.length;i++){const r=e.results[i];if(r.isFinal)heard+=" "+r[0].transcript;else interim+=" "+r[0].transcript}tick()};
+        sr.onerror=()=>{};
+        sr.onend=()=>{if(listening)try{sr.start()}catch(_){}};
+        sr.start();
+      }catch(_){sr=null}
+    };
+    const deaf=()=>{listening=false;if(sr)try{sr.stop()}catch(_){}interim="";tick()};
     const pickMime=()=>(video?["video/mp4","video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"]:["audio/mp4","audio/webm;codecs=opus","audio/webm"]).find(x=>window.MediaRecorder&&MediaRecorder.isTypeSupported(x))||"";
     const meter=()=>{
       if(video||!stream)return;
@@ -121,7 +147,7 @@
       if(live){live.srcObject=stream;live.play().catch(()=>{})}
       meter();return stream;
     };
-    const stop=()=>{if(recorder&&recorder.state!=="inactive")recorder.stop();clearInterval(tick)};
+    const stop=()=>{if(recorder&&recorder.state!=="inactive")recorder.stop();clearInterval(timer);deaf()};
     const start=async()=>{
       try{await getStream()}catch(err){console.error("Evia recorder failed",err);denied(el,err,video?"camera and microphone":"microphone");rec.disabled=true;return}
       const chosen=pickMime(),o={};if(chosen)o.mimeType=chosen;
@@ -135,24 +161,25 @@
         review.innerHTML=video?'<video src="'+url+'" controls playsinline></video>':'<audio src="'+url+'" controls></audio>';
         hint.textContent="Play it back, then keep it or record again.";keepBtn.hidden=false;retake.hidden=false;
       };
-      recorder.start(1000);started=Date.now();setState("recording");buzz(20);
+      recorder.start(1000);started=Date.now();setState("recording");buzz(20);listen();
       hint.textContent="Recording… tap the square to stop.";
-      tick=setInterval(()=>{
-        const s=(Date.now()-started)/1000;badge.textContent=fmt(s);
-        const left=LIMIT-s;el.classList.toggle("cam-ending",left<=15);
+      timer=setInterval(()=>{
+        const s=(Date.now()-started)/1000;badge.textContent=fmt(s);secs=Math.round(s);
+        const left=limit-s;el.classList.toggle("cam-ending",left<=15);
         if(left<=15&&ring)ring.style.strokeDashoffset=String(289*(1-Math.max(0,left)/15));
         if(left<=0)stop();
       },250);
     };
     rec.onclick=()=>{if(el.dataset.state==="recording")stop();else if(el.dataset.state!=="review")start()};
-    retake.onclick=()=>{review.innerHTML="";blob=null;badge.textContent="0:00";keepBtn.hidden=true;retake.hidden=true;el.classList.remove("cam-ending");if(ring)ring.style.strokeDashoffset="0";setState("ready");hint.textContent="Tap the red button to start again."};
-    const cleanup=()=>{clearInterval(tick);if(raf)cancelAnimationFrame(raf);if(audioCtx)audioCtx.close().catch(()=>{});closeOverlay(el,stream)};
-    keepBtn.onclick=()=>{const b=blob,m=mime;cleanup();if(b&&opts.onDone)opts.onDone(b,m)};
+    retake.onclick=()=>{review.innerHTML="";blob=null;heard="";interim="";tick();badge.textContent="0:00";keepBtn.hidden=true;retake.hidden=true;el.classList.remove("cam-ending");if(ring)ring.style.strokeDashoffset="0";setState("ready");hint.textContent="Tap the red button to start again."};
+    const cleanup=()=>{clearInterval(timer);deaf();if(raf)cancelAnimationFrame(raf);if(audioCtx)audioCtx.close().catch(()=>{});closeOverlay(el,stream)};
+    keepBtn.onclick=()=>{const b=blob,m=mime,info={secs,transcript:transcript()};cleanup();if(b&&opts.onDone)opts.onDone(b,m,info)};
     el.querySelector("[data-cam-close]").onclick=()=>{if(el.dataset.state==="recording"&&!confirm("Stop and discard this recording?"))return;if(recorder&&recorder.state!=="inactive"){recorder.onstop=null;recorder.stop()}cleanup()};
     setState("ready");
     if(video)getStream().catch(err=>{console.error("Evia recorder failed",err);denied(el,err,"camera and microphone");rec.disabled=true});
   }
 
+  function fmtLimit(s){return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
   window.eviaCamera={open:openCamera,supported};
   window.eviaRecorder={open:openRecorder,supported:()=>supported()&&!!window.MediaRecorder};
 })();

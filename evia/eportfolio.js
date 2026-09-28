@@ -84,12 +84,15 @@
         y+=tile+gap;
       }
       y+=1;
-      if(e.w){
+      /* The write-up, then what was said in any recordings (the files themselves stay in Evia and Nisia). */
+      const recs=(e.media||[]),recNote=recs.length?recs.map(m=>(m.kind==="video"?"Video":"Voice note")+(m.secs?" "+Math.floor(m.secs/60)+":"+String(m.secs%60).padStart(2,"0"):"")).join(", "):"";
+      const blocks=[e.w?["Write-up",e.w]:null,recs.length?["Recording"+(recs.length===1?"":"s")+" ("+recNote+")",recs.map(m=>m.transcript).filter(Boolean).join("\n\n")||"Recorded in Evia. Ask the learner or their assessor to play it."]:null].filter(Boolean);
+      for(const [title,body] of blocks){
         /* The write-up sits in a tile with a light grey outline; a long one carries on in a new tile on the next page. */
-        need(14);label("Write-up",M,y+3);y+=5.5;
+        need(14);label(title,M,y+3);y+=5.5;
         const PAD=4.5,size=10.5,lh=size*.3528*1.45;
         doc.setFont("helvetica","normal");doc.setFontSize(size);
-        let lines=doc.splitTextToSize(pdfText(e.w),CW-PAD*2);
+        let lines=doc.splitTextToSize(pdfText(body),CW-PAD*2);
         while(lines.length){
           if(BOTTOM-y<PAD*2+lh*2){doc.addPage();y=M}
           const fit=Math.max(1,Math.min(lines.length,Math.floor((BOTTOM-y-PAD*2)/lh))),chunk=lines.splice(0,fit),h=chunk.length*lh+PAD*2-1;
