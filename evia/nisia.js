@@ -125,7 +125,7 @@
     try{
       const S=window.eviaStats.compute(),a=S.a;
       return {at:new Date().toISOString(),course:typeof course==="string"?course:"",
-        ksb:{met:a.met,total:a.total,pct:a.ksbPct,timePct:a.timePct,evidenced:[...(a.evidenced||[])]},
+        ksb:{met:a.met,total:a.total,pct:a.ksbPct,timePct:a.timePct,evidenced:[...(a.evidenced||[])],signoff:!!a.signoff,waiting:[...(a.possible||[])],aims:(a.aims||[]).slice()},
         units:(a.units||[]).map(u=>({name:u.name,total:(u.codes||[]).length,missing:(u.missing||[]).slice(),started:!!u.started,packs:(u.entries||[]).length,
           strength:typeof unitStrengthForCourse==="function"?unitStrengthForCourse(u.name):window.eviaStrength?window.eviaStrength.unit(u.name):null})),
         packs:S.packs,daysSince:S.daysSince,lastUpload:S.lastUpload?new Date(S.lastUpload).toISOString():null,

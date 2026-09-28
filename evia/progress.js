@@ -34,9 +34,11 @@
       '<div class="pv-tl-ends"><span>Start</span><span>End</span></div></div>';
   }
   /* Ring: stroke drawn round from 12 o'clock. */
-  function ring(pct,size,stroke,inner){
-    const r=(size-stroke)/2,c=2*Math.PI*r,v=clamp(pct,0,100)/100*c;
-    return '<span class="pv-ring" style="width:'+size+'px;height:'+size+'px"><svg viewBox="0 0 '+size+' '+size+'" aria-hidden="true"><circle cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" class="pv-ring-track" stroke-width="'+stroke+'"/>'+(v>0?'<circle cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" class="pv-ring-fill pv-draw" stroke-width="'+stroke+'" style="--len:'+c.toFixed(1)+';--v:'+v.toFixed(1)+'" transform="rotate(-90 '+size/2+' '+size/2+')"/>':"")+'</svg>'+(inner!=null?'<span class="pv-ring-label">'+inner+'</span>':"")+'</span>';
+  /* pct in the full colour; soft (optional) is a lighter arc after it: evidence waiting for the assessor. */
+  function ring(pct,size,stroke,inner,soft){
+    const r=(size-stroke)/2,c=2*Math.PI*r,v=clamp(pct,0,100)/100*c,w=clamp(pct+(soft||0),0,100)/100*c;
+    return '<span class="pv-ring" style="width:'+size+'px;height:'+size+'px"><svg viewBox="0 0 '+size+' '+size+'" aria-hidden="true"><circle cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" class="pv-ring-track" stroke-width="'+stroke+'"/>'+
+      (w>v?'<circle cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" class="pv-ring-fill pv-ring-soft pv-draw" stroke-width="'+stroke+'" style="--len:'+c.toFixed(1)+';--v:'+w.toFixed(1)+'" transform="rotate(-90 '+size/2+' '+size/2+')"/>':"")+(v>0?'<circle cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" class="pv-ring-fill pv-draw" stroke-width="'+stroke+'" style="--len:'+c.toFixed(1)+';--v:'+v.toFixed(1)+'" transform="rotate(-90 '+size/2+' '+size/2+')"/>':"")+'</svg>'+(inner!=null?'<span class="pv-ring-label">'+inner+'</span>':"")+'</span>';
   }
   /* Columns from one baseline, 4px rounded tops, capped width, optional goal line. */
   function columns(values,labels,max,opts){
@@ -162,13 +164,14 @@
       rd?(rd.days<0?"It was due "+shortDate(rd.due):"until your next review · "+longDate(rd.due)):"Add your start date in Profile",
       '<span class="pv-rev-meta">'+(lastR?"Last review "+shortDate(lastR.date)+" · "+revs.length+" in all":"No reviews yet")+'</span>',rd&&rd.days<=14?" pv-alert":""));
     // Where you are
-    out.push(card("where","Where you are",num(a.ksbPct,"%"),'of '+esc(T.many)+' have evidence'+(verdict?' · <em class="pv-verdict '+verdict.cls+'"><i aria-hidden="true">'+verdict.icon+'</i>'+verdict.text+'</em>':""),timeline(a.timePct,a.ksbPct),""));
+    out.push(card("where","Where you are",num(a.ksbPct,"%"),'of '+esc(T.many)+(a.signoff?' signed off':' have evidence')+(verdict?' · <em class="pv-verdict '+verdict.cls+'"><i aria-hidden="true">'+verdict.icon+'</i>'+verdict.text+'</em>':""),timeline(a.timePct,a.ksbPct),""));
     // KSB rings, or units for an NVQ
     if(nvqOn()){
       out.push(card("ksb","Your units",num(a.met)+'<small> / '+a.total+'</small>',"criteria with evidence",'<span class="pv-rings">'+ring(a.ksbPct,84,9,a.ksbPct+"%")+'</span>'));
     }else{
-      const all=allK(),g=[["K","Knowledge"],["S","Skills"],["B","Behaviours"]].map(([l,n])=>{const items=all.filter(x=>x[0].startsWith(l)),d=items.filter(x=>a.evidenced.has(x[0])).length;return {n,d,t:items.length,p:items.length?Math.round(d/items.length*100):0}}).filter(x=>x.t);
-      out.push(card("ksb",esc(T.Many),num(a.met)+'<small> / '+a.total+'</small>',"with evidence",'<span class="pv-rings">'+g.map(x=>'<span class="pv-ring-item">'+ring(x.p,74,8,x.p+"%")+'<small>'+x.n+'</small></span>').join("")+'</span>'));
+      const all=allK(),g=[["K","Knowledge"],["S","Skills"],["B","Behaviours"]].map(([l,n])=>{const items=all.filter(x=>x[0].startsWith(l)),d=items.filter(x=>a.evidenced.has(x[0])).length,w=items.filter(x=>a.possible&&a.possible.has(x[0])).length;return {n,d,t:items.length,p:items.length?Math.round(d/items.length*100):0,q:items.length?Math.round(w/items.length*100):0}}).filter(x=>x.t);
+      const waiting=a.signoff&&a.possible?all.filter(x=>a.possible.has(x[0])).length:0;
+      out.push(card("ksb",esc(T.Many),num(a.met)+'<small> / '+a.total+'</small>',a.signoff?"signed off"+(waiting?" · "+waiting+" waiting":""):"with evidence",'<span class="pv-rings">'+g.map(x=>'<span class="pv-ring-item">'+ring(x.p,74,8,x.p+"%",a.signoff?x.q:0)+'<small>'+x.n+'</small></span>').join("")+'</span>'));
     }
     // Learning hours
     const wk=D.otjWeeks;
@@ -234,7 +237,7 @@
     if(id==="where"){
       const p=window.eviaData.learner(),rd=window.eviaReviewDue&&window.eviaReviewDue();
       const el=sheet("MY PROGRESS","Where you are",
-        '<div class="pv-deep-hero">'+num(a.ksbPct,"%")+'<span>of '+esc(T.many)+' have evidence</span></div>'+timeline(a.timePct,a.ksbPct,true)+
+        '<div class="pv-deep-hero">'+num(a.ksbPct,"%")+'<span>of '+esc(T.many)+(a.signoff?' signed off by your assessor':' have evidence')+'</span></div>'+timeline(a.timePct,a.ksbPct,true)+
         '<div class="pv-stats">'+
           (a.timePct!=null?stat("Through your course",a.timePct+"%"):"")+
           (verdict?stat("Pace",'<em class="pv-verdict '+verdict.cls+'"><i aria-hidden="true">'+verdict.icon+'</i>'+verdict.text+'</em>'):"")+
@@ -255,10 +258,10 @@
       const all=allK(),groups=[["K","Knowledge"],["S","Skills"],["B","Behaviours"]];
       const el=sheet("MY PROGRESS",esc(T.Many),groups.map(([l,n])=>{
         const items=all.filter(x=>x[0].startsWith(l));if(!items.length)return"";
-        const d=items.filter(x=>a.evidenced.has(x[0])).length;
-        return '<div class="pv-ksb-group"><div class="pv-ksb-head">'+ring(Math.round(d/items.length*100),40,5,null)+'<span><strong>'+n+'</strong><small>'+d+' of '+items.length+' with evidence</small></span></div><div class="pv-ksb-grid">'+items.map(x=>'<button type="button" class="pv-ksb'+(a.evidenced.has(x[0])?" met":"")+'" data-ksb="'+esc(x[0])+'">'+esc(x[0])+'</button>').join("")+'</div></div>';
-      }).join("")+note("Tap a code to see what it means. Units you haven’t started cover the most missing ones."));
-      el.querySelectorAll("[data-ksb]").forEach(b=>b.onclick=()=>{const it=all.find(x=>x[0]===b.dataset.ksb);if(it&&typeof ksbDetail==="function")ksbDetail(it[0],it[1],a.evidenced.has(it[0]))});
+        const d=items.filter(x=>a.evidenced.has(x[0])).length,w=a.signoff?items.filter(x=>a.possible.has(x[0])).length:0,aims=a.aims||[];
+        return '<div class="pv-ksb-group"><div class="pv-ksb-head">'+ring(Math.round(d/items.length*100),40,5,null,Math.round(w/items.length*100))+'<span><strong>'+n+'</strong><small>'+d+' of '+items.length+(a.signoff?' signed off'+(w?' · '+w+' waiting':''):' with evidence')+'</small></span></div><div class="pv-ksb-grid">'+items.map(x=>'<button type="button" class="pv-ksb'+(a.evidenced.has(x[0])?" met":a.signoff&&a.possible.has(x[0])?" maybe":"")+(aims.includes(x[0])?" aim":"")+'" data-ksb="'+esc(x[0])+'">'+esc(x[0])+'</button>').join("")+'</div></div>';
+      }).join("")+(a.signoff?'<p class="pv-key"><span class="pv-ksb met">K1</span> signed off by your assessor <span class="pv-ksb maybe">K2</span> evidence added, waiting <span class="pv-ksb aim">K3</span> aiming for</p>':"")+note("Tap a code to see what it means"+(a.signoff?", or to aim for it":"")+". Units you haven’t started cover the most missing ones."));
+      el.querySelectorAll("[data-ksb]").forEach(b=>b.onclick=()=>{const it=all.find(x=>x[0]===b.dataset.ksb);if(it&&typeof ksbDetail==="function")ksbDetail(it[0],it[1],a.evidenced.has(it[0]),()=>openDeep("ksb"))});
     }
     else if(id==="otj"){
       const wk=D.otjWeeks,log=hours.slice().sort((x,y)=>Number(y.on||y.createdAt)-Number(x.on||x.createdAt));

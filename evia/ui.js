@@ -17,10 +17,12 @@
     back:'<path d="m15 5-7 7 7 7"/>',
     test:'<path d="M7 3.5h10a1.5 1.5 0 0 1 1.5 1.5v15l-3-1.8-3 1.8-3-1.8-3 1.8V5A1.5 1.5 0 0 1 7 3.5Z"/><path d="M9 8.5h6M9 12h6"/>'
   };
-  function ring(pct,size,stroke,label,sub){
-    const r=(size-stroke)/2,c=2*Math.PI*r,dash=Math.max(0,Math.min(1,pct/100))*c;
+  /* soft (optional): a lighter arc after pct, for evidence waiting for the assessor. */
+  function ring(pct,size,stroke,label,sub,soft){
+    const r=(size-stroke)/2,c=2*Math.PI*r,dash=Math.max(0,Math.min(1,pct/100))*c,dash2=Math.max(0,Math.min(1,(pct+(soft||0))/100))*c;
     return '<span class="ui-ring" style="width:'+size+'px;height:'+size+'px">'+
-      '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'" aria-hidden="true"><circle cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" class="ui-ring-track" stroke-width="'+stroke+'"/>'+(dash>0?'<circle cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" class="ui-ring-fill" stroke-width="'+stroke+'" stroke-dasharray="'+dash.toFixed(1)+' '+c.toFixed(1)+'" transform="rotate(-90 '+size/2+' '+size/2+')"/>':"")+'</svg>'+
+      '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'" aria-hidden="true"><circle cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" class="ui-ring-track" stroke-width="'+stroke+'"/>'+
+      (dash2>dash?'<circle cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" class="ui-ring-fill ui-ring-soft" stroke-width="'+stroke+'" stroke-dasharray="'+dash2.toFixed(1)+' '+c.toFixed(1)+'" transform="rotate(-90 '+size/2+' '+size/2+')"/>':"")+(dash>0?'<circle cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" class="ui-ring-fill" stroke-width="'+stroke+'" stroke-dasharray="'+dash.toFixed(1)+' '+c.toFixed(1)+'" transform="rotate(-90 '+size/2+' '+size/2+')"/>':"")+'</svg>'+
       (label!=null?'<span class="ui-ring-label"><strong>'+label+'</strong>'+(sub?'<small>'+sub+'</small>':"")+'</span>':"")+
     '</span>';
   }
@@ -28,15 +30,21 @@
   /* ---------- Shared analysis used by Home and the coach ---------- */
   function analyse(){
     const units=data().u,entries=evidence.filter(e=>e.c===course);
-    const evidenced=window.eviaNvq&&window.eviaNvq.on()?window.eviaNvq.evidenced():new Set(entries.flatMap(e=>Array.isArray(e.k)?e.k:[]).concat(inductionKsbs()));
+    /* claimed: what the learner has mapped. evidenced: what counts (signed off by the assessor when connected to a
+       college, app.js ksbSignoff). possible: claimed, waiting for the assessor. */
+    const nvqOn=window.eviaNvq&&window.eviaNvq.on(),so=ksbSignoff();
+    const claimed=nvqOn?window.eviaNvq.claimed():new Set(entries.flatMap(e=>Array.isArray(e.k)?e.k:[]).concat(inductionKsbs()));
+    const evidenced=nvqOn?window.eviaNvq.evidenced():so.on?new Set([...so.signed]):claimed;
+    const possible=new Set([...claimed].filter(k=>!evidenced.has(k)));
+    const aims=ksbAims().filter(k=>!evidenced.has(k));
     const all=allK(),met=all.filter(x=>evidenced.has(x[0])).length;
     const ksbPct=all.length?Math.round(met/all.length*100):0;
     const unitInfo=units.map((u,i)=>{
       const codes=[...new Set(u[1].map(code))];
       const es=entries.filter(e=>e.u===u[0]);
-      return {index:i,name:u[0],codes,missing:codes.filter(c=>!evidenced.has(c)),entries:es,started:es.length>0};
+      return {index:i,name:u[0],codes,missing:codes.filter(c=>!claimed.has(c)),waiting:codes.filter(c=>possible.has(c)),aims:codes.filter(c=>aims.includes(c)&&!claimed.has(c)),entries:es,started:es.length>0};
     }).filter(x=>!(window.eviaNvq&&window.eviaNvq.on())||window.eviaNvq.packShown(x.index)); /* NVQ: only jobs for the learner's units */
-    const quickest=unitInfo.filter(u=>u.missing.length).sort((a,b)=>b.missing.length-a.missing.length||(a.started-b.started)||a.index-b.index)[0]||null;
+    const quickest=unitInfo.filter(u=>u.missing.length).sort((a,b)=>b.aims.length-a.aims.length||b.missing.length-a.missing.length||(a.started-b.started)||a.index-b.index)[0]||null;
     const packs=readJson("evia7-working-evidence-packs",{});
     const drafts=Object.values(packs).filter(p=>p&&p.course===course&&((p.photos||[]).length||String(p.write||"").trim())).map(p=>unitInfo.find(u=>u.name===p.unit)).filter(Boolean);
     const lastEntry=entries.slice().sort((a,b)=>entryTime(b)-entryTime(a))[0]||null;
@@ -48,7 +56,7 @@
       if(e>s){timePct=Math.round(Math.max(0,Math.min(1,(Date.now()-s)/(e-s)))*100);endDate=new Date(e)}
     }
     const otj=hours.reduce((n,x)=>n+Number(x.n||0),0);
-    return {units:unitInfo,entries,evidenced,met,total:all.length,ksbPct,quickest,drafts,lastEntry,daysSince,timePct,endDate,otj};
+    return {units:unitInfo,entries,evidenced,claimed,possible,aims,signoff:so.on,met,total:all.length,ksbPct,quickest,drafts,lastEntry,daysSince,timePct,endDate,otj};
   }
   function suggestion(a){
     if(a.drafts.length){const d=a.drafts[0];return {unit:d,text:pick(["You started "+d.name+" but haven’t submitted it yet. Finish it off and it counts towards your KSBs.","Your "+d.name+" evidence is still a draft. Submit it and those KSBs get ticked off."]),action:"Finish "+d.name,draft:true}}
@@ -182,12 +190,12 @@
         (window.eviaNvq&&window.eviaNvq.on()?"":'<h2 class="pg-x-h">Knowledge, skills and behaviours</h2>')+
         (window.eviaNvq&&window.eviaNvq.on()?window.eviaNvq.progressHtml(a):'<section class="ui-card ui-groups">'+GROUPS.map(([letter,label],gi)=>{
           const items=all.filter(x=>x[0].startsWith(letter));if(!items.length)return"";
-          const done=items.filter(x=>a.evidenced.has(x[0])).length,pct=Math.round(done/items.length*100),open=!!expanded[letter]||document.body.classList.contains("evia-onboarding"); /* the demo points at K2 and S2, so keep groups open */
+          const done=items.filter(x=>a.evidenced.has(x[0])).length,wait=a.signoff?items.filter(x=>a.possible.has(x[0])).length:0,pct=Math.round(done/items.length*100),open=!!expanded[letter]||document.body.classList.contains("evia-onboarding"); /* the demo points at K2 and S2, so keep groups open */
           return (gi?'<div class="ui-divider"></div>':"")+
-            '<button type="button" class="ui-group-head" data-group="'+letter+'" aria-expanded="'+open+'">'+ring(pct,44,5,null)+
-              '<span class="ui-group-copy"><strong>'+label+'</strong><small>'+done+' of '+items.length+' with evidence</small></span><span class="ui-group-pct">'+pct+'%</span><span class="ui-chev'+(open?" open":"")+'">'+icon(ICONS.chev,18)+'</span></button>'+
-            (open?'<div class="ui-ksb-grid">'+items.map(x=>{const met=a.evidenced.has(x[0]);return '<button type="button" class="ui-ksb'+(met?" met":"")+'" data-ksb-code="'+escHtml(x[0])+'" aria-label="'+escHtml(x[0])+(met?", evidence captured":"")+'">'+(met?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>':"")+escHtml(x[0])+(hasSupport(x[0])?'<i class="ui-ksb-dot" aria-label="Supporting evidence"></i>':"")+'</button>'}).join("")+'</div>':"");
-        }).join("")+'<p class="ui-help">Tap a KSB to see its wording and the evidence mapped to it.</p></section>')+
+            '<button type="button" class="ui-group-head" data-group="'+letter+'" aria-expanded="'+open+'">'+ring(pct,44,5,null,null,Math.round(wait/items.length*100))+
+              '<span class="ui-group-copy"><strong>'+label+'</strong><small>'+done+' of '+items.length+(a.signoff?' signed off'+(wait?' · '+wait+' waiting':''):' with evidence')+'</small></span><span class="ui-group-pct">'+pct+'%</span><span class="ui-chev'+(open?" open":"")+'">'+icon(ICONS.chev,18)+'</span></button>'+
+            (open?'<div class="ui-ksb-grid">'+items.map(x=>{const met=a.evidenced.has(x[0]),maybe=!met&&a.signoff&&a.possible.has(x[0]),aim=(a.aims||[]).includes(x[0]);return '<button type="button" class="ui-ksb'+(met?" met":maybe?" maybe":"")+(aim?" aim":"")+'" data-ksb-code="'+escHtml(x[0])+'" aria-label="'+escHtml(x[0])+(met?(a.signoff?", signed off":", evidence captured"):maybe?", evidence added, waiting for your assessor":"")+(aim?", aiming for":"")+'">'+(met?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>':"")+escHtml(x[0])+(hasSupport(x[0])?'<i class="ui-ksb-dot" aria-label="Supporting evidence"></i>':"")+'</button>'}).join("")+'</div>':"");
+        }).join("")+(a.signoff?'<p class="ui-ksb-key"><span class="ui-ksb met">K1</span> signed off <span class="ui-ksb maybe">K2</span> waiting for your assessor <span class="ui-ksb aim">K3</span> aiming for</p>':"")+'<p class="ui-help">Tap a KSB to see its wording and the evidence mapped to it'+(a.signoff?", or to aim for it":"")+'.</p></section>')+
       '</div>';
     if(window.eviaTargets){window.eviaTargets.bind(document.getElementById("pg-targets"),()=>progressScreen(true))}
     if(window.eviaNvq&&window.eviaNvq.on())window.eviaNvq.bindProgress(()=>progressScreen(true));
@@ -196,7 +204,7 @@
     document.querySelectorAll("[data-group]").forEach(b=>b.onclick=()=>{const y=window.scrollY;expanded[b.dataset.group]=!expanded[b.dataset.group];progressScreen(true);window.scrollTo(0,y)});
     document.querySelectorAll("[data-tile]").forEach(b=>b.onclick=()=>openTile(b.dataset.tile,st));
     const tg=document.getElementById("ui-tip-go");if(tg)tg.onclick=()=>runNudge(tip);
-    document.querySelectorAll(".ui-groups [data-ksb-code]").forEach(b=>b.onclick=()=>{const item=all.find(x=>x[0]===b.dataset.ksbCode);if(item)ksbDetail(item[0],item[1],a.evidenced.has(item[0]))});
+    document.querySelectorAll(".ui-groups [data-ksb-code]").forEach(b=>b.onclick=()=>{const item=all.find(x=>x[0]===b.dataset.ksbCode);if(item)ksbDetail(item[0],item[1],a.evidenced.has(item[0]),()=>progressScreen(true))});
   }
 
   /* ---------- My course: saved evidence sits under the capture page ---------- */
@@ -219,7 +227,8 @@
       entries.map(e=>{const f=window.eviaFeedback&&window.eviaFeedback.forEvidence(e.id);return tileHtml(escHtml(e.id),icon(ICONS.camera,20),"Saved "+savedDay(entryTime(e)),count(e)+" photo"+(count(e)===1?"":"s")+" · "+words(e)+" words"+(f?(f.decision==="accepted"?" · ✓ Signed off":" · More wanted"):""),sharedAt("pack:"+e.id))}).join("")+'</section>');
     /* The assessor's latest feedback on this unit, above the saved evidence: what to get next time. */
     const uf=window.eviaFeedback&&window.eviaFeedback.forUnit(unitName);
-    if(uf&&uf.feedback){const sv=page.querySelector(".ev-saved");if(sv)sv.insertAdjacentHTML("afterbegin",'<div class="ev-unit-fb"><span class="ev-unit-fb-k">From your assessor</span>'+feedbackHtml(uf)+'</div>')}
+    const more=window.eviaMoreRequired?window.eviaMoreRequired().filter(x=>entries.some(e=>(e.k||[]).includes(x.code))):[];
+    if(uf&&(uf.feedback||more.length)){const sv=page.querySelector(".ev-saved");if(sv)sv.insertAdjacentHTML("afterbegin",'<div class="ev-unit-fb"><span class="ev-unit-fb-k">From your assessor</span>'+feedbackHtml(uf)+moreHtml(more)+'</div>')}
     entries.forEach(async e=>{const src=await photoOf(e),el=page.querySelector('[data-ev-img="'+CSS.escape(String(e.id))+'"]');if(src&&el)el.innerHTML='<img src="'+src+'" alt="">'});
     page.querySelectorAll("[data-ev-open]").forEach(b=>b.onclick=()=>viewPack(entries.find(e=>String(e.id)===b.dataset.evOpen)));
     const all=page.querySelector("#ev-share-all");if(all)all.onclick=()=>window.eviaOpenSendToPortfolio&&window.eviaOpenSendToPortfolio(unitName);
@@ -227,11 +236,19 @@
   }
   /* A saved pack, to look back at: its photos and write-up. */
   /* The assessor's sign-off and feedback on a piece of evidence (from Milos, through Nisia). */
-  function feedbackHtml(f){
+  /* The KSBs still to be signed off, with what to do about it. codes: [{code,unit}] */
+  function moreHtml(codes){
+    if(!codes||!codes.length)return"";
+    const txt=k=>{const x=allK().find(y=>y[0]===k);return x?x[1]:""};
+    return '<div class="ev-more"><strong>More required</strong><ul>'+codes.map(x=>'<li><b>'+escHtml(x.code)+'</b> '+escHtml(txt(x.code))+'</li>').join("")+'</ul><p>Aim to gather evidence for '+(codes.length===1?"this":"these")+' next time. Anything that shows '+(codes.length===1?"it":"them")+' counts: a couple of photos and a short write-up, just photos, or just a write-up.</p></div>';
+  }
+  window.eviaMoreHtml=moreHtml;
+  function feedbackHtml(f,e){
     if(!f)return"";
     const day=f.at?new Date(f.at).toLocaleDateString("en-GB",{day:"numeric",month:"short"}):"";
     return '<div class="ev-fb '+(f.decision==="accepted"?"ok":"more")+'"><strong>'+(f.decision==="accepted"?"✓ Signed off":"Your assessor would like a bit more")+(f.by?" by "+escHtml(f.by):"")+(day?", "+escHtml(day):"")+'</strong>'+
-      (f.decision==="accepted"&&f.ksbs&&f.ksbs.length?'<small>'+escHtml(f.ksbs.join(", "))+'</small>':"")+(f.feedback?'<p>'+escHtml(f.feedback)+'</p>':"")+'</div>';
+      (f.decision==="accepted"&&f.ksbs&&f.ksbs.length?'<small>'+escHtml(f.ksbs.join(", "))+'</small>':"")+(f.feedback?'<p>'+escHtml(f.feedback)+'</p>':"")+'</div>'+
+      (e&&window.eviaMoreRequired?moreHtml(window.eviaMoreRequired().filter(x=>(e.k||[]).includes(x.code))):"");
   }
   window.eviaFeedbackHtml=feedbackHtml;
   async function viewPack(e){
@@ -239,7 +256,7 @@
     if(window.eviaFeedback)window.eviaFeedback.markSeen([String(e.id)]);
     const sh=uiSheet("SAVED "+savedDay(entryTime(e)).toUpperCase(),e.u,
       '<div class="ev-view-photos" id="ev-view-photos"></div>'+
-      (String(e.w||"").trim()?'<p class="ev-view-text">'+escHtml(e.w)+'</p>':"")+feedbackHtml(window.eviaFeedback&&window.eviaFeedback.forEvidence(e.id))+
+      (String(e.w||"").trim()?'<p class="ev-view-text">'+escHtml(e.w)+'</p>':"")+feedbackHtml(window.eviaFeedback&&window.eviaFeedback.forEvidence(e.id),e)+
       '<div class="pr-actions"><button type="button" class="secondary ui-danger" id="ev-view-del">Delete</button><button type="button" class="secondary" id="ev-view-share">'+SHARE_ICON+' Share</button></div>');
     sh.el.querySelector("#ev-view-share").onclick=()=>{sh.close();window.eviaOpenSendToPortfolio&&window.eviaOpenSendToPortfolio(e.u,e.id)};
     sh.el.querySelector("#ev-view-del").onclick=()=>{

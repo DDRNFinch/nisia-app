@@ -155,7 +155,7 @@
     const prof=window.eviaData.learner(),startMs=Date.parse(prof.start||"");
     return {
       weeksIn:isNaN(startMs)?null:Math.max(0,(Date.now()-startMs)/(7*864e5)),maths:!!prof.mathsEnabled,english:!!prof.englishEnabled,
-      ksbPct:a.ksbPct,met:a.met,total:a.total,timePct:a.timePct,verdict:gap==null?null:gap>10?"behind":gap<-5?"ahead":"ontrack",weeksPerUnit:S.weeksPerUnit!=null?Math.max(1,Math.floor(S.weeksPerUnit)):null,weeksLeft:S.weeksLeft,
+      ksbPct:a.ksbPct,met:a.met,total:a.total,signoff:!!a.signoff,timePct:a.timePct,verdict:gap==null?null:gap>10?"behind":gap<-5?"ahead":"ontrack",weeksPerUnit:S.weeksPerUnit!=null?Math.max(1,Math.floor(S.weeksPerUnit)):null,weeksLeft:S.weeksLeft,
       unitsStarted:startedUnits(S),unitsTotal:a.units.length,packs:S.allPacks,coverage:S.coverage,avgPhotos:S.avgPhotos!=null?Math.round(S.avgPhotos*10)/10:null,
       strongest:checks[0]?checks[0].u.name:null,weakest:checks.length>1?checks[checks.length-1].u.name:null,weakestMissing:checks.length>1?checks[checks.length-1].missing.slice(0,3):[],
       otjTotal:Math.round(S.otjTotal*10)/10,otjMonth:Math.round(S.otjMonth*10)/10,streak:S.streak,longest:S.longest,lastUpload:S.lastUpload,
@@ -187,7 +187,7 @@
       '<div class="rv-hero"><div class="rv-ring" style="--p:'+s.ksbPct+'"><b>'+s.ksbPct+'%</b><small>of '+w+'</small></div><div class="rv-hero-side">'+
         (s.timePct!=null?row("Course time",s.timePct+"%",bar(s.timePct,"muted"))+row("Evidence",s.ksbPct+"%",bar(s.ksbPct,"",150)):"")+(v?'<span class="pg-verdict '+(v[1]==="good"?"ontrack":"behind")+'">'+v[0]+'</span>':"")+'</div></div>'+
       goals([tp!=null&&[(nvq?"Criteria":"KSBs")+" with evidence",s.ksbPct+"%","About "+tp+"%",s.ksbPct>=tp-10,s.ksbPct>=tp+10]])+
-      say(s.met+" of "+s.total+" "+w+" have evidence."+(
+      say(s.met+" of "+s.total+" "+w+(s.signoff?" signed off by your assessor.":" have evidence.")+(
         s.met>=s.total&&s.total?" You’ve evidenced every one"+(tp!=null&&tp<90?", well ahead of schedule at "+tp+"% of the way through your course":"")+". Brilliant work. From here, focus on making your evidence stronger: more photos, fuller write-ups and "+(nvq?"your knowledge questions.":"getting ready for your end-point assessment."):
         tp==null?"":
         s.ksbPct>=tp+10?" You’re ahead of schedule: at "+tp+"% of the way through your course, you’d normally have about "+tp+"% evidenced. Keep it up.":

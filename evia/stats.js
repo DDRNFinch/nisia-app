@@ -114,9 +114,13 @@
     /* New from the assessor: a sign-off (or a request for more) on their evidence, said once. */
     const fbNew=window.eviaFeedback?window.eviaFeedback.unseen().filter(f=>f.kind!=="observation"):[];
     if(fbNew.length){const f=fbNew[0];list.push({id:"fb-"+f.id,celebrate:f.decision==="accepted",feedback:f,
-      text:f.decision==="accepted"?(f.by?escHtmlS(f.by.split(" ")[0]):"Your assessor")+" signed off your "+escHtmlS(f.unit||"evidence")+" evidence"+(f.ksbs&&f.ksbs.length?" ("+f.ksbs.length+" KSB"+(f.ksbs.length===1?"":"s")+")":"")+". "+(f.feedback?"They said: “"+escHtmlS(f.feedback.slice(0,160))+(f.feedback.length>160?"…":"")+"”":""):
-        "Your assessor looked at your "+escHtmlS(f.unit||"evidence")+" evidence and would like a bit more."+(f.feedback?" “"+escHtmlS(f.feedback.slice(0,160))+"”":""),
+      text:(f.decision==="accepted"?(f.by?escHtmlS(f.by.split(" ")[0]):"Your assessor")+" signed off your "+escHtmlS(f.unit||"evidence")+" evidence"+(f.ksbs&&f.ksbs.length?" ("+f.ksbs.length+" KSB"+(f.ksbs.length===1?"":"s")+")":"")+". "+(f.feedback?"They said: “"+escHtmlS(f.feedback.slice(0,160))+(f.feedback.length>160?"…":"")+"”":""):
+        "Your assessor looked at your "+escHtmlS(f.unit||"evidence")+" evidence and would like a bit more."+(f.feedback?" “"+escHtmlS(f.feedback.slice(0,160))+"”":""))+
+        (()=>{const m=window.eviaMoreRequired?window.eviaMoreRequired().filter(x=>x.unit===f.unit).map(x=>x.code):[];return m.length?" <strong>More required: "+escHtmlS(m.slice(0,4).join(", "))+(m.length>4?"…":"")+"</strong>. Aim for "+(m.length===1?"it":"them")+" next time.":""})(),
       action:{label:"See it",kind:"feedback"}})}
+    /* Near the end, with KSBs still to be signed off and none chosen: suggest picking the ones to aim for. */
+    if(s.a&&s.a.signoff&&s.a.timePct!=null&&s.a.timePct>=75&&s.a.met<s.a.total&&!(s.a.aims||[]).length){const left=s.a.total-s.a.met;
+      list.push({id:"aims",text:"You’re "+s.a.timePct+"% through your course with "+left+" KSB"+(left===1?"":"s")+" still to be signed off. Pick the ones to aim for next, and Evia will point you at the jobs that cover them.",action:{label:"Choose KSBs",kind:"stats"}})}
     /* Backups: everything lives on this phone, so remind learners before there's a lot to lose. */
     const packsAll=(typeof evidence!=="undefined"?evidence:[]).filter(e=>e&&!e.induction),lastBackup=Date.parse(localStorage.getItem("evia7-last-backup")||"")||null;
     const since=lastBackup?packsAll.filter(e=>(Date.parse(e.savedAt||"")||0)>lastBackup).length:packsAll.length;
@@ -181,7 +185,7 @@
     return '<section class="ui-card pg-card pg-hero" id="pg-hero">'+
       '<div class="pg-hero-ring" data-ring="'+a.ksbPct+'">'+ringSvg(a.ksbPct)+'<span class="pg-hero-label"><span class="pg-hero-num">'+num(a.ksbPct)+'<small>%</small></span><em>of KSBs</em></span></div>'+
       '<div class="pg-hero-side">'+
-        '<p class="pg-hero-lead"><strong>'+num(a.met)+' of '+a.total+'</strong> KSBs have evidence</p>'+
+        '<p class="pg-hero-lead"><strong>'+num(a.met)+' of '+a.total+'</strong> KSBs '+(a.signoff?'signed off':'have evidence')+'</p>'+
         (tp!=null?row("Course time",tp+"%",bar(tp,{cls:"muted"}))+row("Evidence",a.ksbPct+"%",bar(a.ksbPct,{delay:150})):'<p class="pg-note">Add your start and end dates in Profile to see if you’re on track.</p>')+
         (verdict?'<span class="pg-verdict '+verdict[0]+'">'+verdict[1]+'</span>':"")+
         (perUnit?'<span class="pg-note">About '+perUnit+' week'+(perUnit===1?"":"s")+' per unit left</span>':"")+

@@ -122,6 +122,31 @@ function learning(){
 /* Supporting Evidence: optional course portfolio attachments. */
 /* KSBs ticked off by the one-time PPE induction, kept in Supporting evidence (onboarding.js). */
 function inductionKsbs(){return supportingMeta().filter(x=>x&&x.induction&&x.course===course).flatMap(x=>Array.isArray(x.ksbs)?x.ksbs:[])}
+/* Connected to a college, a KSB only counts as evidenced once the assessor signs it off in Milos (or observes it).
+   What the learner has mapped shows as possible until then. On their own, Evia counts what they map, as before. */
+function ksbSignoff(){
+ const on=!!(window.eviaNisia&&window.eviaNisia.joined()),signed=new Set();
+ if(on){
+  try{Object.values(JSON.parse(localStorage.getItem("evia7-nisia-feedback")||"{}")||{}).forEach(f=>{if(f&&f.decision==="accepted")(f.ksbs||[]).forEach(k=>signed.add(k))})}catch(_){}
+  supportingMeta().filter(x=>x&&x.observation&&x.course===course).forEach(x=>(x.ksbs||[]).forEach(k=>signed.add(k)));
+ }
+ return {on,signed};
+}
+window.eviaKsbSignoff=ksbSignoff;
+/* KSBs the learner has chosen to aim for (near the end of the course, say): Evia points them at the jobs that cover
+   them, and they can add them to any evidence pack that shows them. */
+/* More required: KSBs in evidence the assessor has looked at but hasn't signed off yet. Evia asks for them next time,
+   and they count as aims until they're signed off. Any evidence that shows them will do. */
+function moreRequired(){
+ const so=ksbSignoff();if(!so.on||!window.eviaFeedback)return[];
+ const out=new Map();
+ (typeof evidence!=="undefined"?evidence:[]).filter(e=>e&&e.c===course&&window.eviaFeedback.forEvidence(e.id)).forEach(e=>(e.k||[]).forEach(k=>{if(!so.signed.has(k)&&!out.has(k))out.set(k,e.u)}));
+ return [...out].map(([code,unit])=>({code,unit}));
+}
+window.eviaMoreRequired=moreRequired;
+function ksbAims(){let own=[];try{const a=JSON.parse(localStorage.getItem("evia7-ksb-aims")||"{}")||{};own=Array.isArray(a[course])?a[course]:[]}catch(_){}return [...new Set(own.concat(moreRequired().map(x=>x.code)))]}
+function setKsbAim(code,on){let a={};try{a=JSON.parse(localStorage.getItem("evia7-ksb-aims")||"{}")||{}}catch(_){}const l=new Set(Array.isArray(a[course])?a[course]:[]);on?l.add(code):l.delete(code);a[course]=[...l];localStorage.setItem("evia7-ksb-aims",JSON.stringify(a))}
+window.eviaKsbAims={list:ksbAims,set:setKsbAim};
 function supportingMeta(){try{const all=JSON.parse(localStorage.getItem("evia7-supporting-evidence")||"[]");return Array.isArray(all)?all:[]}catch(_){return[]}}
 function supportingSlug(value){return String(value||"").trim().replace(/[^a-z0-9]+/gi,"-").replace(/^-+|-+$/g,"").slice(0,80)||"supporting-evidence"}
 function supportingTypeLabel(type){return ({photo:"Photo",video:"Video",audio:"Audio",document:"Files"}[type]||"File")}
@@ -329,7 +354,8 @@ function courseProgressMeta(){
  };
  return metas[course]||metas.bricklayer;
 }
-function ksbDetail(codeValue,wording,mapped){
+function ksbDetail(codeValue,wording,mapped,onClose){
+ const so=ksbSignoff(),signed=so.on?so.signed.has(codeValue):mapped;
  const mappedEntries=evidence.filter(e=>e.c===course&&Array.isArray(e.k)&&e.k.includes(codeValue));
  const units=[...new Set(mappedEntries.map(e=>e.u))];
  const supporting=supportingMeta().filter(x=>x.course===course&&Array.isArray(x.ksbs)&&x.ksbs.includes(codeValue));
@@ -343,9 +369,12 @@ function ksbDetail(codeValue,wording,mapped){
    '<div class="ksb-modal-section"><div class="section-title">KSB wording</div><p>'+esc(wording)+'</p></div>'+
    '<div class="ksb-modal-section"><div class="section-title">Evidence mapped</div>'+evidenceHtml+'</div>'+
    supportingHtml+
-   '<div class="ksb-modal-foot">'+(mapped?'<span class="ksb-met">✓ Evidence captured</span>':'<span class="ksb-not-met">Not yet captured</span>')+(supporting.length?'<span class="ksb-supporting-status">○ Supporting evidence attached</span>':"")+(units.length?'<span>'+units.length+' unit'+(units.length===1?"":"s")+" mapped</span>":"")+'</div>'+
+   '<div class="ksb-modal-foot">'+(signed?'<span class="ksb-met">✓ '+(so.on?"Signed off by your assessor":"Evidence captured")+'</span>':so.on&&(mappedEntries.length||supporting.length)?'<span class="ksb-maybe">◐ Evidence added, waiting for your assessor to sign it off</span>':'<span class="ksb-not-met">Not yet captured</span>')+(supporting.length?'<span class="ksb-supporting-status">○ Supporting evidence attached</span>':"")+(units.length?'<span>'+units.length+' unit'+(units.length===1?"":"s")+" mapped</span>":"")+'</div>'+
+   (signed||moreRequired().some(x=>x.code===codeValue)?(signed?"":'<div class="ksb-aim-row"><strong class="ksb-maybe">More required</strong><small>Your assessor needs more evidence for this. Anything that shows it counts: a couple of photos and a short write-up, just photos, or just a write-up.</small></div>'):'<div class="ksb-aim-row"><button type="button" class="'+(ksbAims().includes(codeValue)?"secondary":"primary")+'" id="ksb-aim">'+(ksbAims().includes(codeValue)?"Stop aiming for "+esc(codeValue):"Aim for "+esc(codeValue))+'</button><small>Evia shows you the jobs that cover it, and you can add it to any evidence pack that shows it.</small></div>')+
    '</section></div>';
- document.getElementById("ksb-close").onclick=()=>document.getElementById("modal-root").innerHTML="";
+ const close=()=>{document.getElementById("modal-root").innerHTML="";if(onClose)onClose()};
+ document.getElementById("ksb-close").onclick=close;
+ const aim=document.getElementById("ksb-aim");if(aim)aim.onclick=()=>{setKsbAim(codeValue,!ksbAims().includes(codeValue));close()};
 }
 function openSavedReviews(){
  const reviews=window.eviaGetReviews?window.eviaGetReviews():[];

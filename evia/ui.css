@@ -50,7 +50,17 @@ html body .topbar{display:none!important}
 .ui-chev.open{transform:rotate(90deg)}
 .ui-ksb-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
 .ui-ksb{position:relative;height:42px;border-radius:12px;border:1px solid var(--ui-line);background:#fff;font:inherit;font-size:12px;font-weight:650;color:var(--ui-faint);display:flex;align-items:center;justify-content:center;gap:3px;cursor:pointer;padding:0}
-.ui-ksb.met{background:var(--soft);border-color:var(--yellow-line);color:var(--yellow-ink);font-weight:750}
+/* KSB chips: full colour once it counts (signed off by the assessor, or captured when not with a college), light while
+   the evidence waits for the assessor, a dashed ring when the learner is aiming for it. */
+.ui-ksb.met{background:var(--yellow);border-color:var(--yellow);color:var(--ui-on-accent);font-weight:750}
+.ui-ksb.maybe{background:var(--soft);border:1px dashed var(--yellow-line);color:var(--yellow-ink);font-weight:750}
+.ui-ksb.aim,.pv-ksb.aim{outline:2px dashed var(--yellow);outline-offset:2px}
+.ui-ksb-key,.pv-key{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:12px 0 0;font-size:12px;color:var(--ui-muted)}
+.ui-ksb-key .ui-ksb,.pv-key .pv-ksb{width:34px;height:24px;font-size:10.5px;border-radius:7px;pointer-events:none;display:inline-flex;align-items:center;justify-content:center}
+.pv-key .pv-ksb:not(:first-child),.ui-ksb-key .ui-ksb:not(:first-child){margin-left:6px}
+.ui-ring-soft,.pv-ring-soft{opacity:.35}
+.ksb-maybe{color:var(--yellow-ink);font-weight:700}
+.ksb-aim-row{display:flex;flex-direction:column;gap:6px;margin-top:14px}.ksb-aim-row small{color:var(--ui-muted);font-size:12.5px;line-height:1.4}
 .ui-ksb svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
 .ui-ksb-dot{position:absolute;top:4px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--yellow)}
 
@@ -869,6 +879,7 @@ html body .bottom-nav{grid-template-columns:1fr 104px 1fr}
 .pv-ksb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:6px}
 .pv-ksb{height:36px;border-radius:10px;background:#f2f4f7;font-size:12.5px;font-weight:700;color:var(--ui-muted);cursor:pointer}
 .pv-ksb.met{background:var(--yellow);color:var(--ui-on-accent)}
+.pv-ksb.maybe{background:var(--soft);color:var(--yellow-ink);box-shadow:inset 0 0 0 1px var(--yellow-line)}
 
 /* Animations: set up once a card is .pv-anim, played when it becomes .pv-in */
 .pv-anim .pv-grow-x{transform:scaleX(0);transform-origin:left center;transition:transform .9s cubic-bezier(.3,.8,.3,1) var(--d,0ms)}
@@ -2192,3 +2203,10 @@ html[data-a11y-motion="reduce"] .ui-action-pulse{box-shadow:0 0 0 3px color-mix(
 .ev-fb small{font-size:12px;color:var(--ui-muted,#687386);font-weight:600}
 .ev-fb p{margin:2px 0 0;font-size:14px;line-height:1.45;color:var(--ui-ink,#172033)}
 .ev-unit-fb{margin:0 0 12px}.ev-unit-fb-k{display:block;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ui-muted,#687386);margin-bottom:-4px}
+
+/* Aiming for, on the evidence pack page */
+.ev-aims p{margin:6px 0 10px;font-size:14px;color:var(--ui-text);line-height:1.45}
+.ev-aim{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px dashed var(--yellow-line);border-radius:12px;background:var(--soft);margin-top:8px;font-size:13.5px;line-height:1.35}
+.ev-aim input{width:18px;height:18px;margin:1px 0 0;flex:0 0 auto;accent-color:var(--yellow)}
+.ev-more{margin-top:10px;padding:12px 14px;border:1px dashed var(--yellow-line);border-radius:14px;background:var(--soft);color:var(--ui-text);font-size:13.5px;line-height:1.45}
+.ev-more strong{color:var(--yellow-ink)}.ev-more ul{margin:6px 0;padding-left:18px}.ev-more li{margin:3px 0}.ev-more p{margin:6px 0 0;color:var(--ui-muted);font-size:13px}

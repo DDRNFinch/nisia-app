@@ -87,7 +87,7 @@ html.evia-booting body{visibility:hidden}
   navigator.serviceWorker.addEventListener("controllerchange",function(){if(reloading||!hadController||Date.now()-openedAt>8000)return;reloading=true;window.location.reload();});
   window.addEventListener("load", async function(){
     try {
-      const registration=await navigator.serviceWorker.register("./sw-v16.js?v=evia7-v182",{updateViaCache:"none"});
+      const registration=await navigator.serviceWorker.register("./sw-v16.js?v=evia7-v183",{updateViaCache:"none"});
       await registration.update().catch(()=>{}); /* fails harmlessly with no signal */
       const activateWaiting=worker=>{if(!worker)return;worker.postMessage({type:"SKIP_WAITING"});};
       if(registration.waiting) activateWaiting(registration.waiting);

@@ -297,8 +297,8 @@
   }
   function freeWrite(ctx){
     const pack=ctx.pack,terms=split(ctx.prompts&&ctx.prompts.writeup);
-    const ready=()=>(pack.photos||[]).length&&String(pack.write||"").trim();
-    const hintText=()=>ready()?"Ready to submit.":(pack.photos||[]).length?"Write something to submit.":"Add at least one photo to submit.";
+    const ready=()=>!!((pack.photos||[]).length||String(pack.write||"").trim());
+    const hintText=()=>ready()?"Ready to submit.":"Write something, or add a photo, to submit.";
     const el=sheet(
       '<p class="eg-ctx">Write about the job in your own words: what you did, how and why.</p>'+
       (terms.length?'<div class="fr-mention"><div class="evidence-section-title">THINGS TO MENTION</div><div class="compact-prompts">'+esc(terms.join(" · "))+'</div></div>':"")+

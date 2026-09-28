@@ -454,7 +454,7 @@
     ring(M+24,y+22,14,s.ksbPct,accent,4.2);
     T(s.ksbPct+"%",M+24,y+23.5,16,"bold",ink,{align:"center"});T("of "+w,M+24,y+28,7.5,"normal",muted,{align:"center"});
     const px=M+48,pw=CW-56;
-    T(s.met+" of "+s.total+" "+w+" have evidence",px,y+9,11,"bold");
+    T(s.met+" of "+s.total+" "+w+(s.signoff?" signed off":" have evidence"),px,y+9,11,"bold");
     if(tp!=null){T("Course time",px,y+17,8.5,"normal",muted);T(tp+"%",px+pw,y+17,8.5,"bold",ink,{align:"right"});bar(px,y+19,pw,tp,[152,162,179]);
       T("Evidence",px,y+26,8.5,"normal",muted);T(s.ksbPct+"%",px+pw,y+26,8.5,"bold",ink,{align:"right"});bar(px,y+28,pw,s.ksbPct,accent)}
     if(verdict){doc.setFont("helvetica","bold");doc.setFontSize(8.5);const vw=doc.getTextWidth(verdict[0])+8;box(px,y+33,vw,6.5,verdict[1].map(c=>Math.round(c+(255-c)*.82)),null,3.25);T(verdict[0],px+4,y+37.4,8.5,"bold",verdict[1].map(c=>Math.round(c*.55)))}

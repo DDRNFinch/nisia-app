@@ -303,7 +303,7 @@
   function areas(){
     const S=window.eviaStats.compute(),a=S.a,out=[],add=(id,title,ok,text)=>out.push({id,title,ok,text});
     const gap=a.timePct==null?0:a.timePct-a.ksbPct;
-    add("where","Evidence",gap<=10,a.ksbPct+"% of "+(window.eviaTerm?window.eviaTerm().many:"KSBs")+" have evidence"+(gap>10?", a little behind for this point in your course":a.timePct!=null?", on track":""));
+    add("where","Evidence",gap<=10,a.ksbPct+"% of "+(window.eviaTerm?window.eviaTerm().many:"KSBs")+(a.signoff?" signed off":" have evidence")+(gap>10?", a little behind for this point in your course":a.timePct!=null?", on track":""));
     add("quality","Evidence quality",S.coverage!=null&&S.coverage>=70,S.coverage==null?"No write-ups checked yet":"Write-ups cover "+S.coverage+"% of the things to mention");
     /* Learning hours over the review period (since the last review, at most 12 weeks, at least 1), by the day each
        entry happened, so backdated hours count. The aim is the planned hours spread over the programme when the

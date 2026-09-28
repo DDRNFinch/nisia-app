@@ -120,9 +120,23 @@
      Whatever is in progress shows on the unit page, above the saved evidence. openAt opens free range at "photos" or
      "write" once the page is drawn (Evia's coach uses it). */
   let openAt=null;
+  /* KSBs the learner is aiming for (app.js ksbAims): those this unit covers, and the others, which they can tick to add
+     to this pack if the job shows them. The assessor decides in Milos. */
+  function aimsHtml(u,pack){
+    if(!window.eviaKsbAims)return"";
+    const so=window.eviaKsbSignoff?window.eviaKsbSignoff():{on:false},ev=so.on?so.signed:new Set();
+    const aims=window.eviaKsbAims.list().filter(k=>!ev.has(k));if(!aims.length)return"";
+    const codes=u[1].map(code),asked=(window.eviaMoreRequired?window.eviaMoreRequired():[]).filter(x=>x.unit===u[0]).map(x=>x.code),here=aims.filter(k=>codes.includes(k)&&!asked.includes(k)),other=aims.filter(k=>!codes.includes(k));
+    if(!here.length&&!other.length)return"";
+    const txt=k=>{const x=(typeof allK==="function"?allK():[]).find(y=>y[0]===k);return x?x[1]:""};
+    return '<section class="evidence-section ev-aims"><div class="evidence-section-title">AIMING FOR</div>'+
+      (here.length?'<p class="ev-aims-here">This job covers <strong>'+here.map(esc).join(", ")+'</strong>. Make sure your photos and write-up show '+(here.length===1?"it":"them")+'.</p>':"")+
+      (other.length?'<p class="ev-aims-q">Does this job show any of these too? Tick them to add them to this pack. Your assessor decides.</p>'+other.map(k=>'<label class="ev-aim"><input type="checkbox" data-aim-add value="'+esc(k)+'"'+((pack.extraKsbs||[]).includes(k)?" checked":"")+'><span><strong>'+esc(k)+'</strong> '+esc(txt(k))+'</span></label>').join(""):"")+
+    '</section>';
+  }
   async function renderPack(pack){
     const u=data().u[unit],photos=pack.photos||[],prompts=learnerPrompts();
-    const text=String(pack.write||"").trim(),started=photos.length||text,ready=photos.length&&text;
+    const text=String(pack.write||"").trim(),started=photos.length||text,ready=!!(photos.length||text);
     $("#page-title").textContent=u[0];
     $("#screen").innerHTML='<div class="evidence-pack-page">'+
       '<div class="evidence-heading"><div class="evidence-label">EVIDENCE PACK</div><h2>'+esc(u[0])+'</h2><p>Capture the whole job in one pack. Take photos from the <strong>beginning, middle and end</strong> of the job.</p></div>'+
@@ -130,13 +144,13 @@
         (window.eviaGuide?'<button type="button" class="eg-start" id="eg-start"><span class="evia-mini" aria-hidden="true"><span class="evia-face"><i></i><i></i></span></span><span><strong>'+(pack.guide&&!pack.guide.used&&(pack.guide.at||Object.values(pack.guide.answers||{}).some(Boolean))?"Carry on with Evia":"Let Evia guide you")+'</strong><small>'+(pack.guide&&!pack.guide.used&&pack.guide.at?"Pick up where you left off":"Photos one at a time, then a few questions")+'</small></span><span class="eg-start-chev" aria-hidden="true">›</span></button>':"")+
         '<button type="button" class="eg-start fr-start" id="fr-start"><span class="fr-no" aria-hidden="true"><span class="evia-mini"><span class="evia-face"><i></i><i></i></span></span><b class="fr-strike"></b></span><span><strong>'+(started?"Carry on in free range":"Free range mode")+'</strong><small>'+
           (started?photos.length+" photo"+(photos.length===1?"":"s")+(String(pack.write||"").trim()?" and a write-up":"")+" so far":"Add whatever you like: all your photos, then your write-up")+'</small></span><span class="eg-start-chev" aria-hidden="true">›</span></button>'+
-        '</div>'+
+        '</div>'+aimsHtml(u,pack)+
       (started?'<section class="evidence-section fr-progress"><div class="evidence-section-title">IN PROGRESS</div>'+
         '<div class="evidence-thumbs" id="evidence-photos"></div>'+
         '<p class="fr-progress-sum">'+photos.length+' photo'+(photos.length===1?"":"s")+' · '+(text?text.split(/\s+/).length+' words written':'no write-up yet')+'</p>'+
         (text?'<p class="fr-progress-text">'+esc(text.length>220?text.slice(0,220).replace(/\s+\S*$/,"")+"…":text)+'</p>':"")+
         '<div class="pack-actions fr-actions"><button class="primary" id="submit-evidence" '+(ready?"":"disabled")+'>Submit to Portfolio</button></div>'+
-        '<p class="submit-hint">'+(ready?"Your evidence pack is ready to submit.":photos.length?"Add a write-up to submit.":"Add at least one photo to submit.")+'</p></section>':"")+
+        '<p class="submit-hint">'+(ready?"Ready to submit. Photos, a write-up, or both: whatever shows the job.":"Add a photo or a write-up to submit.")+'</p></section>':"")+
       (window.eviaStrength?'<button type="button" class="st-how" id="st-how">How to build a strong portfolio ›</button>':"")+
       '</div>';
 
@@ -155,6 +169,7 @@
     const eg=$("#eg-start");if(eg)eg.onclick=()=>window.eviaGuide.start(Object.assign({},ctx,{done:()=>{renderPack(pack);if(String(pack.write||"").trim())window.eviaGuide.free(ctx,"write")}}));
     const fr=$("#fr-start");if(fr)fr.onclick=()=>window.eviaGuide.free(ctx);
     const how=$("#st-how");if(how)how.onclick=()=>window.eviaStrength.guide();
+    document.querySelectorAll("[data-aim-add]").forEach(c=>c.onchange=async()=>{const l=new Set(pack.extraKsbs||[]);c.checked?l.add(c.value):l.delete(c.value);pack.extraKsbs=[...l];await savePack(pack)});
     let submitting=false;
     if($("#submit-evidence"))$("#submit-evidence").onclick=async()=>{
       if(submitting)return;
@@ -215,7 +230,7 @@
   window.eviaSupportingFileGet=supportingGet;
 
   async function submitPack(pack){
-    if(!(pack.photos||[]).length||!String(pack.write||"").trim())return false;
+    if(!(pack.photos||[]).length&&!String(pack.write||"").trim())return false;
     const u=data().u[unit];
     const id=Date.now()+"-"+Math.random().toString(36).slice(2,8);
     const photoIds=[];
@@ -227,7 +242,8 @@
       await idbPut({id:permanentId,blob:rec.blob,addedAt:rec.addedAt||new Date().toISOString()});
       photoIds.push(permanentId);
     }
-    window.eviaData.put("evidence",{id,course,unit:u[0],text:pack.write,ksbs:u[1].map(code),photoIds,
+    /* The unit's KSBs, plus any the learner is aiming for that they ticked as shown by this job. */
+    window.eviaData.put("evidence",{id,course,unit:u[0],text:pack.write,ksbs:[...new Set(u[1].map(code).concat(pack.extraKsbs||[]))],photoIds,
       photoTakenAt:(pack.photos||[]).filter(p=>p&&p.id).map(p=>p.takenAt||null),
       /* Areas answered with guided Evia count in full towards the unit's strength (strength.js). */
       guidedAreas:window.eviaStrength?window.eviaStrength.guidedAreas(pack):[]});

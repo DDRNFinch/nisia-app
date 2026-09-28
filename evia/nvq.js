@@ -99,14 +99,19 @@
   const answers=()=>Object.fromEntries(window.eviaData.list("nvqAnswers").map(a=>[a.questionId,{t:a.text}]));
   const answered=(q,a)=>{const x=(a||answers())[q];return !!x&&words(x.t)>=MIN_WORDS};
   function supportingFor(){try{return supportingMeta().filter(x=>x.course===ID&&Array.isArray(x.ksbs))}catch(_){return[]}}
-  function evidenced(){
+  /* A criterion made of "at least n of these" counts once enough of its parts are in. */
+  const withWhole=s=>{Object.keys(CRIT).forEach(code=>{const c=CRIT[code].c;if(c.min&&(c.s||[]).filter((_,i)=>s.has(code+subLetter(i))).length>=c.min&&(!c.need||s.has(code+c.need)))s.add(code)});return s};
+  /* What the learner has evidence for, mapped by them. */
+  function claimed(){
     const s=new Set(),a=answers();
     (typeof evidence!=="undefined"?evidence:[]).filter(e=>e.c===ID).forEach(e=>(e.k||[]).forEach(k=>s.add(k)));
     Object.keys(CRIT).forEach(code=>{const q=CRIT[code].c.q;if(q&&answered(q,a))s.add(code)});
     supportingFor().forEach(x=>x.ksbs.forEach(k=>s.add(k)));
-    Object.keys(CRIT).forEach(code=>{const c=CRIT[code].c;if(c.min&&(c.s||[]).filter((_,i)=>s.has(code+subLetter(i))).length>=c.min&&(!c.need||s.has(code+c.need)))s.add(code)});
-    return s;
+    return withWhole(s);
   }
+  /* What counts: signed off by the assessor when connected to a college (app.js ksbSignoff), else what's mapped. */
+  function evidenced(){const so=window.eviaKsbSignoff?window.eviaKsbSignoff():{on:false};return so.on?withWhole(new Set(so.signed)):claimed()}
+  function possible(){const ev=evidenced();return new Set([...claimed()].filter(k=>!ev.has(k)))}
   const unitsAsking=q=>selected().filter(u=>u.o.some(o=>o.c.some(c=>c.q===q)));
 
   /* ---------- Shared bits ---------- */
@@ -271,7 +276,7 @@
   /* ---------- Progress: unit rings → outcomes → criteria ---------- */
   const open={};
   function progressHtml(a){
-    const ev=a&&a.evidenced||evidenced(),demo=document.body.classList.contains("evia-onboarding");
+    const ev=a&&a.evidenced||evidenced(),so=window.eviaKsbSignoff?window.eviaKsbSignoff():{on:false},pos=so.on?possible():new Set(),demo=document.body.classList.contains("evia-onboarding");
     const sel=selected();
     return '<section class="ui-card nvq-units"><div class="nvq-units-head"><strong>Your units</strong><small>'+sel.filter(u=>!u.opt).length+' mandatory · '+sel.filter(u=>u.opt).length+' optional</small></div>'+
       sel.map((u,i)=>{
@@ -282,8 +287,8 @@
           (isOpen?'<div class="nvq-outcomes">'+u.o.map(o=>{
             const d=o.c.filter(c=>ev.has(u.n+"."+c.n)).length;
             return '<div class="nvq-outcome"><div class="nvq-outcome-head"><span>'+o.n+'</span><p>'+escH(o.t)+'</p><small>'+d+'/'+o.c.length+'</small></div><div class="ui-ksb-grid nvq-grid">'+o.c.map(c=>{
-              const code=u.n+"."+c.n,met=ev.has(code);
-              return '<button type="button" class="ui-ksb'+(met?" met":"")+'" data-ksb-code="'+code+'" aria-label="Criterion '+c.n+(met?", evidence captured":"")+'">'+escH(c.n)+'</button>';
+              const code=u.n+"."+c.n,met=ev.has(code),maybe=!met&&pos.has(code);
+              return '<button type="button" class="ui-ksb'+(met?" met":maybe?" maybe":"")+'" data-ksb-code="'+code+'" aria-label="Criterion '+c.n+(met?(so.on?", signed off":", evidence captured"):maybe?", evidence added, waiting for your assessor":"")+'">'+escH(c.n)+'</button>';
             }).join("")+'</div></div>';
           }).join("")+'</div>':"");
       }).join("")+
@@ -306,7 +311,8 @@
       :c.min?'<p class="pr-intro">'+(c.all?"Do all of these":"Do at least "+c.min+" of these"+(c.need?", plus fire barriers and support angles,":""))+' as site jobs from the Course page.</p>'
       :BEHAVIOUR.includes(u.n)?'<p class="pr-intro">Ask your supervisor for witness testimony, or add a document that shows this, in Supporting evidence. Link it to Unit '+u.n+'.</p>'
       :'<p class="pr-intro">Any evidence pack for this unit covers this.</p>';
-    sheet(escH(label(code)).toUpperCase(),met?"Evidence captured":"Not yet evidenced",
+    const so=window.eviaKsbSignoff?window.eviaKsbSignoff():{on:false},waiting=so.on&&!met&&claimed().has(code);
+    sheet(escH(label(code)).toUpperCase(),met?(so.on?"Signed off by your assessor":"Evidence captured"):waiting?"Evidence added, waiting for your assessor":"Not yet evidenced",
       '<p class="nvq-question">'+escH(c.t)+'</p>'+(subs?'<ul class="nvq-subs'+(c.min?" min":"")+'">'+subs+'</ul>':"")+
       (c.min?'<p class="nvq-min">'+(c.all?"All <strong>"+c.min+"</strong> needed":"At least <strong>"+c.min+"</strong> needed"+(c.need?" plus "+(ev.has(code+c.need)?"✓ ":"")+escH(c.needText.toLowerCase()):""))+' · '+(c.s||[]).filter((_,i)=>ev.has(code+subLetter(i))).length+' done</p>':"")+
       '<div class="pr-h">Outcome '+o.n+'</div><p class="pr-intro">'+escH(o.t)+'</p>'+
@@ -328,6 +334,6 @@
   if(document.body)watch();else document.addEventListener("DOMContentLoaded",watch);
   window.eviaTerm=()=>on()?{one:"criterion",many:"criteria",Many:"Criteria"}:{one:"KSB",many:"KSBs",Many:"KSBs"};
   const packShown=i=>{const u=(data().u[i]||[])[2];return !u||selected().some(x=>x.n===u.unit)};
-  window.eviaNvq={on,packShown,id:ID,allK,evidenced,courseScreen,progressHtml,bindProgress,criterion,openKnowledge,openTopic,openQuestion,myQuestions,optionalHtml,readOptional,setOptional,optionalChosen,selected,label,critText,units:UNITS,behaviour:BEHAVIOUR,
+  window.eviaNvq={on,packShown,id:ID,allK,evidenced,claimed,possible,courseScreen,progressHtml,bindProgress,criterion,openKnowledge,openTopic,openQuestion,myQuestions,optionalHtml,readOptional,setOptional,optionalChosen,selected,label,critText,units:UNITS,behaviour:BEHAVIOUR,
     unitCodes:n=>BY[n]?unitCodes(BY[n]):[],doCodesFor:n=>BY[n]?BY[n].o.flatMap(o=>o.c.filter(c=>!c.q).map(c=>[n+"."+c.n,c.t])):[],answers};
 })();
