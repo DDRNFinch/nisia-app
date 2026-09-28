@@ -20,6 +20,21 @@
     const L=Object.fromEntries(window.eviaData.list("lessonResults",{course}).map(r=>[r.lessonId,r]));
     const m={gold:0,silver:0,bronze:0};Object.values(L).forEach(r=>{if(r&&r.done)m[r.best>=.9?"gold":r.best>=.7?"silver":"bronze"]++});return m;
   }
+  /* A doodle behind each subject tile, like the games' backgrounds: line drawings in the learner's colour. */
+  const D=(inner)=>'<span class="tg-doodle" aria-hidden="true"><svg viewBox="0 0 160 120" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">'+inner+'</svg></span>';
+  const DOODLE={
+    /* Bricks, a trowel and a spirit level. */
+    brick:D('<path d="M40 112h116M40 96h116M40 80h116M40 64h116M58 112V96M96 112V96M134 112V96M77 96V80M115 96V80M153 96V80M58 80V64M96 80V64M134 80V64"/><path d="M92 40l30-22 16 6-26 26z"/><path d="M122 18l14-14"/><rect x="18" y="20" width="56" height="12" rx="3"/><circle cx="46" cy="26" r="3"/>'),
+    /* A saw, a square and a plank with grain. */
+    timber:D('<path d="M40 104h112l-6 12H46z"/><path d="M60 110c14-3 30 2 44-1s26 2 36-1"/><path d="M88 18l52 40-8 10-52-40z"/><path d="M140 58l12 12-8 8-12-12"/><path d="M92 26l4-4M100 32l4-4M108 38l4-4M116 44l4-4M124 50l4-4"/><path d="M18 20v52h48"/><path d="M28 30v32h28"/>'),
+    /* Numbers, signs, a set square and a ruler. */
+    maths:D('<path d="M44 20h16M52 12v16"/><path d="M118 14l12 12M130 14l-12 12"/><path d="M82 30h16M82 38h16"/><path d="M60 108V60l48 48z"/><path d="M68 92v8h8"/><rect x="118" y="44" width="16" height="70" rx="3" transform="rotate(12 126 79)"/><path d="M124 56l6 1M123 66l6 1M121 76l6 1M119 86l6 1M117 96l6 1"/><path d="M20 70c0-8 12-8 12 0s-12 12-12 18h12"/>'),
+    /* A speech bubble, a pencil, lines of writing and quote marks. */
+    english:D('<path d="M86 14h56a10 10 0 0 1 10 10v24a10 10 0 0 1-10 10h-34l-14 12V58h-8a10 10 0 0 1-10-10V24a10 10 0 0 1 10-10z"/><path d="M92 28h42M92 40h28"/><path d="M40 112l6-20 56-56 14 14-56 56z"/><path d="M96 42l14 14"/><path d="M122 84h30M122 96h30M122 108h20"/><path d="M26 22c-6 2-8 8-6 14M38 22c-6 2-8 8-6 14"/>'),
+    /* People together, a heart and a shield. */
+    edi:D('<circle cx="54" cy="70" r="9"/><circle cx="84" cy="62" r="10"/><circle cx="114" cy="70" r="9"/><path d="M38 110c2-14 9-22 16-22s14 8 16 22M66 110c2-18 9-28 18-28s16 10 18 28M98 110c2-14 9-22 16-22s14 8 16 22"/><path d="M84 36c-6-10-20-6-18 4 2 8 18 16 18 16s16-8 18-16c2-10-12-14-18-4z"/><path d="M140 14l14 6v12c0 10-6 16-14 20-8-4-14-10-14-20V20z"/><path d="M134 32l5 5 9-9"/>')
+  };
+  const doodleFor=id=>id==="course"?(["site","joiner"].includes(course)?DOODLE.timber:DOODLE.brick):DOODLE[id]||"";
   const PLAY='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg>';
   function teachPage(){
     const T=window.eviaTeach,E=window.EVIA_TEACH||{fs:[]},R=window.eviaRewards,I=(E.ui&&E.ui.ICON)||{};
@@ -35,7 +50,7 @@
     const nx=T&&T.nextUp?T.nextUp():null;
     const next=nx?'<button type="button" class="tg-next" data-play="'+esc(nx.id)+'"><span class="tg-next-copy"><small>'+(nx.resume?"Carry on":"Up next")+' · '+esc(nx.unit)+'</small><strong>'+esc(nx.title)+'</strong><span>Lesson '+nx.n+' of '+nx.of+' · about '+nx.mins+' min</span></span><span class="tg-play">'+PLAY+'</span></button>':"";
     const tile=([id,title,c])=>{const pct=c.total?Math.round(c.done/c.total*100):0;
-      return '<button type="button" class="tt-card tg-tile tg-'+id+'" data-go="'+id+'"><span class="tg-tile-top"><span class="tg-tile-ic" aria-hidden="true">'+ICON[id]+'</span><span class="tg-ring" style="--p:'+pct+'" aria-hidden="true"><b>'+pct+'%</b></span></span><strong>'+esc(title)+'</strong><small>'+c.done+' of '+c.total+' lessons</small></button>'};
+      return '<button type="button" class="tt-card tg-tile tg-'+id+'" data-go="'+id+'">'+doodleFor(id)+'<span class="tg-tile-top"><span class="tg-tile-ic" aria-hidden="true">'+ICON[id]+'</span><span class="tg-ring" style="--p:'+pct+'" aria-hidden="true"><b>'+pct+'%</b></span></span><strong>'+esc(title)+'</strong><small>'+c.done+' of '+c.total+' lessons</small></button>'};
     scr().innerHTML=head("Teach me")+player+next+'<h2 class="ui-section-label">Subjects</h2><div class="tg-grid">'+subjects.map(tile).join("")+'</div>'+games();
     scr().querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{if(T)T.open(b.dataset.go)});
     scr().querySelectorAll("[data-play]").forEach(b=>b.onclick=()=>{if(T&&T.play)T.play(b.dataset.play)});
