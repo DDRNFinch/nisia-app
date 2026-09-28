@@ -75,7 +75,7 @@
   function mediaIds(){
     const D=window.eviaData,out=[];
     D.list("evidence").forEach(e=>(e.photoIds||[]).forEach(id=>out.push({id,kind:"photo",evidence:e.id})));
-    D.list("supporting").forEach(s=>out.push({id:s.id,kind:"supporting"}));
+    D.list("supporting").filter(s=>!s.observation).forEach(s=>out.push({id:s.id,kind:"supporting"}));
     return out;
   }
   const listeners=[];
@@ -98,6 +98,8 @@
           activity_type:r.source||"evia",description:String(r.description||r.did||"Learning").slice(0,2000),hours}));
         if(oe)console.warn("Evia: Nisia hours",oe.message);
       }
+      /* An assessor's observation came from Nisia: it's already there. */
+      if(ch.collection==="supporting"&&(r.observation||/^obs-/.test(String(r.id))))continue;
       if(ch.collection==="evidence"||ch.collection==="supporting"){
         const id=uuidFor(ch.collection+":"+r.id);
         /* Deleted in Evia: its photos and files go too. (Anything the assessor has accepted stays; the rules refuse.) */
@@ -149,7 +151,7 @@
      back, restarts Evia with it, then brings the photos and files down on WiFi. Sign-in, the sync bookkeeping and
      things that belong to one device stay where they are. */
   const STORE_SENT_KEY="evia7-nisia-store-sent",RESTORED_KEY="evia7-nisia-restored",FETCH_KEY="evia7-nisia-fetch";
-  const NOT_BACKED_UP=/^evia7-(nisia-(auth|status|media|store-sent|restored|fetch|snap)|data-synced|enrolment|learner-id|install-later|errors|offline-|evidence-db|supporting-files|last-backup|downloaded-unit-pdfs)/;
+  const NOT_BACKED_UP=/^evia7-(nisia-(auth|status|media|store-sent|restored|fetch|snap|observations)|data-synced|enrolment|learner-id|install-later|errors|offline-|evidence-db|supporting-files|last-backup|downloaded-unit-pdfs)/;
   /* Most of Evia's data is in IndexedDB behind localStorage (storage.js), so its keys come from there. */
   const backupKeys=()=>{const all=new Set(window.eviaStorage&&window.eviaStorage.keys?window.eviaStorage.keys():[]);
     for(let i=0;i<localStorage.length;i++)all.add(localStorage.key(i));return [...all].filter(k=>k&&k.startsWith("evia7-")&&!NOT_BACKED_UP.test(k))};
@@ -197,6 +199,7 @@
     const {data:files,error:fe}=await c.from("evidence_files").select("evidence_id,storage_path").in("evidence_id",ids);if(fe)throw fe;
     for(const f of files||[]){
       if(done[f.storage_path])continue;
+      if(/^observation:/.test(ref[f.evidence_id])){done[f.storage_path]=1;continue}   /* fetchObservations brings these */
       const id=f.storage_path.split("/").pop().replace(/\.[^.]*$/,""),supporting=/^supporting:/.test(ref[f.evidence_id]);
       const have=await window.eviaData.files.get(id,supporting?"supporting":"photo").catch(()=>null);
       if(!have){
@@ -206,6 +209,30 @@
       done[f.storage_path]=1;writeJson(FETCH_KEY,done);
     }
     try{localStorage.removeItem(FETCH_KEY)}catch(_){}
+  }
+  /* Observations the assessor made in Milos: each arrives as a PDF (with the photos, what they saw and the KSBs they
+     signed off) in the learner's Supporting evidence, on WiFi like other files. Fetched once; if the learner removes
+     one, the college keeps it and it isn't fetched again. */
+  const OBS_KEY="evia7-nisia-observations";
+  async function fetchObservations(c,e){
+    const got=readJson(OBS_KEY,{})||{};
+    const {data:ev,error}=await c.from("evidence").select("id,title,created_at,source_metadata").eq("enrolment_id",e.enrolmentId).eq("source_metadata->>collection","observation");
+    if(error)throw error;
+    for(const x of ev||[]){
+      if(got[x.id])continue;
+      const m=x.source_metadata||{};
+      const {data:fl,error:fe}=await c.from("evidence_files").select("storage_path,size_bytes").eq("evidence_id",x.id).like("storage_path","%/observation.pdf");
+      if(fe)throw fe;
+      if(!fl||!fl.length)continue;                    /* still on its way from the assessor's phone */
+      const {data:blob,error:de}=await c.storage.from("evidence").download(fl[0].storage_path);if(de)throw de;
+      const id="obs-"+x.id,on=m.observedOn||String(x.created_at).slice(0,10);
+      await window.eviaSupportingFilePut({id,blob});
+      window.eviaData.put("supporting",{id,title:"Observation: "+(m.unit||x.title||"workplace"),type:"document",mime:"application/pdf",size:blob.size,
+        filename:("Observation "+(m.unit||"")+" "+on).replace(/[^A-Za-z0-9 -]+/g,"").trim().replace(/\s+/g,"-")+".pdf",
+        observation:{by:m.observedBy||"",on,unit:m.unit||"",evidenceId:x.id},criteria:m.ksbs||[],...(m.nvqUnit?{nvqUnit:m.nvqUnit}:{})});
+      window.eviaData.markSynced(window.eviaData.changesSince().filter(ch=>ch.collection==="supporting"&&ch.record.id===id));   /* it came from Nisia */
+      got[x.id]=new Date().toISOString();writeJson(OBS_KEY,got);
+    }
   }
   /* The college's current details for this learner (name, dates, assessor, safeguarding lead, next review), so a
      change made in Nisia reaches Evia on the next sync. */
@@ -243,6 +270,7 @@
       const sent=readJson(MEDIA_KEY,{})||{};
       if(onWifi()){
         if(c)try{await fetchMedia(c,e)}catch(err){console.warn("Evia: Nisia media down",err&&err.message)}
+        if(c)try{await fetchObservations(c,e)}catch(err){console.warn("Evia: Nisia observations",err&&err.message)}
         for(const m of mediaIds().filter(m=>!sent[m.id])){
           try{sent[m.id]=c?await sendMedia(c,e,m):new Date().toISOString();writeJson(MEDIA_KEY,sent)}
           catch(err){console.warn("Evia: Nisia media",m.id,err&&err.message);break}

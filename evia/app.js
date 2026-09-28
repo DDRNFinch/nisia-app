@@ -251,7 +251,7 @@ function supportingPrepare(base,type){
    stopBtn.onclick=()=>{if(recorder&&recorder.state!=="inactive")recorder.stop()};
  }
 }
-function supportingSummary(x){return [x.witness&&x.witness.name?"Witness testimony · "+x.witness.name+(x.witness.role?", "+x.witness.role:""):supportingTypeLabel(x.type),x.nvqUnit?"Unit "+x.nvqUnit+(Array.isArray(x.ksbs)&&x.ksbs.length?" · "+x.ksbs.length+" criteria":""):""].filter(Boolean).join(" · ")}
+function supportingSummary(x){if(x.observation)return ["Observed by "+(x.observation.by||"your assessor"),x.ksbs&&x.ksbs.length?x.ksbs.length+" signed off":""].filter(Boolean).join(" · ");return [x.witness&&x.witness.name?"Witness testimony · "+x.witness.name+(x.witness.role?", "+x.witness.role:""):supportingTypeLabel(x.type),x.nvqUnit?"Unit "+x.nvqUnit+(Array.isArray(x.ksbs)&&x.ksbs.length?" · "+x.ksbs.length+" criteria":""):""].filter(Boolean).join(" · ")}
 /* About this evidence: mark it as witness testimony and, on NVQ courses, link it to a unit and the criteria it shows. */
 function openSupportingDetails(id,fresh,after){
  const all=supportingMeta(),x=all.find(r=>r.id===id);if(!x)return;

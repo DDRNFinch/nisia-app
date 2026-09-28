@@ -68,7 +68,7 @@
       const list=typeof supportingMeta==="function"?supportingMeta():readJson("evia7-supporting-evidence",[]);
       return (list||[]).filter(Boolean).map(x=>base(x.id,{course:x.course||"",title:x.title||x.filename||"",type:x.witness&&x.witness.name?"witness":x.type||"file",
         fileId:x.id,mime:x.mime||"",size:x.size||0,filename:x.filename||"",witness:x.witness&&x.witness.name?{name:x.witness.name,role:x.witness.role||""}:null,
-        nvqUnit:x.nvqUnit||null,criteria:(x.ksbs||x.criteria||[]).slice(),induction:!!x.induction,createdAt:iso(x.addedAt),updatedAt:iso(x.updatedAt||x.addedAt),deletedAt:null,submission:submission("sup:"+x.id)}));
+        nvqUnit:x.nvqUnit||null,criteria:(x.ksbs||x.criteria||[]).slice(),induction:!!x.induction,observation:x.observation||null,createdAt:iso(x.addedAt),updatedAt:iso(x.updatedAt||x.addedAt),deletedAt:null,submission:submission("sup:"+x.id)}));
     },
     nvqAnswers(){
       const all=readJson("evia7-nvq-answers",{})||{},nvq=(window.EVIA_NVQ||{}).id||"trowel3";   /* the only NVQ; its pack may not be loaded */
@@ -194,6 +194,8 @@
         if(r.nvqUnit!==undefined){if(r.nvqUnit){rec.nvqUnit=r.nvqUnit;rec.ksbs=(r.criteria||[]).slice()}else{delete rec.nvqUnit;rec.ksbs=[]}}
         /* The one-time PPE induction (onboarding.js) is linked to its KSBs on any course, and ticks them off. */
         if(r.induction){rec.induction=true;rec.ksbs=(r.criteria||[]).slice()}
+        /* An assessor's observation from Milos (nisia.js): what they signed off counts as evidenced. */
+        if(r.observation){rec.observation=Object.assign({},r.observation);rec.ksbs=(r.criteria||[]).slice()}
         if(x)rec.updatedAt=new Date().toISOString();else list.push(rec);
         writeJson("evia7-supporting-evidence",list.slice(-500));return rec.id;
       },

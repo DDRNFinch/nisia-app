@@ -252,9 +252,9 @@
     const sh=uiSheet((x.type||"file").toUpperCase()+" · "+savedDay(addedOf(x)).toUpperCase(),x.title||"Supporting evidence",
       '<div class="sp-preview" id="sp-preview"><span class="sp-loading">Loading…</span></div>'+
       '<p class="sp-meta">'+escHtml(typeof supportingSummary==="function"?supportingSummary(x):"")+(x.size?" · "+(x.size>1048576?(x.size/1048576).toFixed(1)+" MB":Math.max(1,Math.round(x.size/1024))+" KB"):"")+(shared?' · <b class="ev-shared-tag">Shared '+escHtml(savedDay(shared))+'</b>':"")+'</p>'+
-      '<div class="pr-actions"><button type="button" class="secondary ui-danger" id="sp-del">Delete</button><button type="button" class="secondary" id="sp-edit">Edit details</button><button type="button" class="primary" id="sp-share">'+(shared?"Share again":"Share")+'</button></div>');
-    sh.el.querySelector("#sp-edit").onclick=()=>{sh.close();openSupportingDetails(x.id,false,window.openSupportingEvidence)};
-    sh.el.querySelector("#sp-del").onclick=()=>{
+      '<div class="pr-actions">'+(x.observation?"":'<button type="button" class="secondary ui-danger" id="sp-del">Delete</button><button type="button" class="secondary" id="sp-edit">Edit details</button>')+'<button type="button" class="primary" id="sp-share">'+(shared?"Share again":"Share")+'</button></div>');
+    if(!x.observation)sh.el.querySelector("#sp-edit").onclick=()=>{sh.close();openSupportingDetails(x.id,false,window.openSupportingEvidence)};
+    if(!x.observation)sh.el.querySelector("#sp-del").onclick=()=>{
       if(!confirm("Delete this file from Evia? If your assessor has already signed it off, your college keeps their copy."))return;
       if(window.eviaData.remove("supporting",x.id)){sh.close();if(typeof showEvidenceToast==="function")showEvidenceToast("Deleted");window.openSupportingEvidence()}
     };
