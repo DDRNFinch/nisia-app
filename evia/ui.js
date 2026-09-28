@@ -663,8 +663,8 @@
       const box=document.createElement("div");box.className="chat-options ui-actions";
       ACTIONS.forEach(([id,label,path],i)=>{
         const b=document.createElement("button");b.type="button";b.className="chat-pill ui-action";b.style.setProperty("--i",i);b.dataset.action=id;
-        const n=id==="prep"?prepBadge():0;
-        b.innerHTML='<span class="ui-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true">'+path+'</svg></span><strong>'+escHtml(label)+(n?'<em class="ui-action-count" aria-label="'+n+' to do">'+n+'</em>':"")+'</strong>';
+        const n=id==="prep"?prepBadge():0;if(n)b.classList.add("ui-action-pulse");
+        b.innerHTML='<span class="ui-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true">'+path+'</svg></span><strong>'+escHtml(label)+'</strong>'+(n?'<span class="visually-hidden"> ('+n+' to do)</span>':"");
         b.onclick=()=>{userTurns++;box.remove();actionRun(id)()};box.appendChild(b);
       });
       c.appendChild(box);scrollChat();
@@ -672,15 +672,17 @@
   }
   /* ---------- Review coming up: a count on Evia's button and on "Get ready for review" ----------
      From 21 days before the review (or once it's overdue), the number of things to get ready. */
+  /* From 7 days before the review (or once it's overdue), while anything is left to get ready: Evia pulses, and so
+     does "Get ready for review" in her chat. It stops when there's nothing left. */
   function prepBadge(){
-    try{const rd=window.eviaReviewDue&&window.eviaReviewDue();if(!rd||rd.days>21)return 0;return window.eviaReviewPrepCount?window.eviaReviewPrepCount():0}catch(_){return 0}
+    try{const rd=window.eviaReviewDue&&window.eviaReviewDue();if(!rd||rd.days>7)return 0;return window.eviaReviewPrepCount?window.eviaReviewPrepCount():0}catch(_){return 0}
   }
   function drawFabBadge(){
     const fab=document.getElementById("evia-fab");if(!fab)return;
-    let b=fab.querySelector(".fab-badge");const n=document.body.classList.contains("evia-onboarding")?0:prepBadge();
-    if(!n){if(b)b.remove();fab.removeAttribute("data-review");return}
-    if(!b){b=document.createElement("span");b.className="fab-badge";b.setAttribute("aria-hidden","true");fab.appendChild(b)}
-    b.textContent=n;fab.dataset.review="1";fab.setAttribute("aria-label","Open Evia: "+n+" thing"+(n===1?"":"s")+" to get ready for your review");
+    let ring=fab.querySelector(".fab-pulse");const n=document.body.classList.contains("evia-onboarding")?0:prepBadge();
+    if(!n){if(ring)ring.remove();fab.removeAttribute("data-review");fab.setAttribute("aria-label","Open Evia");return}
+    if(!ring){ring=document.createElement("span");ring.className="fab-pulse";ring.setAttribute("aria-hidden","true");fab.prepend(ring)}
+    fab.dataset.review="1";fab.setAttribute("aria-label","Open Evia: "+n+" thing"+(n===1?"":"s")+" to get ready for your review");
   }
   window.eviaDrawFabBadge=drawFabBadge;
   setTimeout(drawFabBadge,1600);
