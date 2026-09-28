@@ -2,9 +2,9 @@
    installs, and served from here after that, so an update always arrives complete (never new files mixed with old
    ones). Learners' data isn't kept here: store.js keeps it in IndexedDB, and Nisia's own requests go straight through.
    VERSION is stamped with the commit when the site is published. */
-const VERSION = "e726aa8";
+const VERSION = "c5622ae";
 const CACHE = "milos-" + VERSION;
-const FILES = ["./", "index.html", "app.js", "review.js", "portfolio.js", "observe.js", "store.js", "draft.js", "manifest.webmanifest",
+const FILES = ["./", "index.html", "app.js", "review.js", "portfolio.js", "observe.js", "store.js", "draft.js", "match.js", "manifest.webmanifest",
   "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-512.png", "icons/apple-touch-icon.png",
   "../packages/core/nisia.js", "../packages/core/signin.js", "../packages/core/courses.js", "../packages/core/reviewdoc.js",
   "../packages/core/strength.js", "../packages/core/prompts.js", "../packages/ui/nisia.css",
