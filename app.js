@@ -30,6 +30,7 @@ const ICON = {
   menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
   photo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2.5h5L16 6"/></svg>',
   clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+  check: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
   evia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>',
 };
 const COLORS = ["#0B6E78", "#6B4FD8", "#B86E00", "#1F8A4C", "#C0392B", "#2C85F7", "#8A5A44", "#4A5B6E"];
@@ -99,6 +100,8 @@ function shell(content) {
   root.querySelector("#menuBtn").onclick = () => root.querySelector("#side").classList.toggle("open");
   root.querySelectorAll("[data-go]").forEach((b) => b.onclick = () => go(b.dataset.go));
 }
+/* Coming back to the tab: bring the page up to date, unless a window is open over it. */
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && S.org && S.data && Date.now() - S.data.at > 30000 && !document.getElementById("modal")) render(); });
 function go(page, extra) {
   if (page === "colleges") { S.org = null; S.data = null; }
   S.page = page; Object.assign(S, extra || {}); window.scrollTo(0, 0); render();
@@ -116,10 +119,11 @@ async function home() {
 }
 async function render() {
   if (!S.org) return colleges();
+  /* Fresh from Nisia whenever a page opens and what's held is over 30 seconds old, so new activity from Evia shows. */
   if (!S.data || S.data.org !== S.org) {
     loading();
     try { await loadCollege(); } catch (e) { shell('<p class="err">' + esc(e.message) + '</p>'); return; }
-  }
+  } else if (Date.now() - S.data.at > 30000) { try { await loadCollege(); } catch (_) { /* keep showing what we have */ } }
   ({ overview, learners: learnersPage, learner: learnerPage, reviews: reviewsPage, staff: staffPage, licence: licencePage }[S.page] || overview)();
 }
 
@@ -133,7 +137,7 @@ async function loadCollege() {
     rpc("nisia_college_activity", { p_org: org }),
   ]);
   learners.forEach(assess);
-  S.data = { org, summary, learners, staff, activity, admin, quality };
+  S.data = { org, summary, learners, staff, activity, admin, quality, at: Date.now() };
 }
 function assess(l) {
   const s = Date.parse(l.start_date), e = Date.parse(l.end_date), now = Date.now();
@@ -251,6 +255,7 @@ function addLearner() {
   }); };
 }
 /* One piece of evidence, as the learner saved it in Evia: what they wrote, the KSBs, and the photos or files. */
+const assessedPill = (a) => !a ? '<span class="pill">Not yet</span>' : a.decision === "accepted" ? '<span class="pill good">Accepted</span>' : '<span class="pill warn">Changes needed</span>';
 const EV_TYPE = { photo: "Photos", video: "Video", audio: "Recording", document: "Document", written: "Write-up" };
 async function showEvidence(e) {
   if (!e) return;
@@ -258,7 +263,9 @@ async function showEvidence(e) {
     '<p class="small muted">' + esc([e.unit && e.unit !== e.title ? e.unit : "", EV_TYPE[e.type] || e.type, ukDate(e.at)].filter(Boolean).join(" · ")) + '</p>' +
     ((e.ksbs || []).length ? '<div class="chips">' + e.ksbs.map((k) => '<span class="pill">' + esc(k) + '</span>').join("") + '</div>' : "") +
     (e.text ? '<div class="quote"><span class="label">What they wrote</span><p style="white-space:pre-wrap;margin:6px 0 0">' + esc(e.text) + '</p></div>' : "") +
-    '<div class="media" id="media"><p class="small muted">Loading files…</p></div>');
+    '<div class="media" id="media"><p class="small muted">Loading files…</p></div>' +
+    (e.assessment ? '<div class="quote"><span class="label">Assessment</span><p style="margin:6px 0 0">' + assessedPill(e.assessment) + ' ' + esc(ukDate(e.assessment.at)) + (e.assessment.by ? " by " + esc(e.assessment.by) : "") + '</p>' +
+      (e.assessment.feedback ? '<p style="margin:6px 0 0">' + esc(e.assessment.feedback) + '</p>' : "") + ((e.assessment.ksbs || []).length ? '<p class="small" style="margin:6px 0 0"><b>KSBs signed off:</b> ' + esc(e.assessment.ksbs.join(", ")) + '</p>' : "") + '</div>' : '<p class="small muted">Not assessed yet. The assessor signs it off in Milos.</p>'));
   m.classList.add("wide-modal");
   const box = m.querySelector("#media");
   try {
@@ -281,6 +288,17 @@ async function pairing(l) {
     m.innerHTML = '<div class="modal-head"><h2>Connect ' + esc((l.name || "").split(" ")[0]) + '’s Evia</h2><button class="x" aria-label="Close">×</button></div>' +
       '<p class="muted">They scan this with their phone’s camera, or open Evia and type the code underneath.</p><div class="qr">' + qrSvg(pairLink(r.code)) + '</div><p class="big-code">' + esc(r.code.slice(0, 3) + "-" + r.code.slice(3)) + '</p><p class="small muted" style="text-align:center">Works once, for ' + r.expires_in_minutes + ' minutes. On a computer, open <a href="' + esc(EVIA_URL) + '" target="_blank" rel="noopener">' + esc(EVIA_URL.replace(/^https:\/\//, "")) + '</a>.</p>';
     m.querySelector(".x").onclick = closeModal;
+    /* A learner connecting for the first time: say so here as soon as Evia joins, and update the page behind. */
+    if (!l.paired) {
+      const until = Date.now() + r.expires_in_minutes * 60000, org = S.org;
+      const tick = async () => {
+        if (!document.body.contains(m) || Date.now() > until) return;
+        try { const now = (await rpc("nisia_college_learners", { p_org: org })).find((x) => x.learner_id === l.learner_id);
+          if (now && now.paired) { m.querySelector(".qr").outerHTML = '<p class="connected">' + ICON.check + ' Evia is connected</p>'; S.data = null; toast((l.name || "").split(" ")[0] + "’s Evia is connected"); return; } } catch (_) {}
+        setTimeout(tick, 5000);
+      };
+      setTimeout(tick, 5000);
+    }
   } catch (x) { m.innerHTML = '<p class="err">' + esc(x.message) + '</p>'; }
 }
 
@@ -335,9 +353,9 @@ async function learnerPage() {
         (d.reviews || []).map((r, i, a) => '<div class="target"><span class="tick done"></span><span>Progress review ' + (a.length - i) + '<br><span class="small muted">Signed by all three, ' + esc(ukDate(r.at)) + '</span></span><span class="pill good">' + esc(r.overall || "Signed") + '</span></div>').join("") + '</section>' +
     '</div>' +
     '<section class="panel"><div class="panel-head"><h2>Evidence</h2><span class="small muted">' + (d.evidence || []).length + ' from Evia · tap one to see it</span></div>' +
-      ((d.evidence || []).length ? '<div class="table-wrap flat"><table><thead><tr><th>Evidence</th><th>KSBs</th><th>Files</th><th>Added</th></tr></thead><tbody>' + d.evidence.map((e) =>
+      ((d.evidence || []).length ? '<div class="table-wrap flat"><table><thead><tr><th>Evidence</th><th>KSBs</th><th>Files</th><th>Added</th><th>Assessed</th></tr></thead><tbody>' + d.evidence.map((e) =>
         '<tr data-ev="' + e.id + '" tabindex="0"><td><b>' + esc(e.title) + '</b><br><span class="small muted">' + esc(EV_TYPE[e.type] || e.type) + '</span></td><td class="small">' + esc((e.ksbs || []).slice(0, 8).join(", ")) + '</td>' +
-        '<td class="small">' + (e.files ? e.files + (e.files === 1 ? " file" : " files") : e.photos_expected ? '<span class="muted">Waiting for WiFi</span>' : "–") + '</td><td class="small num">' + esc(ukDate(e.at)) + '</td></tr>').join("") + '</tbody></table></div>'
+        '<td class="small">' + (e.files ? e.files + (e.files === 1 ? " file" : " files") : e.photos_expected ? '<span class="muted">Waiting for WiFi</span>' : "–") + '</td><td class="small num">' + esc(ukDate(e.at)) + '</td><td>' + assessedPill(e.assessment) + '</td></tr>').join("") + '</tbody></table></div>'
         : '<p class="muted small">Nothing yet. Evidence appears here as soon as ' + esc(first) + ' saves it in Evia.</p>') + '</section>' +
     '<div class="grid cols-2">' +
       '<section class="panel"><div class="panel-head"><h2>Recent activity in Evia</h2></div><div class="feed">' + (feed.length ? feed.map((f) => (f.ev ? '<button type="button" class="feed-item tap" data-ev="' + f.ev + '">' : '<div class="feed-item">') + '<span class="ficon">' + ICON[f.ic] + '</span><span>' + esc(f.t) + '</span><span class="small muted" style="white-space:nowrap">' + esc(lastActive(f.at)) + '</span>' + (f.ev ? '</button>' : '</div>')).join("") : '<p class="muted small">Nothing yet.</p>') + '</div></section>' +
