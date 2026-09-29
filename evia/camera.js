@@ -98,6 +98,68 @@
   /* ---------- Video and voice recorder ---------- */
   const LIMIT=120; /* seconds */
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  /* A true MP4 recording (H.264 picture, AAC sound) put together on the phone with WebCodecs, so it plays with sound in
+     every phone gallery and PC player, the old Windows Media Player included. It behaves like a MediaRecorder
+     (start, stop, onstop, ondataavailable). Resolves to null where the browser can't do it, and MediaRecorder is used. */
+  let muxP=null;
+  const loadMux=()=>window.Mp4Muxer?Promise.resolve(window.Mp4Muxer):muxP||(muxP=new Promise((res,rej)=>{
+    const s=document.createElement("script");s.src="vendor/mp4-muxer-5.2.2.js";
+    s.onload=()=>window.Mp4Muxer?res(window.Mp4Muxer):rej(new Error("MP4 muxer unavailable"));
+    s.onerror=()=>{muxP=null;rej(new Error("MP4 muxer unavailable"))};document.head.appendChild(s);
+  }));
+  let mp4Broken=false;
+  async function mp4Recorder(stream,video){
+    const W=window;if(mp4Broken||!W.AudioEncoder||!W.MediaStreamTrackProcessor||(video&&!W.VideoEncoder))return null;
+    const a0=stream.getAudioTracks()[0],v0=video?stream.getVideoTracks()[0]:null;if(!a0||(video&&!v0))return null;
+    const tracks=[],readers=[];
+    const drop=()=>{readers.forEach(r=>r.cancel().catch(()=>{}));tracks.forEach(t=>t.stop())};
+    try{
+      const Mux=await loadMux();
+      const reader=t=>{const c=t.clone();tracks.push(c);const r=new MediaStreamTrackProcessor({track:c}).readable.getReader();readers.push(r);return r};
+      const first=r=>Promise.race([r.read().then(x=>x.value),new Promise(res=>setTimeout(()=>res(null),3000))]);
+      const ar=reader(a0),vr=video?reader(v0):null;
+      const fa=await first(ar),fv=vr?await first(vr):null;
+      if(!fa||(video&&!fv)){if(fa)fa.close();if(fv)fv.close();drop();return null}
+      const sampleRate=fa.sampleRate,numberOfChannels=Math.min(2,fa.numberOfChannels||1);fa.close();
+      const aConf={codec:"mp4a.40.2",sampleRate,numberOfChannels,bitrate:video?96000:128000};
+      if(!(await AudioEncoder.isConfigSupported(aConf)).supported){if(fv)fv.close();drop();return null}
+      let vConf=null,width=0,height=0;
+      if(video){
+        width=fv.displayWidth&~1;height=fv.displayHeight&~1;fv.close();
+        for(const codec of ["avc1.42E028","avc1.4D4028","avc1.640028","avc1.42E032","avc1.42001f"]){
+          const c={codec,width,height,bitrate:1500000,framerate:30,latencyMode:"realtime",avc:{format:"avc"}};
+          try{if((await VideoEncoder.isConfigSupported(c)).supported){vConf=c;break}}catch(_){}
+        }
+        if(!vConf){drop();return null}
+      }
+      const target=new Mux.ArrayBufferTarget();
+      const muxer=new Mux.Muxer({target,fastStart:"in-memory",firstTimestampBehavior:"cross-track-offset",
+        audio:{codec:"aac",sampleRate,numberOfChannels},...(video?{video:{codec:"avc",width,height}}:{})});
+      let failed=null;const fail=e=>{failed=failed||e;mp4Broken=true;console.error("Evia MP4 recorder",e)};
+      const add=(fn,chunk,meta)=>{try{fn.call(muxer,chunk,meta)}catch(e){fail(e)}};
+      const aEnc=new AudioEncoder({output:(c,m)=>add(muxer.addAudioChunk,c,m),error:fail});aEnc.configure(aConf);
+      const vEnc=video?new VideoEncoder({output:(c,m)=>add(muxer.addVideoChunk,c,m),error:fail}):null;if(vEnc)vEnc.configure(vConf);
+      const rec={mimeType:video?"video/mp4;codecs=avc1,mp4a.40.2":"audio/mp4;codecs=mp4a.40.2",state:"inactive",onstop:null,ondataavailable:null};
+      let lastKey=-1e12;
+      const pump=async(r,fn)=>{for(;;){let x;try{x=await r.read()}catch(_){break}if(x.done)break;const f=x.value;
+        if(rec.state!=="recording"||failed){f.close();continue}try{fn(f)}catch(e){fail(e)}f.close()}};
+      const pa=pump(ar,d=>{if(aEnc.state==="configured")aEnc.encode(d)});
+      const pv=vr?pump(vr,f=>{
+        if(vEnc.state!=="configured"||(f.displayWidth&~1)!==width||(f.displayHeight&~1)!==height||vEnc.encodeQueueSize>4)return;
+        const key=f.timestamp-lastKey>=2e6;if(key)lastKey=f.timestamp;vEnc.encode(f,{keyFrame:key});
+      }):Promise.resolve();
+      rec.start=()=>{rec.state="recording"};
+      rec.stop=async()=>{
+        if(rec.state==="inactive")return;rec.state="inactive";drop();await Promise.all([pa,pv]);
+        let blob=null;
+        try{await aEnc.flush();if(vEnc)await vEnc.flush();if(failed)throw failed;muxer.finalize();blob=new Blob([target.buffer],{type:rec.mimeType.split(";")[0]})}catch(e){fail(e)}
+        try{aEnc.close();if(vEnc)vEnc.close()}catch(_){}
+        if(blob&&rec.ondataavailable)rec.ondataavailable({data:blob});
+        if(rec.onstop)rec.onstop();
+      };
+      return rec;
+    }catch(e){console.warn("Evia MP4 recorder unavailable",e);drop();return null}
+  }
   function openRecorder(opts){
     const video=opts.type==="video",limit=opts.limit||LIMIT,prompts=(opts.prompts||[]).map(p=>String(p).trim()).filter(Boolean);
     const mins=limit%60?fmtLimit(limit):(limit/60)+" minute"+(limit===60?"":"s");
@@ -131,12 +193,8 @@
       }catch(_){sr=null}
     };
     const deaf=()=>{listening=false;if(sr)try{sr.stop()}catch(_){}interim="";tick()};
-    /* The sound has to play everywhere, not just in a browser: MP4 with AAC sound first (every phone gallery and PC
-       player plays it). A plain "video/mp4" can come out with Opus sound, which most players can't play, so if AAC
-       isn't on offer it's WebM (Opus is normal there), and plain MP4 only as a last resort (iPhones). */
-    /* Android and computers: WebM with Opus sound, which Chrome records properly and phone galleries, Windows and VLC all
-       play (Chrome's MP4 recordings can carry Opus sound that players reject). iPhones and iPads: MP4 with AAC sound,
-       which is what Safari records and what their Photos app plays. */
+    /* Where the MP4 recorder above can't run, MediaRecorder. Android and computers: WebM with Opus sound (Chrome's own
+       MP4 recordings can carry Opus sound that players reject). iPhones and iPads: MP4 with AAC sound, as Safari records. */
     const ua=navigator.userAgent||"",apple=/iPhone|iPad|iPod/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1)||(/Safari/.test(ua)&&!/Chrome|Chromium|CriOS|Android|Edg/.test(ua));
     const WEBM=video?["video/webm;codecs=vp8,opus","video/webm;codecs=vp9,opus","video/webm"]:["audio/webm;codecs=opus","audio/webm"];
     const MP4=video?["video/mp4;codecs=avc1.42E01E,mp4a.40.2","video/mp4;codecs=avc1,mp4a","video/mp4"]:["audio/mp4;codecs=mp4a.40.2","audio/mp4"];
@@ -159,13 +217,18 @@
     const stop=()=>{if(recorder&&recorder.state!=="inactive")recorder.stop();clearInterval(timer);deaf()};
     const start=async()=>{
       try{await getStream()}catch(err){console.error("Evia recorder failed",err);denied(el,err,video?"camera and microphone":"microphone");rec.disabled=true;return}
-      const chosen=pickMime(),o={};if(chosen)o.mimeType=chosen;
-      if(video){o.videoBitsPerSecond=1500000;o.audioBitsPerSecond=64000}else o.audioBitsPerSecond=128000;
-      try{recorder=new MediaRecorder(stream,o)}catch(_){recorder=new MediaRecorder(stream)}
-      mime=recorder.mimeType||chosen||(video?"video/webm":"audio/webm");chunks=[];
+      rec.disabled=true;recorder=await mp4Recorder(stream,video);rec.disabled=false;
+      if(!recorder){
+        const chosen=pickMime(),o={};if(chosen)o.mimeType=chosen;
+        if(video){o.videoBitsPerSecond=1500000;o.audioBitsPerSecond=64000}else o.audioBitsPerSecond=128000;
+        try{recorder=new MediaRecorder(stream,o)}catch(_){recorder=new MediaRecorder(stream)}
+      }
+      mime=recorder.mimeType||(video?"video/webm":"audio/webm");chunks=[];
       recorder.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
       recorder.onstop=()=>{
-        blob=new Blob(chunks,{type:mime.split(";")[0]});chunks=[];setState("review");buzz(20);
+        blob=new Blob(chunks,{type:mime.split(";")[0]});chunks=[];
+        if(!blob.size){blob=null;setState("ready");hint.textContent="Evia couldn’t save that one. Tap the red button to try again.";return}
+        setState("review");buzz(20);
         const url=URL.createObjectURL(blob);
         review.innerHTML=video?'<video src="'+url+'" controls playsinline></video>':'<audio src="'+url+'" controls></audio>';
         hint.textContent="Play it back, then keep it or record again.";keepBtn.hidden=false;retake.hidden=false;

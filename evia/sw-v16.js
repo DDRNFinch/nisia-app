@@ -1,4 +1,4 @@
-const VERSION = "2026-10-15-evia7-v192";
+const VERSION = "2026-10-15-evia7-v193";
 const CACHE_NAME = "evia7-offline-" + VERSION;
 
 const APP_SHELL = [
@@ -20,7 +20,7 @@ const APP_SHELL = [
   "./polish.js",
   "./profile.js",
   "./eportfolio.js",
-  "./vendor/jspdf.umd.min.js",
+  "./vendor/jspdf.umd.min.js","./vendor/mp4-muxer-5.2.2.js",
   "./onboarding.js",
   "./theme.js",
   "./test-banks.js",
