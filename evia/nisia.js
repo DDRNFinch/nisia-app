@@ -99,6 +99,7 @@
     for(const ch of batch){
       const r=ch.record,gone=!ch.fingerprint;
       if(ch.collection==="hours"){
+        if(r.source==="college")continue;             /* the tutor's register: Nisia already has it */
         const id=uuidFor("hours:"+r.id),hours=Math.round((Number(r.minutes)||0)/60*100)/100;
         if(gone||!(hours>0&&hours<=24)){await c.from("otj_entries").delete().eq("id",id);continue}
         const {error:oe}=await c.from("otj_entries").upsert(Object.assign({},base,{id,created_by_member_id:e.memberId,activity_date:String(r.occurredAt||r.createdAt||new Date().toISOString()).slice(0,10),
@@ -244,6 +245,32 @@
       got[x.id]=new Date().toISOString();writeJson(OBS_KEY,got);
     }
   }
+  /* College hours: each session the tutor finished in Symi, with what was taught. They're in the learning log,
+     confirmed by the tutor, so the learner can't change or delete them; a session later marked absent goes. */
+  async function fetchCollege(c){
+    const {data,error}=await c.rpc("nisia_my_college");if(error)throw error;
+    const D=window.eviaData,have=new Map(D.list("hours").filter(h=>h.source==="college").map(h=>[h.id,h])),keep=new Set();let changed=false;
+    for(const s of data||[]){
+      if(!(s.minutes>0)||s.status==="absent")continue;
+      const id="college-"+s.id,old=have.get(id);keep.add(id);
+      const college={class:s.class||"",lesson:s.lesson||"",ksbs:s.ksbs||[],date:s.session_date,checkedInAt:s.checked_in_at||null};
+      const description="College · "+(s.class||"class")+(s.lesson?": "+s.lesson:"");
+      if(old&&old.minutes===s.minutes&&old.description===description)continue;
+      D.put("hours",{id,minutes:s.minutes,description,source:"college",college,occurredAt:s.session_date+"T12:00:00",createdAt:old?old.createdAt:new Date().toISOString()});
+      changed=true;
+    }
+    have.forEach((h,id)=>{if(!keep.has(id)){D.remove("hours",id);changed=true}});
+    if(changed){D.markSynced(D.changesSince().filter(ch=>ch.collection==="hours"&&String(ch.record.id).startsWith("college-")));if(typeof persist==="function")try{persist()}catch(_){}}
+  }
+  /* Checking in to a class: the code on the classroom screen (Symi), checked by Nisia. */
+  async function checkIn(code){
+    const e=joined();if(!e||!e.live)throw new Error("Connect Evia to your college first.");
+    if(!navigator.onLine)throw new Error("You need signal to check in.");
+    const c=await sb(),{data:s}=await c.auth.getSession();if(!s||!s.session)throw new Error("Evia isn’t signed in to your college. Ask your assessor for a new code.");
+    const {data,error}=await c.rpc("nisia_check_in",{p_code:String(code||"").trim()});
+    if(error)throw new Error(error.message||"That didn’t work. Try again.");
+    return data;
+  }
   /* The assessor's sign-offs and feedback on the learner's own evidence (Milos), kept by Evia's id for each piece. */
   const FEEDBACK_KEY="evia7-nisia-feedback";
   async function fetchFeedback(c){
@@ -300,6 +327,7 @@
       if(c)try{await refreshDetails(c,e)}catch(err){console.warn("Evia: Nisia details",err&&err.message)}
       if(c)try{await fetchTargets(c,e)}catch(err){console.warn("Evia: Nisia targets",err&&err.message)}
       if(c)try{await fetchFeedback(c)}catch(err){console.warn("Evia: Nisia feedback",err&&err.message)}
+      if(c)try{await fetchCollege(c)}catch(err){console.warn("Evia: Nisia college hours",err&&err.message)}
       /* Game leaderboards: scores waiting to go, and prizes from last month (leaderboard.js). */
       if(c&&window.eviaLeaderboard)try{await window.eviaLeaderboard.onSync()}catch(err){console.warn("Evia: Nisia leaderboards",err&&err.message)}
       /* Records: small, on any connection, in batches. (The demo keeps them on the phone.) */
@@ -359,7 +387,7 @@
     const e=joined();if(!e||!e.live)throw new Error("not connected");if(!navigator.onLine)throw new Error("offline");
     const c=await sb(),{data,error}=await c.rpc(name,Object.assign({p_enrolment:e.enrolmentId},args||{}));if(error)throw error;return data;
   }
-  window.eviaNisia={pair,accept,joined,sync,status,statusText,clean,rpc,onStatus:fn=>listeners.push(fn)};
+  window.eviaNisia={pair,accept,joined,sync,status,statusText,clean,rpc,checkIn,onStatus:fn=>listeners.push(fn)};
 
   /* ---------- Notifications ----------
      Course things only, and only if the learner turns them on: evidence signed off or sent back, new targets, reviews,

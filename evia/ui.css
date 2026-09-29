@@ -2607,3 +2607,32 @@ html body .sd-evia{transform:scale(3.3);animation-name:sdBreathe3}
 .br-pill.good{background:#e7f7ee;color:#067647}.br-pill.mid{background:var(--soft,#fff7d6);color:var(--yellow-ink,#6e5c00)}.br-pill.low{background:#f2f4f7;color:#667085}
 .br-help p{margin:0;font-size:14px;line-height:1.5;color:var(--ink,#172033)}.br-help a{font-weight:800;color:var(--yellow-ink,#6e5c00)}
 @media(prefers-reduced-motion:reduce){#chat .br-card{animation:none}}
+
+/* Checking in to class (checkin.js) and college hours in the learning log. */
+#chat .ui-action-wide{grid-column:1/-1;background:var(--yellow,#f5c518);border-color:transparent;font-weight:800}
+.ui-college-tag{background:#eaf8f0;color:#2f7d56;white-space:nowrap}
+.ui-college-lock{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#eaf8f0;color:#2f7d56;font-weight:800;font-size:14px}
+#ci-view{position:fixed;inset:0;z-index:10150;display:flex;align-items:flex-end;justify-content:center;color:#fff}
+#ci-view.ci-scan{background:#000}
+#ci-view.ci-dim{background:rgba(17,24,39,.55);color:inherit;padding:16px;align-items:center}
+#ci-view video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#ci-view .ci-frame{position:absolute;left:50%;top:42%;width:min(66vw,270px);aspect-ratio:1;transform:translate(-50%,-50%);border:3px solid var(--yellow,#f5c518);border-radius:26px;box-shadow:0 0 0 100vmax rgba(0,0,0,.5)}
+#ci-view .ci-foot{position:relative;width:100%;padding:0 20px max(24px,env(safe-area-inset-bottom));text-align:center}
+#ci-view .ci-foot p{margin:0 0 14px;font-size:16px;line-height:1.4}
+#ci-view .ci-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+#ci-view .ci-btns button{min-width:140px}
+#ci-view .ci-sheet{width:min(420px,100%);background:#fff;color:#111827;border-radius:26px;padding:26px 22px 22px;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.28);display:flex;flex-direction:column;gap:12px}
+#ci-view .ci-sheet h2{margin:0;font-size:22px}
+#ci-view .ci-say{margin:0;color:#4b5563;line-height:1.45}
+#ci-view .ci-form{display:flex;gap:8px}
+#ci-view .ci-code{flex:1;min-width:0;font:inherit;font-size:24px;font-weight:800;letter-spacing:.14em;text-align:center;text-transform:uppercase;padding:12px;border-radius:14px;border:2px solid #e5e7eb}
+#ci-view .ci-code:focus{outline:none;border-color:var(--yellow,#f5c518)}
+#ci-view .ci-class{margin:0;font-weight:800;font-size:18px}
+#ci-view .ci-class span{font-weight:600;color:#4b5563;font-size:15px}
+#ci-view .ci-tick{align-self:center;width:72px;height:72px;border-radius:50%;background:#dcfce7;display:grid;place-items:center;animation:ci-pop .4s cubic-bezier(.2,1.4,.4,1)}
+#ci-view .ci-tick svg{width:40px;height:40px;fill:none;stroke:#16a34a;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+#ci-view .ci-wait{align-items:center}
+#ci-view .ci-spin{width:34px;height:34px;border-radius:50%;border:4px solid #f3f4f6;border-top-color:var(--yellow,#f5c518);animation:ci-spin .8s linear infinite}
+@keyframes ci-spin{to{transform:rotate(360deg)}}
+@keyframes ci-pop{from{transform:scale(.4);opacity:0}}
+@media (prefers-reduced-motion:reduce){#ci-view .ci-tick,#ci-view .ci-spin{animation:none}}

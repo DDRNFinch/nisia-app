@@ -346,7 +346,7 @@
         '<div class="ui-page">'+'<button type="button" class="primary ui-log-add" id="ui-log-add">+ Log hours</button>'+
           '<section class="ui-card ui-hours-sum"><div><strong>'+escHtml(hmText(total))+'</strong><small>logged in total</small></div><div><strong>'+hours.length+'</strong><small>entr'+(hours.length===1?"y":"ies")+'</small></div></section>'+
           (hours.length?'<section class="ui-card ui-logs-dl"><div><strong>'+(fresh.length?fresh.length+" new entr"+(fresh.length===1?"y":"ies"):"Everything’s downloaded")+'</strong><small>'+(fresh.length?(last?"Since your last download on "+escHtml(savedDay(last.downloadedAt)):"Not downloaded yet"):"New entries will be ready to download here")+'</small></div>'+(fresh.length?'<button type="button" class="primary" id="download-otj">Download PDF</button>':"")+'</section>':"")+
-          (hours.length?'<h2 class="ui-hours-h">Your log</h2><div class="ui-card ui-hours-list">'+hours.slice().sort((a,b)=>Number(b.on||b.createdAt)-Number(a.on||a.createdAt)).map(x=>{const isNew=Number(x.createdAt)>cutoff;return '<div class="ui-hours-item'+(isNew?"":" done")+'"><span class="ui-hours-n">'+escHtml(hmText(Number(x.n||0)))+'</span><span class="ui-hours-copy"><strong>'+escHtml(x.description||"No description recorded.")+'</strong><small>'+escHtml(day(x.on||x.createdAt))+' · '+(isNew?"<em>New</em>":"Downloaded")+(x.auto?' · <span class="ui-auto-tag">Logged by Evia</span>':"")+'</small></span>'+('<button type="button" class="ui-auto-x" data-rm-log="'+escHtml(x.id)+'"'+(isNew?"":' data-downloaded="1"')+' aria-label="Delete this entry">×</button>')+'</div>'}).join("")+'</div>'+
+          (hours.length?'<h2 class="ui-hours-h">Your log</h2><div class="ui-card ui-hours-list">'+hours.slice().sort((a,b)=>Number(b.on||b.createdAt)-Number(a.on||a.createdAt)).map(x=>{const isNew=Number(x.createdAt)>cutoff;return '<div class="ui-hours-item'+(isNew?"":" done")+'"><span class="ui-hours-n">'+escHtml(hmText(Number(x.n||0)))+'</span><span class="ui-hours-copy"><strong>'+escHtml(x.description||"No description recorded.")+'</strong><small>'+escHtml(day(x.on||x.createdAt))+' · '+(isNew?"<em>New</em>":"Downloaded")+(x.auto?' · <span class="ui-auto-tag">Logged by Evia</span>':"")+(x.college?' · <span class="ui-auto-tag ui-college-tag">College register</span>':"")+'</small></span>'+(x.college?'<span class="ui-college-lock" title="Confirmed by your tutor">✓</span>':'<button type="button" class="ui-auto-x" data-rm-log="'+escHtml(x.id)+'"'+(isNew?"":' data-downloaded="1"')+' aria-label="Delete this entry">×</button>')+'</div>'}).join("")+'</div>'+
             (hours.some(x=>x.auto)?'<p class="ui-auto-note">Evia logs Teach me lessons and writing up your evidence automatically, counting only the time you’re actively working. Learning hours only count in your paid working hours (or if your employer gives you the time back), so remove any entry that doesn’t.</p>':"")
             :'<div class="ui-card ui-empty"><span class="ui-icon-chip">'+icon(ICONS.clock)+'</span><p>No learning hours logged yet. Tap <strong>Log hours</strong> above to add some.</p></div>')+
           (batches.length?'<h2 class="ui-hours-h">Past downloads</h2><div class="ui-card ui-hours-list">'+batches.map(b=>'<div class="ui-hours-item ui-batch"><span class="ui-hours-copy"><strong>'+escHtml(savedDay(b.downloadedAt))+'</strong><small>'+(b.entryIds||[]).length+' entr'+((b.entryIds||[]).length===1?"y":"ies")+'</small></span><button type="button" class="secondary" data-batch="'+escHtml(b.id)+'">Download again</button></div>').join("")+'</div>':"")+
@@ -683,6 +683,9 @@
     ["targets","Show targets",'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>'],
     ["calc","Calculators",'<rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M8 7h8M8.5 11h.01M12 11h.01M15.5 11h.01M8.5 14.5h.01M12 14.5h.01M15.5 14.5h.01M8.5 18h.01M12 18h3.5"/>']
   ];
+  /* Connected to a college: checking in to class comes first, full width (checkin.js). */
+  const CHECKIN=["checkin","Check in to class",'<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2.5v2.5H14zM17.5 17.5H20V20h-2.5zM14 19v1M19 14h1"/>'];
+  const actionList=()=>{const e=window.eviaNisia&&window.eviaNisia.joined();return e&&e.live&&window.eviaCheckIn?[CHECKIN].concat(ACTIONS):ACTIONS};
   /* The EPA tile in Teach me: Evia's chat, dark, straight into EPA practice. */
   window.eviaOpenEpa=()=>{window.chat({quiet:true});setTimeout(()=>{const C=window.eviaCoachFlows;if(C&&C.epa)C.epa()},60)};
   function actionRun(id){
@@ -691,6 +694,7 @@
       evidence:()=>{userSays("Evidence check");C.evidenceCheck?C.evidenceCheck():writeups()},
       prep:()=>{userSays("Get ready for my review");if(C.prepare)C.prepare()},
       targets:()=>{userSays("Show targets");C.targets?C.targets():targetsFromMenu()},
+      checkin:()=>{closeChat();setTimeout(()=>window.eviaCheckIn&&window.eviaCheckIn.open(),80)},
       calc:()=>{userSays("Calculators");if(window.eviaBrain)window.eviaBrain.calculators()},
       epa:()=>{userSays((window.eviaNvq&&window.eviaNvq.on())?"Knowledge tests":"EPA mocks");if(C.epa)C.epa()}
     }[id];
@@ -701,8 +705,8 @@
     queue=queue.then(()=>{
       const c=chatBox();if(!c||gen!==chatGen)return;
       const box=document.createElement("div");box.className="chat-options ui-actions";
-      ACTIONS.forEach(([id,label,path],i)=>{
-        const b=document.createElement("button");b.type="button";b.className="chat-pill ui-action";b.style.setProperty("--i",i);b.dataset.action=id;
+      actionList().forEach(([id,label,path],i)=>{
+        const b=document.createElement("button");b.type="button";b.className="chat-pill ui-action"+(id==="checkin"?" ui-action-wide":"");b.style.setProperty("--i",i);b.dataset.action=id;
         const n=id==="prep"?prepBadge():0;if(n)b.classList.add("ui-action-pulse");
         b.innerHTML='<span class="ui-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true">'+path+'</svg></span><strong>'+escHtml(label)+'</strong>'+(n?'<span class="visually-hidden"> ('+n+' to do)</span>':"");
         b.onclick=()=>{userTurns++;box.remove();actionRun(id)()};box.appendChild(b);

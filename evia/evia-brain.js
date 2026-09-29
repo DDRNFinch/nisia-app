@@ -472,6 +472,7 @@
   const nudge=(kind,label,extra)=>()=>K().runNudge(Object.assign({action:{kind,label}},extra||{}));
   const goNav=(where,after)=>()=>{K().closeChat();setTimeout(()=>{nav(where);if(after)setTimeout(after,400)},60)};
   const HOWTO=[
+    [/\bcheck(ing)?[ -]?in\b|\bsign[ -]?in\b.*\b(class|register|college)\b|\bregister\b/,"Scan the code on the classroom screen and you’re on your tutor’s register.","Check in to class",()=>{K().closeChat();setTimeout(()=>window.eviaCheckIn&&window.eviaCheckIn.open(),120)}],
     [/\b(log|add|record)\b.*\b(hours?|learning|otj|training)\b|\b(off.?the.?job|otj|glh)\b/,"Learning hours are anything that teaches you the job: training days, toolbox talks, research and Teach me. Let’s log some.","Log learning hours",()=>flows().hours&&flows().hours()],
     [/\b(check|how good|rate|mark)\b.*\bevidence\b|\bevidence check\b/,"I’ll look at a piece of your evidence and tell you what would make it stronger.","Check my evidence",()=>flows().evidence&&flows().evidence()],
     [/\b(ready|prepare|prep)\b.*\breview\b|\breview\b.*\b(due|when|next)\b/,"Let’s get you ready for your progress review: I’ll go through each area and what your assessor will want to see.","Get ready for my review",nudge("prep","Get ready for my review")],

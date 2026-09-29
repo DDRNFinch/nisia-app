@@ -80,8 +80,8 @@
       return (G("hours")||readJson("evia7-hours",[])||[]).filter(Boolean).map(x=>{
         const made=iso(x.createdAt)||iso(x.savedAt);
         return base(x.id,{minutes:Math.round(x.mins!=null?Number(x.mins):Number(x.n||0)*60),description:x.description||"",did:x.did||"",learned:x.learned||"",
-          source:x.auto?"auto":("did" in x||"learned" in x)?"evia":"manual",activityKey:x.autoKey||null,occurredAt:iso(x.on)||made,createdAt:made,
-          updatedAt:iso(x.updatedAt)||made,deletedAt:null,confirmed:x.confirmed||null,exportedIn:batchOf(x)});
+          source:x.college?"college":x.auto?"auto":("did" in x||"learned" in x)?"evia":"manual",activityKey:x.autoKey||null,occurredAt:iso(x.on)||made,createdAt:made,
+          updatedAt:iso(x.updatedAt)||made,deletedAt:null,confirmed:x.confirmed||null,exportedIn:batchOf(x),...(x.college?{college:x.college}:{})});
       });
     },
     lessonResults(){
@@ -155,6 +155,8 @@
         if(r.occurredAt!=null)legacy.on=ms(r.occurredAt);
         if(r.source==="evia"||r.did!=null||r.learned!=null){legacy.did=r.did||"";legacy.learned=r.learned||""}
         if(r.source==="auto"){legacy.auto=true;legacy.autoKey=r.activityKey||null}
+        /* From the tutor's register in Symi, through Nisia: confirmed by the tutor, so it can't be changed here. */
+        if(r.source==="college"){legacy.college=r.college||{};legacy.confirmed=true}
         const i=arr.findIndex(x=>x&&x.id===legacy.id);
         if(i>=0)arr[i]=Object.assign({},arr[i],legacy);else arr.push(legacy);
         save();return legacy.id;
