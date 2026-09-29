@@ -393,11 +393,13 @@
     return queue;
   }
   let userTurns=0; /* counts the learner's choices, so a late suggestion doesn't land after one */
-  function userSays(text){userTurns++;const c=chatBox();if(!c)return;const d=document.createElement("div");d.className="bubble user";d.textContent=text;c.appendChild(d);scrollChat()}
-  function replies(list){
+  function userSays(text){userTurns++;const c=chatBox();if(!c)return;c.querySelectorAll(".ui-replies").forEach(x=>x.remove()); /* earlier suggestions are stale once they've moved on */const d=document.createElement("div");d.className="bubble user";d.textContent=text;c.appendChild(d);scrollChat()}
+  /* opt.turns: only show them if the learner hasn't picked or typed anything since they were asked for. */
+  function replies(list,opt){
     const gen=chatGen;
     queue=queue.then(()=>{
       const c=chatBox();if(!c||gen!==chatGen)return;
+      if(opt&&opt.turns!=null&&opt.turns!==userTurns)return;
       const box=document.createElement("div");box.className="chat-options ui-replies";
       list.forEach(r=>{const b=document.createElement("button");b.type="button";b.className="chat-pill"+(r.primary?" ui-pill-primary":"");b.innerHTML="<strong>"+escHtml(r.label)+"</strong>";b.onclick=()=>{box.remove();userSays(r.label);r.run()};box.appendChild(b)});
       c.appendChild(box);scrollChat();
@@ -678,7 +680,8 @@
   const ACTIONS=[
     ["evidence","Evidence check",'<path d="m5 12.5 4.5 4.5L19 7.5"/>'],
     ["prep","Get ready for review",'<path d="M9 4.5h6a1 1 0 0 1 1 1V7H8V5.5a1 1 0 0 1 1-1Z"/><path d="M8 5.5H6.5A1.5 1.5 0 0 0 5 7v12.5A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V7a1.5 1.5 0 0 0-1.5-1.5H16"/><path d="m8.5 13.5 2.3 2.3 4.7-4.8"/>'],
-    ["targets","Show targets",'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>']
+    ["targets","Show targets",'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>'],
+    ["calc","Calculators",'<rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M8 7h8M8.5 11h.01M12 11h.01M15.5 11h.01M8.5 14.5h.01M12 14.5h.01M15.5 14.5h.01M8.5 18h.01M12 18h3.5"/>']
   ];
   /* The EPA tile in Teach me: Evia's chat, dark, straight into EPA practice. */
   window.eviaOpenEpa=()=>{window.chat({quiet:true});setTimeout(()=>{const C=window.eviaCoachFlows;if(C&&C.epa)C.epa()},60)};
@@ -688,6 +691,7 @@
       evidence:()=>{userSays("Evidence check");C.evidenceCheck?C.evidenceCheck():writeups()},
       prep:()=>{userSays("Get ready for my review");if(C.prepare)C.prepare()},
       targets:()=>{userSays("Show targets");C.targets?C.targets():targetsFromMenu()},
+      calc:()=>{userSays("Calculators");if(window.eviaBrain)window.eviaBrain.calculators()},
       epa:()=>{userSays((window.eviaNvq&&window.eviaNvq.on())?"Knowledge tests":"EPA mocks");if(C.epa)C.epa()}
     }[id];
   }
@@ -732,9 +736,15 @@
     c.innerHTML="";
     menuItems=ACTIONS.map(([id,label])=>({label,run:actionRun(id)}));
     if(!(opts&&opts.quiet===true)){
-      say(pick([partOfDay()+(name?" "+escHtml(name):"")+".","Hey"+(name?" "+escHtml(name):"")+".","Hi"+(name?" "+escHtml(name):"")+", good to see you."])+" "+catchUp()+" What shall we do?");
-      actionGrid();
-      today();
+      /* Evia's day for the learner (evia-brain.js), her four actions, and ideas for what to ask. */
+      if(window.eviaBrain){
+        say(pick([partOfDay()+(name?" "+escHtml(name):"")+". Here’s your day.","Hi"+(name?" "+escHtml(name):"")+". Here’s where you are today.","Hey"+(name?" "+escHtml(name):"")+". Here’s your day."]));
+        window.eviaBrain.todayCard();actionGrid();
+        say("Or ask me anything: tools and materials, a KSB, or a calculation.");window.eviaBrain.suggest(true);
+      }else{
+        say(pick([partOfDay()+(name?" "+escHtml(name):"")+".","Hey"+(name?" "+escHtml(name):"")+"."])+" "+catchUp()+" What shall we do?");
+        actionGrid();today();
+      }
     }
     if(sheet&&window.eviaCoachFlows&&window.eviaCoachFlows.input)window.eviaCoachFlows.input(sheet);
   }
@@ -891,6 +901,6 @@
   $("#evia-fab").onclick=window.chat;
   window.eviaCoach={analyse,suggestion,checkUnit,showStats};
   window.eviaStartTest=startTest;
-  window.eviaChatKit={say,replies,userSays,widget,closeChat,chatBox,scrollChat,somethingElse,analyse,checkUnit,writeups,taskFromMenu,reviewFromMenu,openUnitFromChat,pick,plural,listText,firstName,escHtml,get turns(){return userTurns}};
+  window.eviaChatKit={runNudge,say,replies,userSays,widget,closeChat,chatBox,scrollChat,somethingElse,analyse,checkUnit,writeups,taskFromMenu,reviewFromMenu,openUnitFromChat,pick,plural,listText,firstName,escHtml,get turns(){return userTurns}};
   if(!document.body.classList.contains("evia-onboarding"))render();
 })();

@@ -225,12 +225,11 @@
     k.say("I’m still learning to understand everything, but I can help with these:");
     k.somethingElse();
   }
-  /* The free-text box only shows when a real AI helper is switched on (window.EVIA_AI). Offline, Evia can only
-     match a few keywords, which feels broken, so the six actions are the way in. */
+  /* Ask Evia: typed questions go to her brain (evia-brain.js), which answers from Evia's own content. */
   function input(sheet){
-    if(!window.EVIA_AI||sheet.querySelector(".ui-ask"))return;
+    if(sheet.querySelector(".ui-ask"))return;
     const form=document.createElement("form");form.className="ui-ask";
-    form.innerHTML='<input type="text" placeholder="Ask Evia anything…" aria-label="Message Evia" enterkeyhint="send" autocomplete="off"><button type="submit" aria-label="Send"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></button>';
+    form.innerHTML='<input type="text" placeholder="Ask about tools, KSBs, sums…" aria-label="Message Evia" enterkeyhint="send" autocomplete="off"><button type="submit" aria-label="Send"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></button>';
     sheet.appendChild(form);
     const field=form.querySelector("input");
     field.addEventListener("input",()=>{if(window.eviaLook)window.eviaLook(-4,-26,1600);form.classList.toggle("has-text",!!field.value.trim())});
@@ -238,7 +237,7 @@
       e.preventDefault();const text=field.value.trim();if(!text)return;
       field.value="";form.classList.remove("has-text");
       document.querySelectorAll("#chat .ui-actions,#chat .ui-replies").forEach(x=>x.remove());
-      K().userSays(text);understand(text);
+      K().userSays(text);if(window.eviaBrain)window.eviaBrain.answer(text);else understand(text);
     };
   }
 
