@@ -105,11 +105,49 @@
     });
     /* Things to capture that belong to the talking stages still get a photo, at the end. */
     ["know","reflect"].forEach(k=>by[k].caps.forEach(item=>photos.push({key:"finish",say:cap(item),hint:tip(item,"finish")})));
-    const asks=ORDER.filter(k=>k==="doing"||k==="reflect"||by[k].terms.length||by[k].can.length).map(k=>{
-      const s=def(k),t=by[k].terms.map(cap),topics=[...new Set((k==="doing"||k==="reflect"||!t.length?TOPICS[k]:[]).concat(t))];
-      return {key:k,title:s.title,ask:s.ask,terms:by[k].terms,topics:topics.concat(OTHER),can:by[k].can.slice(0,3)};
+    return {photos,asks:ksbAsks(ctx.ksbs||[],terms)};
+  }
+  /* The write-up questions follow the unit's KSBs: each skill with the knowledge listed after it (S14 with K20), and
+     each behaviour on its own, so it reads like the unit's own instructions, in plain words. Every thing to mention
+     sits with the KSBs it belongs to, and lights up as the learner writes about it. */
+  const ROLE=/^(site carpent(er|ry)|bench join(er|ery)|carpent(er|ry) and join(er|ery)|bricklay(er|ing)|architectural join(er|ery))\s*:\s*/i;
+  const low=t=>t.charAt(0).toLowerCase()+t.slice(1);
+  /* "Mixing Mortar" reads "mixing mortar"; "signage, Safety signage" reads "safety signage". */
+  const tidy=t=>{const parts=String(t).replace(/\b([A-Z])([a-z]{2,})/g,(m,x,y)=>x.toLowerCase()+y).split(/,\s*/).map(x=>x.trim()).filter(Boolean);
+    return parts.length>3?parts.join(", "):parts.filter((x,i)=>!parts.some((y,j)=>j!==i&&y.length>x.length&&y.toLowerCase().includes(x.toLowerCase()))).join(", ")};
+  const skillLine=k=>{let l=plain(k);if(!l)return "";l=l.replace(/,?\s*(for example|e\.g\.|such as)\b.*$/i,"").replace(/\s+(for|of|to|with|including|in|on)$/i,"").trim();return l};
+  const kLine=text=>{
+    const t=String(text).replace(ROLE,"").replace(/[.,;\s]+$/,"").replace(/\.\s+(?=[a-z])/g,", "),i=t.indexOf(":");
+    const a=tidy((i>0?t.slice(0,i):t).trim()),b=i>0?tidy(t.slice(i+1).trim()):"";
+    const out=b&&a.split(/\s+/).length<=6?low(a)+", like "+low(b):low(b?a+": "+b:a);
+    return out.length>150?out.slice(0,147).replace(/\s+\S*$/,"")+"…":out;
+  };
+  function ksbAsks(ksbs,terms){
+    const groups=[];let g=null;
+    ksbs.forEach(k=>{
+      const c=String(k).split("|")[0].trim(),t=c.charAt(0).toUpperCase();
+      if(t==="B"){if(!g||g.kind!=="B")groups.push(g={kind:"B",items:[]});g.items.push(k);return}
+      if(t==="S"){if(!g||g.kind!=="S"||g.items.some(x=>/^K/i.test(x)))groups.push(g={kind:"S",items:[]});g.items.push(k);return}
+      if(t==="K"){if(!g||g.kind==="B")groups.push(g={kind:"K",items:[]});g.items.push(k);return}
     });
-    return {photos,asks};
+    if(!groups.length)return [{key:"job",title:"The job",ask:"Talk me through the job: what you did, in order, how you did it and why.",codes:[],know:[],terms:terms.slice()}];
+    const text=x=>x.items.map(k=>String(k).split("|").slice(1).join("|")).join(" ").toLowerCase();
+    const asks=groups.map((x,i)=>{
+      const codes=x.items.map(k=>String(k).split("|")[0].trim()),S=x.items.filter(k=>/^[SB]/i.test(k)),K=x.items.filter(k=>/^K/i.test(k));
+      const lines=S.map(k=>skillLine(String(k).replace(/^([^|]*\|)\s*(.*)$/,(m,a,b)=>a+b.replace(ROLE,"")))).filter(Boolean);
+      const title=lines[0]||(K.length?cap(kLine(String(K[0]).split("|").slice(1).join("|"))):codes.join(" · "));
+      const ask=lines.length?"How did you "+lines.map(low).join(", and ")+" on this job?":"What do you know about this? Tell me in your own words, with an example from your job.";
+      return {key:"k"+i+"-"+codes.join("-"),title,ask,codes,know:K.map(k=>kLine(String(k).split("|").slice(1).join("|"))),terms:[],_t:text(x)};
+    });
+    /* Each thing to mention goes with the first group whose KSBs talk about it; the rest with the closest match. */
+    const match=window.eviaTermMatched||((a,b)=>b.includes(a.toLowerCase()));
+    terms.forEach(term=>{
+      let a=asks.find(q=>match(term,q._t));
+      if(!a){const w=term.toLowerCase().split(/[^a-z]+/).filter(x=>x.length>=4).map(x=>x.slice(0,4));a=asks.find(q=>w.some(x=>q._t.includes(x)))||asks[0]}
+      a.terms.push(term);
+    });
+    asks.forEach(a=>delete a._t);
+    return asks;
   }
 
   /* ---------- The flow ----------
@@ -120,15 +158,15 @@
   const gk=ctx=>ctx.gk||"guide";
   function load(pack,k){
     k=k||"guide";let g=pack[k];
-    if(!g||(g.v!==2&&g.v!==3))g={v:3,answers:{},covered:{},topics:{},at:null};
-    if(g.v===2){g.v=3;g.topics={};Object.keys(g.answers||{}).forEach(k=>{if(String(g.answers[k]||"").trim())g.topics[k]={[OTHER]:g.answers[k]}});g.at=null}
-    g.topics=g.topics||{};return pack[k]=g;
+    if(!g||(g.v!==2&&g.v!==3&&g.v!==4))g={v:4,answers:{},covered:{},at:null};
+    if(g.v!==4){const prev=Object.values(g.answers||{}).map(x=>String(x||"").trim()).filter(Boolean).join("\n\n");g={v:4,answers:{},covered:{},at:null,prev,used:g.used}}
+    return pack[k]=g;
   }
   const whereText=(P,at)=>at.phase==="photos"?"photo "+(Math.min(at.step,P.photos.length-1)+1)+" of "+P.photos.length+": <strong>"+esc(P.photos[Math.min(at.step,P.photos.length-1)].say)+"</strong>":
     at.phase==="ask"&&P.asks[at.i]?"question "+(at.i+1)+" of "+P.asks.length+": <strong>"+esc(P.asks[at.i].title)+"</strong>":"your statement";
   function resume(ctx,P,at){
     if(at.phase==="photos"&&window.eviaCamera&&window.eviaCamera.supported())return photos(ctx,P,Math.min(at.step,P.photos.length-1));
-    if(at.phase==="ask")return at.topic&&P.asks[at.i]?topic(ctx,P,at.i,at.topic):ask(ctx,P,at.i||0);
+    if(at.phase==="ask")return ask(ctx,P,at.i||0);
     return review(ctx,P);
   }
   let cur="guide";   /* which route's Evia the sheets show */
@@ -183,49 +221,41 @@
       }});
   }
 
-  /* One stage: the question, then its topics as pills. Tapping a pill opens a box just for that topic. */
+  /* One question: its KSBs, Evia's question, the knowledge to explain, the things to mention (they light up as the
+     learner writes about them), and one box for their own words. */
+  const chipsOf=a=>(a.terms&&a.terms.length?a.terms:(a.topics||[]).filter(t=>t!==OTHER)).map(cap);
   function ask(ctx,P,i){
     const g=ctx.pack[gk(ctx)],n=P.asks.length;
     if(i>=n){review(ctx,P);return}
-    const a=P.asks[i],T=g.topics[a.key]||{};
+    const a=P.asks[i],chips=chipsOf(a);
     mark(ctx,{phase:"ask",i});
     const el=sheet(
       '<div class="eg-progress" aria-hidden="true"><i style="width:'+Math.round((P.photos.length+i+1)/(P.photos.length+n)*100)+'%"></i></div>'+
+      (a.codes&&a.codes.length?'<div class="eg-codes">'+a.codes.map(c=>'<span>'+esc(c)+'</span>').join("")+'</div>':"")+
       '<p class="eg-say eg-q">'+esc(a.ask)+'</p>'+
-      '<p class="eg-small">Tap the things you want to talk about. Do as many as you like.</p>'+
-      '<div class="eg-pills">'+a.topics.map((t,k)=>{const txt=String(T[t]||"").trim();
-        return '<button type="button" class="eg-pill'+(txt?" done":"")+(t===OTHER?" other":"")+'" data-topic="'+k+'"><span class="eg-pill-t">'+(txt?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>':"")+esc(t)+'</span>'+(txt?'<small>'+esc(txt.length>70?txt.slice(0,70)+"…":txt)+'</small>':"")+'</button>'}).join("")+'</div>'+
-      (a.can.length?'<details class="eg-good"><summary>What good looks like</summary><ul>'+a.can.map(c=>'<li>'+esc(c)+'</li>').join("")+'</ul></details>':""),
-      [{label:i===n-1?"Finish":"Next",primary:true,run:()=>ask(ctx,P,i+1)}],
-      {kicker:"EVIA · QUESTION "+(i+1)+" OF "+n,title:a.title,back:i>0?()=>ask(ctx,P,i-1):null,keep:true,full:true,compact:true});
-    el.querySelectorAll("[data-topic]").forEach(b=>b.onclick=()=>topic(ctx,P,i,a.topics[+b.dataset.topic]));
+      (a.know&&a.know.length?'<p class="eg-know"><b>Explain what you know about</b> '+esc(a.know.join("; "))+'.</p>':"")+
+      (chips.length?'<div class="eg-mention"><span class="eg-mention-h">Things to mention</span>'+chips.map(t=>'<span class="eg-chip" data-t="'+esc(t)+'">'+esc(t)+'</span>').join("")+'</div>':"")+
+      '<textarea class="eg-text" id="eg-text" data-otj="'+esc(ctx.unitName)+'" rows="6" placeholder="In your own words: what you did, how, and why…" aria-label="'+esc(a.title)+'">'+esc(g.answers[a.key]||"")+'</textarea>',
+      [{label:i===n-1?"Finish":"Next",primary:true,run:()=>{save();ask(ctx,P,i+1)}}],
+      {kicker:"EVIA · "+(i+1)+" OF "+n,title:a.title,back:i>0?()=>{save();ask(ctx,P,i-1)}:null,keep:true,full:true,compact:true});
+    const box=el.querySelector("#eg-text"),chipEls=[...el.querySelectorAll(".eg-chip")];
+    const light=()=>{const t=box.value.toLowerCase();chipEls.forEach(c=>c.classList.toggle("on",!!(window.eviaTermMatched?window.eviaTermMatched(c.dataset.t,t):t.includes(c.dataset.t.toLowerCase()))))};
+    function save(){store(ctx,a,box.value.trim())}
+    let timer=null;box.oninput=()=>{light();clearTimeout(timer);timer=setTimeout(save,400)};light();
   }
-  /* The stage's answer is its topics in order, so the statement reads well and counts what was covered. */
-  function store(ctx,a){
-    const g=ctx.pack[gk(ctx)],T=g.topics[a.key]||{},parts=a.topics.map(t=>String(T[t]||"").trim()).filter(Boolean);
-    g.answers[a.key]=parts.map(p=>/[.!?]$/.test(p)?p:p+".").join(" ");
-    g.covered[a.key]=a.terms.filter(t=>String(T[cap(t)]||"").trim());
+  /* The answer, and which things to mention it covers (a thorough answer covers its question's list). */
+  function store(ctx,a,text){
+    const g=ctx.pack[gk(ctx)],t=String(text||"");g.answers[a.key]=t;
+    const chips=a.terms||[],lowT=t.toLowerCase();
+    g.covered[a.key]=t.split(/\s+/).filter(Boolean).length>=25?chips.slice():chips.filter(c=>window.eviaTermMatched?window.eviaTermMatched(c,lowT):lowT.includes(String(c).toLowerCase()));
     ctx.save();
-  }
-  function topic(ctx,P,i,t){
-    const g=ctx.pack[gk(ctx)],a=P.asks[i];g.topics[a.key]=g.topics[a.key]||{};
-    mark(ctx,{phase:"ask",i,topic:t});
-    const el=sheet(
-      '<p class="eg-ctx">'+esc(a.ask)+'</p>'+
-      '<textarea class="eg-text" id="eg-text" data-otj="'+esc(ctx.unitName)+'" rows="6" placeholder="'+esc(t===OTHER?"Anything else about this part of the job…":"Tell me about "+t.charAt(0).toLowerCase()+t.slice(1)+"…")+'" aria-label="'+esc(t)+'">'+esc(g.topics[a.key][t]||"")+'</textarea>',
-      [{label:"Done",primary:true,run:()=>{save();ask(ctx,P,i)}}],
-      {kicker:"EVIA · "+a.title.toUpperCase(),title:t,back:()=>{save();ask(ctx,P,i)},backLabel:"‹ Topics",keep:true,full:true,compact:true});
-    const box=el.querySelector("#eg-text");
-    function save(){g.topics[a.key][t]=box.value.trim();store(ctx,a)}
-    let timer=null;box.oninput=()=>{clearTimeout(timer);timer=setTimeout(save,400)};
-    setTimeout(()=>box.focus({preventScroll:true}),reduced()?0:220);
   }
 
   /* The statement: what they already wrote, then each answer as its own paragraph, in the order of the job. */
   function compile(ctx,P){
     const g=ctx.pack[gk(ctx)],parts=P.asks.map(a=>String(g.answers[a.key]||"").trim()).filter(Boolean);
-    const had=String(ctx.pack.write||"").trim();
-    return [had,...parts.filter(p=>!had.includes(p))].filter(Boolean).join("\n\n");
+    const had=String(ctx.pack.write||"").trim(),prev=String(g.prev||"").trim();
+    return [had,prev&&!had.includes(prev)?prev:"",...parts.filter(p=>!had.includes(p))].filter(Boolean).join("\n\n");
   }
   function review(ctx,P){
     const text=compile(ctx,P),n=answeredIn(ctx.pack[gk(ctx)],P.asks);
@@ -247,9 +277,16 @@
   function sheet(body,buttons,o){
     const root=document.getElementById("modal-root");
     fit(false);
-    root.innerHTML='<div class="overlay eg-overlay'+(o.full?" eg-full":"")+'"><section class="sheet pr-sheet eg-sheet" role="dialog" aria-modal="true" aria-labelledby="eg-title">'+
+    const open=root.querySelector(".eg-overlay:not(.ui-closing)"),wasFull=open&&open.classList.contains("eg-full");
+    const html='<div class="overlay eg-overlay'+(o.full?" eg-full":"")+'"><section class="sheet pr-sheet eg-sheet" role="dialog" aria-modal="true" aria-labelledby="eg-title">'+
       '<div class="sheet-head"><div class="eg-head">'+routeAvatar(o.avatar||(o.free?"free":cur))+'<div><div class="chat-kicker">'+esc(o.kicker)+'</div><h2 id="eg-title">'+esc(o.title)+'</h2></div></div><button class="close" id="eg-close" type="button" aria-label="Close">×</button></div>'+
       '<div class="pr-body">'+body+'<div class="pr-actions eg-actions'+(o.compact?" eg-compact":"")+(o.wide?" eg-wide":"")+'">'+(o.back?'<button type="button" class="eg-back" id="eg-back">'+esc(o.backLabel||"‹ Back")+'</button>':"")+buttons.map((b,i)=>'<button type="button" class="'+(b.primary?"primary":"secondary")+'" data-eg="'+i+'">'+esc(b.label)+'</button>').join("")+'</div></div></section></div>';
+    /* Moving between screens of the same size swaps the sheet in place (no fade out and in); otherwise it opens fresh. */
+    if(open&&wasFull===!!o.full){
+      const t=document.createElement("div");t.innerHTML=html;const fresh=t.firstChild;
+      open.className=fresh.className+" eg-steady";open.replaceChildren(...fresh.childNodes);
+      open.querySelector(".eg-sheet").classList.add("eg-swap");
+    }else root.innerHTML=html;
     const el=root.querySelector(".eg-sheet");
     /* Full screens keep the buttons outside the scrolling part, so they sit just above the keyboard. */
     if(o.full){el.appendChild(el.querySelector(".eg-actions"));fit(true)}
@@ -257,7 +294,7 @@
     if(o.back)el.querySelector("#eg-back").onclick=o.back;
     const x=()=>{const t=el.querySelector("#eg-text");if(t&&t.oninput)t.oninput();close()};
     el.querySelector("#eg-close").onclick=x;
-    if(!o.keep)root.querySelector(".overlay").addEventListener("click",e=>{if(e.target.classList.contains("overlay"))close()});
+    root.querySelector(".overlay").onclick=o.keep?null:e=>{if(e.target.classList.contains("overlay"))close()};
     if(!el.querySelector("textarea")){const h=el.querySelector("#eg-title");h.setAttribute("tabindex","-1");h.focus({preventScroll:true})}
     return el;
   }

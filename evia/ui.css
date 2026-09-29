@@ -2420,3 +2420,138 @@ html body .sd-evia{transform:scale(3.3);animation-name:sdBreathe3}
 .ev-tile.ev-signed .ev-tile-share{border-left-color:var(--yellow-line)}
 .ev-tile.ev-more{border:1.5px dashed #e0a526;background:#fffaf0}
 .ev-tile.ev-more .ev-tile-copy small{color:#92400e;font-weight:700}
+/* How to build a strong portfolio: five slides, Evia talking them through (strength.js) */
+.sg-overlay{align-items:center;justify-content:center;padding:14px}
+.sg{position:relative;width:min(520px,100%);max-height:calc(100dvh - 28px);display:flex;flex-direction:column;background:#fff;border-radius:28px;box-shadow:0 24px 60px rgba(16,24,40,.22);overflow:hidden;animation:sg-in .26s cubic-bezier(.2,.8,.3,1)}
+@keyframes sg-in{from{transform:translateY(14px) scale(.98);opacity:0}}
+.sg-top{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 4px 22px}
+.sg-dots{display:flex;gap:6px}
+.sg-dots i{width:8px;height:8px;border-radius:8px;background:#e6e9ee;transition:width .25s ease,background .25s ease}
+.sg-dots i.on{width:24px;background:var(--yellow)}
+.sg-top .close{width:38px;height:38px;border-radius:50%;border:0;background:#f2f4f7;color:var(--ui-muted,#667085);font-size:24px;line-height:1;display:grid;place-items:center;cursor:pointer}
+.sg-stage{flex:1;overflow-y:auto;overflow-x:hidden;padding:6px 22px 8px}
+.sg-slide{display:flex;flex-direction:column;gap:14px;animation:sg-fade .28s ease}
+.sg-slide.from-right{animation:sg-right .3s cubic-bezier(.2,.8,.3,1)}.sg-slide.from-left{animation:sg-left .3s cubic-bezier(.2,.8,.3,1)}
+@keyframes sg-fade{from{opacity:0}}@keyframes sg-right{from{opacity:0;transform:translateX(28px)}}@keyframes sg-left{from{opacity:0;transform:translateX(-28px)}}
+.sg-kicker{margin:0;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ui-muted,#667085)}
+.sg h2{margin:-6px 0 0;font-size:26px;line-height:1.12;letter-spacing:-.03em;color:var(--ink,#172033);outline:none}
+.sg-say{display:flex;align-items:flex-start;gap:12px}
+.sg-say .evia-mini{width:44px;height:44px;margin-top:2px;animation:sg-talk 2.4s ease-in-out infinite}
+.sg-say .evia-mini .evia-face i{width:8px!important;height:11px!important}
+@keyframes sg-talk{0%,100%{transform:none}40%{transform:translateY(-3px) rotate(-3deg)}70%{transform:translateY(0) rotate(2deg)}}
+.sg-say p{position:relative;flex:1;margin:0;padding:12px 15px;border-radius:4px 18px 18px 18px;background:var(--soft,#fff7d6);border:1px solid var(--yellow-line,#f1d878);color:var(--ink,#172033);font-size:15px;line-height:1.45;font-weight:550}
+.sg-body{display:flex;flex-direction:column;gap:12px}
+.sg-three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.sg-card{display:flex;flex-direction:column;gap:5px;padding:14px 12px;border-radius:18px;border:1px solid var(--ui-line,#edf0f4);background:#fff;box-shadow:0 4px 14px rgba(16,24,40,.05)}
+.sg-card b{font-size:14.5px;letter-spacing:-.01em;color:var(--ink,#172033)}.sg-card span:last-child{font-size:12.5px;line-height:1.35;color:var(--ui-muted,#667085)}
+.sg-ic{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;background:var(--soft,#fff7d6);color:var(--yellow-ink,#6e5c00);margin-bottom:4px}
+.sg-ic svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+@media(max-width:460px){.sg-three{grid-template-columns:1fr}.sg-card{display:grid;grid-template-columns:40px 1fr;column-gap:12px;row-gap:1px;align-items:center;padding:12px 14px}.sg-card .sg-ic{margin:0;grid-row:span 2}}
+.sg-level{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:#f8f9fb}
+.sg .unit-strength-bars{flex:0 0 auto}
+.sg-ex{padding:12px 14px;border-radius:16px;border:1px solid var(--ui-line,#edf0f4)}
+.sg-ex.weak{background:#fafafa}.sg-ex.strong{background:#fff;border-color:var(--yellow-line,#f1d878);box-shadow:0 4px 14px rgba(16,24,40,.05)}
+.sg-ex-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.sg-ex-h b{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ui-muted,#667085)}
+.sg-ex p{margin:0;font-size:14px;line-height:1.5;color:var(--ink,#172033)}
+.sg-ex mark{background:var(--soft,#fff7d6);color:var(--yellow-ink,#6e5c00);border-radius:4px;padding:0 2px;box-shadow:inset 0 -2px 0 var(--yellow)}
+.sg-ex small{display:block;margin-top:8px;font-size:12px;color:var(--ui-muted,#667085)}
+.sg-levels{display:flex;flex-direction:column;gap:8px}
+.sg-level{align-items:flex-start;gap:14px;padding:12px 14px}
+.sg-level .unit-strength-bars{margin-top:2px}
+.sg-level>span:last-child{display:flex;flex-direction:column;gap:2px}.sg-level b{font-size:15px;color:var(--ink,#172033)}.sg-level>span:last-child>span{font-size:13px;line-height:1.4;color:var(--ui-muted,#667085)}
+.sg-note{margin:0;padding:10px 14px;border-radius:14px;background:var(--soft,#fff7d6);color:var(--yellow-ink,#6e5c00);font-size:13px;font-weight:650}
+.sg-foot{display:flex;justify-content:space-between;gap:10px;padding:12px 18px max(16px,env(safe-area-inset-bottom));border-top:1px solid var(--ui-line,#edf0f4)}
+.sg-foot button{min-width:120px;margin:0}
+.sg-photos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sg-photos figure{margin:0;display:flex;flex-direction:column;gap:6px}
+.sg-photos img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:14px;background:#eef1f5;box-shadow:0 4px 12px rgba(16,24,40,.1)}
+.sg-photos figcaption{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:750;line-height:1.2;color:var(--ink,#172033)}
+.sg-photos figcaption b{flex:0 0 auto;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--yellow);color:#fff;font-size:11px}
+.sg-ppe{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.sg-ppe-h{flex-basis:100%;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ui-muted,#667085)}
+.sg-ppe span:not(.sg-ppe-h){padding:6px 11px;border-radius:999px;background:var(--soft,#fff7d6);border:1px solid var(--yellow-line,#f1d878);color:var(--yellow-ink,#6e5c00);font-size:12.5px;font-weight:700}
+.sg-course{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;position:relative}
+.sg-course li{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:14px;background:#f8f9fb}
+.sg-wk{flex:0 0 58px;font-size:11.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--yellow-ink,#6e5c00)}
+.sg-job{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.3}
+.sg-job b{font-size:14px;color:var(--ink,#172033)}.sg-job em{font-style:normal;font-size:12.5px;color:var(--ui-muted,#667085)}
+.sg-again{flex:0 0 auto;padding:3px 9px;border-radius:999px;background:var(--soft,#fff7d6);color:var(--yellow-ink,#6e5c00);font-size:11px;font-weight:800}
+@media(prefers-reduced-motion:reduce){.sg,.sg-slide,.sg-say .evia-mini{animation:none!important}}
+/* Guided write-up: one screen per group of KSBs, one box, things to mention lighting up as you write (guide.js) */
+.eg-codes{display:flex;flex-wrap:wrap;gap:6px}
+.eg-codes span{padding:3px 9px;border-radius:8px;background:var(--ink,#172033);color:#fff;font-size:11.5px;font-weight:800;letter-spacing:.04em}
+.eg-know{margin:0;font-size:13.5px;line-height:1.45;color:var(--ui-text,#344054)}
+.eg-know b{color:var(--ink,#172033)}
+.eg-mention{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.eg-mention-h{flex-basis:100%;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ui-muted,#667085)}
+.eg-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:999px;border:1px dashed #d4d9e1;background:#fff;font-size:12.5px;font-weight:650;color:var(--ui-muted,#667085);transition:background .2s ease,border-color .2s ease,color .2s ease}
+.eg-chip.on{border-style:solid;border-color:var(--yellow-line,#f1d878);background:var(--soft,#fff7d6);color:var(--yellow-ink,#6e5c00)}
+.eg-chip.on::before{content:"✓";font-weight:900}
+/* Moving between the guide's screens: the sheet stays put and only its contents change. */
+#modal-root .eg-overlay.eg-steady{animation:none!important}
+#modal-root .eg-sheet.eg-swap{animation:eg-swap .18s ease both!important}
+@keyframes eg-swap{from{opacity:.35}}
+@media(prefers-reduced-motion:reduce){#modal-root .eg-sheet.eg-swap{animation:none!important}}
+
+/* Tests: a serious exam paper, polished. Dark header with the time, a progress bar, numbered question squares
+   (flagged ones marked), the question on a white card, and a results ring (exam.js). */
+.ex{background:#f3f4f6;color:#0f172a}
+.ex-bar{background:#0f172a;color:#fff;border-bottom:0;padding:max(12px,env(safe-area-inset-top)) 16px 12px}
+.ex-x{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.16);color:#e2e8f0;border-radius:10px}
+.ex-title{display:flex;flex-direction:column;gap:2px;font-size:15px;font-weight:750;letter-spacing:-.01em;color:#fff;min-width:0}
+.ex-title small{font-size:12px;font-weight:600;color:#94a3b8}
+.ex-time{padding:6px 10px;border-radius:8px;background:rgba(255,255,255,.08);color:#e2e8f0;font-size:14px;font-weight:700;letter-spacing:.02em}
+.ex-prog{flex:none;height:4px;background:#1e293b}.ex-prog i{display:block;height:100%;background:var(--yellow,#e7b900);transition:width .25s ease}
+.ex-nav{background:#fff;border-bottom:1px solid #e5e7eb;padding:10px 16px;gap:6px}
+.ex-n{position:relative;width:36px;height:36px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#475569;font-weight:700;font-variant-numeric:tabular-nums}
+.ex-n.done{background:#0f172a;border-color:#0f172a;color:#fff}
+.ex-n.now{border:2px solid #0f172a;color:#0f172a;box-shadow:0 0 0 3px rgba(15,23,42,.1)}
+.ex-n.done.now{color:#fff}
+.ex-n.flag::after{content:"";position:absolute;top:-4px;right:-4px;width:10px;height:10px;border-radius:50%;background:#f59e0b;box-shadow:0 0 0 2px #fff}
+.ex-body{padding:18px 16px 24px}
+.ex-card,.ex-paper{max-width:720px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:20px 18px;box-shadow:0 1px 2px rgba(15,23,42,.04),0 8px 24px rgba(15,23,42,.05)}
+.ex-qhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.ex-qn{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#64748b}
+.ex-flag{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;font-size:12.5px;font-weight:700;color:#475569;cursor:pointer}
+.ex-flag svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ex-flag.on{background:#fffbeb;border-color:#fcd34d;color:#92400e}.ex-flag.on svg{fill:#f59e0b;stroke:#b45309}
+.ex-q{font-size:19px;line-height:1.45;font-weight:700;letter-spacing:-.01em;color:#0f172a;margin:0 0 18px}
+.ex-opt{border-radius:12px;border:1.5px solid #e2e8f0;padding:14px;transition:border-color .12s ease,background .12s ease}
+.ex-opt:hover{border-color:#94a3b8}
+.ex-l{border-radius:8px;border:1.5px solid #cbd5e1;background:#f8fafc;color:#334155;font-weight:800}
+.ex-opt.on{border:1.5px solid #0f172a;padding:14px;background:#f8fafc;box-shadow:0 0 0 3px rgba(15,23,42,.08)}
+.ex-opt.on .ex-l{background:#0f172a;border-color:#0f172a;color:#fff}
+.ex-foot{background:#fff;border-top:1px solid #e5e7eb}
+.ex-btn{border-radius:12px;border:1.5px solid #d1d5db;font-weight:750}
+.ex-primary{background:#0f172a;border-color:#0f172a;color:#fff;box-shadow:0 6px 16px rgba(15,23,42,.18)}
+.ex-intro h1{margin:6px 0 16px;font-size:28px;letter-spacing:-.03em;font-weight:800}
+.ex-facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 18px}
+.ex-facts span{display:flex;flex-direction:column;gap:2px;padding:12px;border-radius:10px;background:#f8fafc;border:1px solid #e5e7eb;font-size:12px;color:#64748b}
+.ex-facts b{font-size:18px;color:#0f172a;letter-spacing:-.02em}
+.ex-rules{padding-left:18px}
+.ex-score{max-width:720px;margin:0 auto;padding:24px 18px;border-radius:14px;background:#0f172a;border:0;color:#fff;align-items:center;gap:10px}
+.ex-score .ex-kicker{color:#94a3b8}
+.ex-ring{--p:0;width:132px;height:132px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--yellow,#e7b900) calc(var(--p)*1%),#1e293b 0);position:relative}
+.ex-ring::before{content:"";position:absolute;inset:11px;border-radius:50%;background:#0f172a}
+.ex-ring b{position:relative;font-size:34px;letter-spacing:-.03em;color:#fff}
+.ex-score-sub{font-size:14px;color:#cbd5e1}.ex-score-sub strong{color:#fff}
+.ex-revise,.ex-h,.ex-review{max-width:720px;margin-left:auto;margin-right:auto}
+.ex-revise{margin-top:14px;border-radius:12px}
+.ex-review li{background:#fff;border-radius:12px;border:1px solid #e5e7eb}
+.ex-review li.ok{border-left:4px solid #16a34a}.ex-review li.ok .ex-mark{color:#16a34a}
+@media(min-width:720px){.ex-body{padding:28px 24px}.ex-card,.ex-paper{padding:28px}}
+
+/* Teach me: EPA practice, a full-width dark tile under the subjects (tabs.js). */
+.tg-epa{display:flex;align-items:center;gap:14px;width:100%;margin-top:12px;padding:16px;border:0;border-radius:var(--pm-radius,22px);background:linear-gradient(135deg,#1f242c,#2f353f);color:#eef0f3;text-align:left;box-shadow:0 10px 26px rgba(16,24,40,.18);cursor:pointer;transition:transform .12s ease}
+.tg-epa:active{transform:scale(.98)}
+.tg-epa-ic{flex:0 0 auto;width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:rgba(255,255,255,.08);color:var(--yellow)}
+.tg-epa-ic svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tg-epa-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.tg-epa-copy small{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#aab1bd}
+.tg-epa-copy strong{font-size:18px;letter-spacing:-.02em;color:#fff}
+.tg-epa-copy span{font-size:12.5px;line-height:1.35;color:#c9ced6}
+.tg-epa-score{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+.tg-epa-score b{font-size:20px;color:var(--yellow);letter-spacing:-.02em}.tg-epa-score small{font-size:11px;color:#aab1bd;white-space:nowrap}
+/* Evia's three actions: the third spans the row. */
+#chat .ui-actions .ui-action:nth-child(3):last-child{grid-column:1/-1}

@@ -51,12 +51,22 @@
     const next=nx?'<button type="button" class="tg-next" data-play="'+esc(nx.id)+'"><span class="tg-next-copy"><small>'+(nx.resume?"Carry on":"Up next")+' · '+esc(nx.unit)+'</small><strong>'+esc(nx.title)+'</strong><span>Lesson '+nx.n+' of '+nx.of+' · about '+nx.mins+' min</span></span><span class="tg-play">'+PLAY+'</span></button>':"";
     const tile=([id,title,c])=>{const pct=c.total?Math.round(c.done/c.total*100):0;
       return '<button type="button" class="tt-card tg-tile tg-'+id+'" data-go="'+id+'">'+doodleFor(id)+'<span class="tg-tile-top"><span class="tg-tile-ic" aria-hidden="true">'+ICON[id]+'</span><span class="tg-ring" style="--p:'+pct+'" aria-hidden="true"><b>'+pct+'%</b></span></span><strong>'+esc(title)+'</strong><small>'+c.done+' of '+c.total+' lessons</small></button>'};
-    scr().innerHTML=head("Teach me")+player+next+'<h2 class="ui-section-label">Subjects</h2><div class="tg-grid">'+subjects.map(tile).join("")+'</div>'+games();
+    scr().innerHTML=head("Teach me")+player+next+'<h2 class="ui-section-label">Subjects</h2><div class="tg-grid">'+subjects.map(tile).join("")+'</div>'+epaTile()+games();
+    const et=document.getElementById("tg-epa");if(et)et.onclick=()=>window.eviaOpenEpa&&window.eviaOpenEpa();
     scr().querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{if(T)T.open(b.dataset.go)});
     scr().querySelectorAll("[data-play]").forEach(b=>b.onclick=()=>{if(T&&T.play)T.play(b.dataset.play)});
     const lbo=document.getElementById("lb-open");if(lbo)lbo.onclick=()=>window.eviaLeaderboard.open();
     scr().querySelectorAll("[data-game]").forEach(b=>b.onclick=()=>{const id=b.dataset.game;
       if(R&&R.owns(id))window.eviaGames.open(b.dataset.key);else if(R)R.openItem(id)});
+  }
+  /* EPA practice: the end-point assessment (knowledge tests on the NVQ), dark like the practice itself. */
+  function epaTile(){
+    if(!window.eviaOpenEpa)return "";
+    const nvq=window.eviaNvq&&window.eviaNvq.on(),tests=window.eviaData.list("tests").filter(t=>t&&t.course===course&&t.type==="epa");
+    const best=tests.length?Math.max(...tests.map(t=>Number(t.pct)||0)):null,last=tests.length?tests[tests.length-1]:null;
+    return '<button type="button" class="tg-epa" id="tg-epa"><span class="tg-epa-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3.5h10a1.5 1.5 0 0 1 1.5 1.5v15l-3-1.8-3 1.8-3-1.8-3 1.8V5A1.5 1.5 0 0 1 7 3.5Z"/><path d="M9 8.5h6M9 12h6"/></svg></span>'+
+      '<span class="tg-epa-copy"><small>'+(nvq?"Knowledge":"End-point assessment")+'</small><strong>'+(nvq?"Knowledge tests":"EPA practice")+'</strong><span>'+(nvq?"Quick practice and full knowledge tests":"Quick practice, full mocks and professional discussion")+'</span></span>'+
+      '<span class="tg-epa-score">'+(best==null?'<b>Start</b><small>No tests yet</small>':'<b>'+best+'%</b><small>best · last '+last.pct+'%</small>')+'</span></button>';
   }
   /* Mini games: unlocked in Rewards, played here. */
   const LOCK='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>';

@@ -459,7 +459,7 @@ function chat(){
  const fab=$("#evia-fab");
  fab.classList.add("chat-active");
  $("#modal-root").innerHTML='<div class="overlay"><section class="sheet chat-sheet"><div class="sheet-head"><div><div class="chat-kicker">EVIA</div><h2>What would you like to do?</h2></div><button class="close" id="x" aria-label="Close">×</button></div><div class="chat" id="chat"></div></section></div>'; /* ui.js fills the chat */
- $("#x").onclick=()=>{ $("#modal-root").innerHTML=""; fab.classList.remove("chat-active"); const profileBtn=$("#profile-btn"); if(profileBtn && ["learning","course","progress","portfolio"].includes(screen))profileBtn.style.display="flex"; };
+ $("#x").onclick=()=>{ $("#modal-root").innerHTML=""; fab.classList.remove("chat-active"); const profileBtn=$("#profile-btn"); if(profileBtn && ["learning","course","progress","portfolio","teach","rewards"].includes(screen))profileBtn.style.display="flex"; };
  const scroll=()=>{const c=$("#chat");if(c)c.scrollTop=c.scrollHeight};
  /* Evia's messages "think" one at a time, so several added together still arrive in order. */
  let thoughtChainEnd=0;

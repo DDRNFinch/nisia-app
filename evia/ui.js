@@ -673,21 +673,22 @@
       return bits.filter(Boolean).join(" ");
     }catch(_){return""}
   }
-  /* Evia's four things: check a piece of evidence, a quick review of every area, targets, and EPA practice. Hours,
-     confidence, college tasks and scenarios are opened from their section of My progress. */
+  /* Evia's three things: check a piece of evidence, a quick review of every area, and targets. EPA practice is its
+     own tile in Teach me; hours, confidence, college tasks and scenarios open from their section of My progress. */
   const ACTIONS=[
     ["evidence","Evidence check",'<path d="m5 12.5 4.5 4.5L19 7.5"/>'],
     ["prep","Get ready for review",'<path d="M9 4.5h6a1 1 0 0 1 1 1V7H8V5.5a1 1 0 0 1 1-1Z"/><path d="M8 5.5H6.5A1.5 1.5 0 0 0 5 7v12.5A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V7a1.5 1.5 0 0 0-1.5-1.5H16"/><path d="m8.5 13.5 2.3 2.3 4.7-4.8"/>'],
-    ["targets","Show targets",'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>'],
-    ["epa",(window.eviaNvq&&window.eviaNvq.on())?"Knowledge tests":"EPA mocks",'<path d="M7 3.5h10a1.5 1.5 0 0 1 1.5 1.5v15l-3-1.8-3 1.8-3-1.8-3 1.8V5A1.5 1.5 0 0 1 7 3.5Z"/><path d="M9 8.5h6M9 12h6"/>']
+    ["targets","Show targets",'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>']
   ];
+  /* The EPA tile in Teach me: Evia's chat, dark, straight into EPA practice. */
+  window.eviaOpenEpa=()=>{window.chat({quiet:true});setTimeout(()=>{const C=window.eviaCoachFlows;if(C&&C.epa)C.epa()},60)};
   function actionRun(id){
     const C=window.eviaCoachFlows||{};
     return {
       evidence:()=>{userSays("Evidence check");C.evidenceCheck?C.evidenceCheck():writeups()},
       prep:()=>{userSays("Get ready for my review");if(C.prepare)C.prepare()},
       targets:()=>{userSays("Show targets");C.targets?C.targets():targetsFromMenu()},
-      epa:()=>{userSays(ACTIONS[3][1]);if(C.epa)C.epa()}
+      epa:()=>{userSays((window.eviaNvq&&window.eviaNvq.on())?"Knowledge tests":"EPA mocks");if(C.epa)C.epa()}
     }[id];
   }
   function actionGrid(){
