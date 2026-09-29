@@ -140,7 +140,9 @@ window.eviaKsbSignoff=ksbSignoff;
 function moreRequired(){
  const so=ksbSignoff();if(!so.on||!window.eviaFeedback)return[];
  const out=new Map();
- (typeof evidence!=="undefined"?evidence:[]).filter(e=>e&&e.c===course&&window.eviaFeedback.forEvidence(e.id)).forEach(e=>(e.k||[]).forEach(k=>{if(!so.signed.has(k)&&!out.has(k))out.set(k,e.u)}));
+ /* Every KSB in a unit the assessor has looked at: the unit's own, plus any the learner mapped. */
+ const unitKsbs=u=>{try{const x=data().u.find(v=>v[0]===u);return x?x[1].map(k=>code(k)):[]}catch(_){return[]}};
+ (typeof evidence!=="undefined"?evidence:[]).filter(e=>e&&e.c===course&&window.eviaFeedback.forEvidence(e.id)).forEach(e=>[...new Set(unitKsbs(e.u).concat(e.k||[]))].forEach(k=>{if(!so.signed.has(k)&&!out.has(k))out.set(k,e.u)}));
  return [...out].map(([code,unit])=>({code,unit}));
 }
 window.eviaMoreRequired=moreRequired;

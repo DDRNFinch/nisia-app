@@ -247,14 +247,14 @@
     const ksbs=[...new Set(entries.flatMap(e=>e.k||[]))];
     const unitTotal=evidence.filter(e=>e.c===course&&e.u===unitName).length;
     /* One entry opened from its tile: offer every saved entry for the unit in one PDF instead. */
-    const allLink=entryId!=null&&unitTotal>1?'<button type="button" class="eport-copy eport-all" id="eport-all">Share all '+unitTotal+' for this unit in one PDF</button>':"";
-    const introText=entryId==null&&entries.length>1?"All "+entries.length+" pieces of evidence for this unit in one PDF, oldest first, each on its own page with its date. Upload it to Aptem or your e-portfolio.":"Upload this PDF to Aptem or your e-portfolio. It’s named so your assessor can see what it is.";
+    const allLink=entryId!=null&&unitTotal>1?'<button type="button" class="eport-copy eport-all" id="eport-all">Everything for this unit ('+unitTotal+' pieces)</button>':"";
+    const introText=(entryId==null&&entries.length>1?"All "+entries.length+" pieces of evidence for this unit: one PDF (oldest first, each with its date), plus the photos and any recordings.":"This evidence as a PDF, plus the photos and any recordings.")+" Save it as one zip, or share it to Aptem or email. Every file is named so your assessor can see what it is.";
     $("#screen").innerHTML=back+
       '<div class="eport-page">'+
         '<div class="card eport-intro"><div class="section-title">SEND TO E-PORTFOLIO</div><h2>'+escHtml(unitName)+'</h2><p>'+escHtml(introText)+'</p><span class="eport-sent" id="eport-sent">'+(sent?"Last sent "+escHtml(ukDate(sent)):"")+'</span>'+(allLink?'<div>'+allLink+'</div>':"")+'</div>'+
         '<div class="card"><div class="section-title">KSBS COVERED</div><div class="eport-ksbs">'+ksbs.map(k=>'<span>'+escHtml(k)+'</span>').join("")+'</div><button type="button" class="eport-copy" id="eport-copy">Copy KSB codes</button></div>'+
         '<div class="eport-files" id="eport-files"><div class="card eport-pdf"><div class="eport-sheet is-loading" aria-hidden="true"><span></span><span></span><span></span></div><p class="eport-status">Preparing your evidence PDF…</p></div></div>'+
-        '<div class="card"><div class="section-title">HOW TO UPLOAD</div><ol class="eport-steps"><li>Tap <strong>Share PDF</strong> to send it straight to Aptem or another app, or <strong>Save PDF</strong> to keep it on your phone.</li><li>In Aptem (or your e-portfolio), add new evidence and upload the PDF.</li><li>Tag the KSBs listed above.</li></ol></div>'+
+        '<div class="card"><div class="section-title">HOW TO UPLOAD</div><ol class="eport-steps"><li>Tap <strong>Share all</strong> to send everything to email or another app, or <strong>Save .zip</strong> to keep it all in one file.</li><li>In Aptem (or your e-portfolio), add new evidence and upload the zip, or the PDF and any recordings.</li><li>Tag the KSBs listed above.</li></ol></div>'+
       '</div>';
     $("#eport-back").onclick=goBack;
     const allBtn=$("#eport-all");if(allBtn)allBtn.onclick=()=>openSendToPortfolio(unitName);
@@ -287,6 +287,18 @@
         files.push({kind:"photo",title:"Photo "+n,src,file:new File([blob],base+"_photo-"+String(n).padStart(2,"0")+"."+ext,{type:blob.type||"image/jpeg"})});
       }catch(err){console.error("Evia photo file failed",err);unreadable++}
     }
+    /* Videos and voice notes, as they are (they play anywhere), plus what Evia wrote down from them. */
+    let r=0,recMissing=0;
+    for(const e of entries)for(const m of (e.media||[])){
+      try{
+        const blob=window.eviaGetEvidencePhoto?await window.eviaGetEvidencePhoto(m.id):null;if(!blob)throw new Error("missing");
+        r++;const mp4=/mp4|m4a|aac/i.test(m.mime||blob.type),ext=m.kind==="video"?(mp4?"mp4":"webm"):(mp4?"m4a":"webm");
+        files.push({kind:m.kind,title:(m.kind==="video"?"Video ":"Voice note ")+r,file:new File([blob],base+"_"+(m.kind==="video"?"video":"voice-note")+"-"+String(r).padStart(2,"0")+"."+ext,{type:blob.type||m.mime||"application/octet-stream"})});
+      }catch(err){recMissing++}
+    }
+    const said=entries.flatMap(e=>(e.media||[]).map(m=>String(m.transcript||"").trim()).filter(Boolean));
+    if(said.length)files.push({kind:"text",title:"Transcript",file:new File([said.join("\n\n")],base+"_what-was-said.txt",{type:"text/plain"})});
+    if(recMissing)problems.push(recMissing+" recording"+(recMissing===1?"":"s")+" couldn’t be read on this phone and "+(recMissing===1?"was":"were")+" left out.");
     if(unreadable)problems.push(unreadable+" photo"+(unreadable===1?"":"s")+" couldn’t be read on this phone and "+(unreadable===1?"was":"were")+" left out. If this evidence came from a backup, restore the backup again from your profile.");
     const list=$("#eport-files");
     if(!files.length){
@@ -295,8 +307,12 @@
     }
     if(!document.getElementById("eport-files"))return; // learner navigated away
     /* The PDF is the main download, with a preview of its first page; the zip (PDF plus every photo) is there just in case. */
-    const pdf=files.find(f=>f.kind==="pdf"),photos=files.filter(f=>f.kind==="photo");
-    const shareOk=pdf&&canShareFiles([pdf.file]);
+    const pdf=files.find(f=>f.kind==="pdf"),photos=files.filter(f=>f.kind==="photo"),recs=files.filter(f=>f.kind==="video"||f.kind==="audio");
+    /* Everything together is the main download: a zip to save, or all the files at once to share (phones won't share a
+       zip, but they will share the files themselves). The PDF on its own is still there underneath. */
+    const everything=files.map(f=>f.file),shareAll=canShareFiles(everything),shareOk=pdf&&canShareFiles([pdf.file]);
+    const parts=[pdf?"the PDF":"",photos.length?photos.length+" photo"+(photos.length===1?"":"s"):"",recs.length?recs.length+" recording"+(recs.length===1?"":"s"):"",said.length?"what was said":""].filter(Boolean);
+    const partText=parts.length>1?parts.slice(0,-1).join(", ")+" and "+parts[parts.length-1]:parts[0]||"";
     const first=entries[0]||{},firstPhotos=(photosByEntry[0]||[]).slice(0,4);
     const excerpt=String(first.w||"").trim();
     const preview=pdf?'<button type="button" class="eport-sheet" id="eport-preview" aria-label="Open the full evidence PDF">'+
@@ -311,24 +327,24 @@
       '</button>':"";
     $("#eport-files").innerHTML=
       (problems.length?'<div class="card eport-note" role="status"><p>'+problems.join("<br>")+'</p></div>':"")+
-      (pdf?'<div class="card eport-pdf">'+preview+
-        '<p class="eport-status"><strong>Evidence PDF</strong> · '+(pdf.pages?pdf.pages+" page"+(pdf.pages===1?"":"s")+" · ":"")+formatBytes(pdf.file.size)+'</p>'+
-        '<div class="eport-main'+(shareOk?"":" single")+'">'+(shareOk?'<button type="button" class="primary" id="eport-share">'+icon.share+'Share PDF</button>':"")+'<button type="button" class="'+(shareOk?"secondary":"primary")+'" id="eport-save">'+icon.save+'Save PDF</button></div>'+
-      '</div>':"")+
-      '<button type="button" class="eport-zip" id="eport-zip"><span><strong>Download everything (.zip)</strong><small>'+(pdf?"The PDF and ":"")+photos.length+' photo'+(photos.length===1?"":"s")+', just in case</small></span>'+icon.save+'</button>';
+      '<div class="card eport-pdf">'+preview+
+        '<p class="eport-status"><strong>Everything</strong> · '+escHtml(partText)+' · '+formatBytes(everything.reduce((n,f)=>n+f.size,0))+'</p>'+
+        '<div class="eport-main'+(shareAll?"":" single")+'">'+(shareAll?'<button type="button" class="primary" id="eport-share-all">'+icon.share+'Share all</button>':"")+'<button type="button" class="'+(shareAll?"secondary":"primary")+'" id="eport-zip">'+icon.save+'Save .zip</button></div>'+
+      '</div>'+
+      (pdf?'<button type="button" class="eport-zip" id="eport-pdf-only"><span><strong>Just the PDF</strong><small>'+(pdf.pages?pdf.pages+" page"+(pdf.pages===1?"":"s")+" · ":"")+formatBytes(pdf.file.size)+(recs.length?" · recordings aren’t in a PDF":"")+'</small></span>'+(shareOk?icon.share:icon.save)+'</button>':"");
     if(pdf){
       const pdfUrl=URL.createObjectURL(pdf.file);
-      $("#eport-preview").onclick=()=>{const w=window.open(pdfUrl,"_blank");if(!w)saveFile(pdf.file)};
-      const shareBtn=$("#eport-share");if(shareBtn)shareBtn.onclick=async()=>{if(await shareFiles([pdf.file]))markSent(unitName,entries)};
-      $("#eport-save").onclick=()=>{saveFile(pdf.file);markSent(unitName,entries)};
+      const pv=$("#eport-preview");if(pv)pv.onclick=()=>{const w=window.open(pdfUrl,"_blank");if(!w)saveFile(pdf.file)};
+      $("#eport-pdf-only").onclick=async()=>{if(shareOk){if(await shareFiles([pdf.file]))markSent(unitName,entries)}else{saveFile(pdf.file);markSent(unitName,entries)}};
     }
+    const sa=$("#eport-share-all");if(sa)sa.onclick=async()=>{if(await shareFiles(everything))markSent(unitName,entries)};
     $("#eport-zip").onclick=async()=>{
-      const btn=$("#eport-zip"),label=btn.querySelector("strong");btn.disabled=true;label.textContent="Preparing zip…";
+      const btn=$("#eport-zip"),was=btn.innerHTML;btn.disabled=true;btn.textContent="Preparing zip…";
       try{
         const zip=await makeStoredZip(files.map(f=>({path:f.file.name,blob:f.file})));
         saveFile(new File([zip],base+"_"+isoDate(Date.now())+".zip",{type:"application/zip"}));markSent(unitName,entries);
       }catch(err){console.error("Evia zip failed",err);alert("Evia couldn't create the zip. Please try again.")}
-      finally{btn.disabled=false;label.textContent="Download everything (.zip)"}
+      finally{btn.disabled=false;btn.innerHTML=was}
     };
   }
 
