@@ -131,7 +131,10 @@
       }catch(_){sr=null}
     };
     const deaf=()=>{listening=false;if(sr)try{sr.stop()}catch(_){}interim="";tick()};
-    const pickMime=()=>(video?["video/mp4","video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"]:["audio/mp4","audio/webm;codecs=opus","audio/webm"]).find(x=>window.MediaRecorder&&MediaRecorder.isTypeSupported(x))||"";
+    /* The sound has to play everywhere, not just in a browser: MP4 with AAC sound first (every phone gallery and PC
+       player plays it). A plain "video/mp4" can come out with Opus sound, which most players can't play, so if AAC
+       isn't on offer it's WebM (Opus is normal there), and plain MP4 only as a last resort (iPhones). */
+    const pickMime=()=>(video?["video/mp4;codecs=avc1.42E01E,mp4a.40.2","video/mp4;codecs=avc1,mp4a","video/webm;codecs=vp8,opus","video/webm;codecs=vp9,opus","video/webm","video/mp4"]:["audio/mp4;codecs=mp4a.40.2","audio/mp4;codecs=mp4a","audio/webm;codecs=opus","audio/webm","audio/mp4"]).find(x=>window.MediaRecorder&&MediaRecorder.isTypeSupported(x))||"";
     const meter=()=>{
       if(video||!stream)return;
       try{
@@ -156,7 +159,7 @@
       mime=recorder.mimeType||chosen||(video?"video/webm":"audio/webm");chunks=[];
       recorder.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
       recorder.onstop=()=>{
-        blob=new Blob(chunks,{type:mime});chunks=[];setState("review");buzz(20);
+        blob=new Blob(chunks,{type:mime.split(";")[0]});chunks=[];setState("review");buzz(20);
         const url=URL.createObjectURL(blob);
         review.innerHTML=video?'<video src="'+url+'" controls playsinline></video>':'<audio src="'+url+'" controls></audio>';
         hint.textContent="Play it back, then keep it or record again.";keepBtn.hidden=false;retake.hidden=false;
