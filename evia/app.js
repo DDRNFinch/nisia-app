@@ -157,7 +157,7 @@ function supportingCardIcon(type){const icons={photo:'<svg viewBox="0 0 24 24" a
 async function openSupportingEvidence(){
  const base={course};
  $("#page-title").textContent="Supporting Evidence";
- $("#screen").innerHTML=`<button class="secondary" id="back-supporting-course" type="button">‹ My course</button><h1 class="ui-sub-title">Supporting evidence</h1><p class="ui-sub-lead">Witness testimony, photos, videos, recordings and documents for your course.</p><div class="evidence-type-grid"><button type="button" class="evidence-type-tile" data-supporting-type="photo">${supportingCardIcon("photo")}<span class="evidence-type-copy"><strong>Take a photo</strong></span></button><button type="button" class="evidence-type-tile" data-supporting-type="video">${supportingCardIcon("video")}<span class="evidence-type-copy"><strong>Record a video</strong></span></button><button type="button" class="evidence-type-tile" data-supporting-type="audio">${supportingCardIcon("audio")}<span class="evidence-type-copy"><strong>Record audio</strong></span></button><button type="button" class="evidence-type-tile" data-supporting-type="document">${supportingCardIcon("document")}<span class="evidence-type-copy"><strong>Upload a file</strong></span></button></div>`;
+ $("#screen").innerHTML=`<button class="secondary" id="back-supporting-course" type="button">‹ My course</button><h1 class="ui-sub-title">Supporting evidence</h1><p class="ui-sub-lead">Witness testimony, photos and documents for your course.</p><div class="evidence-type-grid"><button type="button" class="evidence-type-tile" data-supporting-type="photo">${supportingCardIcon("photo")}<span class="evidence-type-copy"><strong>Take a photo</strong></span></button>${window.eviaRecordings?`<button type="button" class="evidence-type-tile" data-supporting-type="video">${supportingCardIcon("video")}<span class="evidence-type-copy"><strong>Record a video</strong></span></button><button type="button" class="evidence-type-tile" data-supporting-type="audio">${supportingCardIcon("audio")}<span class="evidence-type-copy"><strong>Record audio</strong></span></button>`:""}<button type="button" class="evidence-type-tile" data-supporting-type="document">${supportingCardIcon("document")}<span class="evidence-type-copy"><strong>Upload a file</strong></span></button></div>`;
 
  $("#back-supporting-course").onclick=()=>nav("course");
  document.querySelectorAll("[data-supporting-type]").forEach(btn=>btn.onclick=()=>supportingPrepare(base,btn.dataset.supportingType));
@@ -231,10 +231,12 @@ function supportingPrepare(base,type){
    saveBtn.onclick=()=>save(blob,mime,"Photo_"+now()+".jpg");
  }else if(type==="document"){
    /* Gallery for photos and videos already on the phone; Files for documents (PDFs, certificates, Word files…). */
-   area.innerHTML='<div class="evidence-capture-tile"><div class="section-title">UPLOAD</div><div class="evidence-photo-actions"><button type="button" class="primary" id="supporting-pick-gallery">Gallery</button><button type="button" class="secondary" id="supporting-pick-files">Files</button></div><input id="supporting-gallery-files" type="file" accept="image/*,video/*" multiple hidden><input id="supporting-file" type="file" multiple hidden><p class="supporting-hint">Gallery for photos and videos on your phone. Files for documents like PDFs and certificates. You can choose more than one.</p></div>';
+   area.innerHTML='<div class="evidence-capture-tile"><div class="section-title">UPLOAD</div><div class="evidence-photo-actions"><button type="button" class="primary" id="supporting-pick-gallery">Gallery</button><button type="button" class="secondary" id="supporting-pick-files">Files</button></div><input id="supporting-gallery-files" type="file" accept="'+(window.eviaRecordings?"image/*,video/*":"image/*")+'" multiple hidden><input id="supporting-file" type="file" multiple hidden><p class="supporting-hint">Gallery for photos on your phone. Files for documents like PDFs and certificates. You can choose more than one.</p></div>';
    const kindOf=f=>/^image\//i.test(f.type)?"photo":/^video\//i.test(f.type)?"video":/^audio\//i.test(f.type)?"audio":"document";
    const saveFiles=async list=>{
-     const files=[...list].filter(f=>f&&f.size);if(!files.length)return;
+     const all=[...list].filter(f=>f&&f.size),files=window.eviaRecordings?all:all.filter(f=>!/^(video|audio)\//i.test(f.type));
+     if(files.length<all.length)showEvidenceToast("Videos and audio can’t be added for now",true);
+     if(!files.length)return;
      try{
        for(const f of files){
          const id="support-"+Date.now()+"-"+Math.random().toString(36).slice(2,9);

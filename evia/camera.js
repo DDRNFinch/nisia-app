@@ -253,5 +253,7 @@
 
   function fmtLimit(s){return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
   window.eviaCamera={open:openCamera,supported};
-  window.eviaRecorder={open:openRecorder,supported:()=>supported()&&!!window.MediaRecorder};
+  /* Videos and voice notes are switched off for now: they take up too much storage. true brings them all back. */
+  window.eviaRecordings=false;
+  window.eviaRecorder={open:openRecorder,supported:()=>window.eviaRecordings&&supported()&&!!window.MediaRecorder};
 })();
