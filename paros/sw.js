@@ -1,7 +1,7 @@
 /* Paros works offline from its last download: the app is kept here as one version (fetched fresh when a new version
    installs). Apprentices' details are kept by the app itself; Nisia's own requests go straight through.
    VERSION is stamped with the commit when the site is published. */
-const VERSION = "ff35497";
+const VERSION = "41ec7e1";
 const CACHE = "paros-" + VERSION;
 const FILES = ["./", "index.html", "paros.css", "app.js", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-512.png", "icons/apple-touch-icon.png",
   "../milos/milos.css", "../milos/fonts/inter-latin-wght-normal.woff2",
