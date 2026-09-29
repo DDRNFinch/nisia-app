@@ -134,7 +134,13 @@
     /* The sound has to play everywhere, not just in a browser: MP4 with AAC sound first (every phone gallery and PC
        player plays it). A plain "video/mp4" can come out with Opus sound, which most players can't play, so if AAC
        isn't on offer it's WebM (Opus is normal there), and plain MP4 only as a last resort (iPhones). */
-    const pickMime=()=>(video?["video/mp4;codecs=avc1.42E01E,mp4a.40.2","video/mp4;codecs=avc1,mp4a","video/webm;codecs=vp8,opus","video/webm;codecs=vp9,opus","video/webm","video/mp4"]:["audio/mp4;codecs=mp4a.40.2","audio/mp4;codecs=mp4a","audio/webm;codecs=opus","audio/webm","audio/mp4"]).find(x=>window.MediaRecorder&&MediaRecorder.isTypeSupported(x))||"";
+    /* Android and computers: WebM with Opus sound, which Chrome records properly and phone galleries, Windows and VLC all
+       play (Chrome's MP4 recordings can carry Opus sound that players reject). iPhones and iPads: MP4 with AAC sound,
+       which is what Safari records and what their Photos app plays. */
+    const ua=navigator.userAgent||"",apple=/iPhone|iPad|iPod/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1)||(/Safari/.test(ua)&&!/Chrome|Chromium|CriOS|Android|Edg/.test(ua));
+    const WEBM=video?["video/webm;codecs=vp8,opus","video/webm;codecs=vp9,opus","video/webm"]:["audio/webm;codecs=opus","audio/webm"];
+    const MP4=video?["video/mp4;codecs=avc1.42E01E,mp4a.40.2","video/mp4;codecs=avc1,mp4a","video/mp4"]:["audio/mp4;codecs=mp4a.40.2","audio/mp4"];
+    const pickMime=()=>(apple?MP4.concat(WEBM):WEBM.concat(MP4)).find(x=>window.MediaRecorder&&MediaRecorder.isTypeSupported(x))||"";
     const meter=()=>{
       if(video||!stream)return;
       try{
