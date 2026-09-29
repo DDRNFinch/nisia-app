@@ -1,5 +1,5 @@
 /* Evia7 mini games: short games that teach without feeling like lessons. Unlocked in Rewards, played from Teach me.
-     Brickle         guess the trade word in six tries (like Wordle); the word's meaning is shown at the end, and as a
+     T.R.A.D.E       guess the trade word in six tries (like Wordle); the word's meaning is shown at the end, and as a
                      clue after four tries.
      Crossword       a new small crossword each time from the trade's terms; the clues are what each term means.
      Flappy Evia     fly Evia through the scaffold; every few gaps a safety gate asks a true-or-false question.
@@ -21,7 +21,7 @@
     flappy:'<svg viewBox="0 0 24 24"><circle cx="13" cy="12" r="7"/><path d="M11 11v1.5M15 11v1.5M2.5 9h3M2 12.5h3.5M2.5 16h3"/></svg>'
   };
   const GAMES=[
-    {id:"game-brickle",key:"brickle",label:"Brickle",rarity:"common",about:"Guess the trade word in six tries."},
+    {id:"game-brickle",key:"brickle",label:"T.R.A.D.E",rarity:"common",about:"Guess the trade word in six tries."},
     {id:"game-crossword",key:"crossword",label:"Crossword",rarity:"common",about:"Fill in the trade words from what they mean."},
     {id:"game-flappy",key:"flappy",label:"Flappy Evia",rarity:"rare",about:"Fly through the scaffold and pass the safety gates."}
   ];
@@ -56,7 +56,7 @@
     setTimeout(()=>{const b=card.querySelector('[data-a="again"]');try{b.focus({preventScroll:true})}catch(_){}},80);
   }
 
-  /* ---------- Brickle ---------- */
+  /* ---------- T.R.A.D.E (was Brickle: the key, "brickle", is kept so unlocks and scores carry over) ---------- */
   const WORDS={
     brick:[
       ["LEVEL","A spirit level. It checks courses are level and, held upright, that walls are plumb."],
@@ -73,7 +73,25 @@
       ["BATCH","One mix of mortar. Gauge every batch the same so the colour matches."],
       ["MIXER","A drum mixer for mortar. Keep hands and shovels out of the drum while it turns."],
       ["PIERS","Thicker columns of brickwork that stiffen a wall or carry a load."],
-      ["LINES","A builder’s line pinned between the corners keeps each course straight."]
+      ["LINES","A builder’s line pinned between the corners keeps each course straight."],
+      ["SPALL","A chip or flake broken off the face of a brick, often by frost."],
+      ["TRAYS","Cavity trays catch water in the cavity over an opening and lead it out through weep holes."],
+      ["WEEPS","Weep holes: open perpends above a cavity tray that let water out of the cavity."],
+      ["SILLS","The ledge under a window that throws rainwater clear of the wall."],
+      ["FROST","Frost can freeze the water in fresh mortar and ruin the joints. Protect new work overnight."],
+      ["RAKED","A joint raked back from the face, for a recessed finish or ready for pointing."],
+      ["STACK","Stack bond: bricks laid straight on top of each other. Decorative only, as it doesn’t bond."],
+      ["TOOTH","Toothing: leaving alternate courses sticking out at the end of a wall so it can be carried on later."],
+      ["BATTS","Slabs of insulation fitted in the cavity between the wall ties."],
+      ["VENTS","Air bricks and vents let air under a suspended timber floor so it doesn’t rot."],
+      ["FACES","The face of a brick is the side that shows. Lay the best faces out."],
+      ["ANGLE","Set out a right angle with a builder’s square or the 3-4-5 method."],
+      ["SCALE","Drawings are to scale, like 1:50. Measure the drawing and multiply to get the real size."],
+      ["PLANS","A plan shows the building from above: where every wall goes."],
+      ["HOIST","A hoist lifts materials up the scaffold. Never ride on a goods hoist."],
+      ["SLUMP","How wet concrete is. The slump test drops a cone of concrete and measures how far it sinks."],
+      ["BONDS","The patterns bricks are laid in, like stretcher, English and Flemish."],
+      ["CURED","Mortar and concrete harden as they cure. Keep them from drying out too fast or freezing."]
     ],
     site:[
       ["JOIST","A timber beam that carries a floor or ceiling, usually at 400 mm centres."],
@@ -90,7 +108,24 @@
       ["MITRE","A joint cut at 45° on each piece to turn a corner, like skirting on an outside corner."],
       ["STUDS","The upright timbers in a stud wall, usually at 400 or 600 mm centres."],
       ["JAMBS","The upright sides of a door frame or lining."],
-      ["PLUMB","Perfectly upright. Door linings must be plumb or the door swings open or shut on its own."]
+      ["PLUMB","Perfectly upright. Door linings must be plumb or the door swings open or shut on its own."],
+      ["PLATE","The wall plate: the timber bedded on top of the wall that the rafters sit on."],
+      ["VERGE","The sloping edge of a roof at the gable end."],
+      ["GABLE","The triangular top of an end wall under a pitched roof."],
+      ["SCREW","Screws grip better than nails and can be taken out. Pilot drill hardwood first."],
+      ["NAILS","Round wire nails for carcassing; oval nails for finish work, laid with the grain."],
+      ["LEDGE","A ledged and braced door has ledges across the back of the boards."],
+      ["BRACE","The diagonal on a ledged and braced door. It rises from the hinge side so the door can’t sag."],
+      ["GOING","The going is the depth of a stair tread, measured nosing to nosing."],
+      ["SPANS","How far a joist or beam reaches between its supports."],
+      ["STOPS","Door stops: the thin strips round the lining that the door closes against."],
+      ["WEDGE","Folding wedges pack and level frames, joists and linings."],
+      ["STRUT","A timber that props up a purlin or stiffens a frame."],
+      ["CLEAT","A short block fixed on to support or join timbers."],
+      ["HATCH","A loft hatch gives access into the roof space. Its opening is framed with trimmers."],
+      ["CHALK","A chalk line snaps a long straight line across boards, walls or floors."],
+      ["LEVEL","A spirit level checks work is level and, held upright, plumb."],
+      ["BEADS","Glazing beads hold the glass in a window frame."]
     ],
     bench:[
       ["TENON","The tongue on the end of a rail that fits into a mortice."],
@@ -107,7 +142,22 @@
       ["TREAD","The part of a stair step you stand on."],
       ["RISER","The upright part between two stair treads."],
       ["NEWEL","The big post at the top or bottom of a staircase that holds the handrail."],
-      ["ARRIS","The sharp edge between two faces. Take it off with a light sand."]
+      ["ARRIS","The sharp edge between two faces. Take it off with a light sand."],
+      ["PANEL","A panel fills the space between the rails and stiles of a door."],
+      ["BEADS","Glazing beads hold the glass in a frame."],
+      ["STAIN","A stain colours the timber but lets the grain show through."],
+      ["LATHE","A lathe spins timber so it can be turned, for spindles and newel caps."],
+      ["AUGER","An auger bit bores deep, clean holes in timber."],
+      ["GAUGE","A marking gauge scribes a line parallel to an edge."],
+      ["JOINT","Joinery is joints: mortise and tenon, dovetail, housing, halving."],
+      ["WEDGE","Wedges driven into a through tenon lock the joint tight."],
+      ["BEECH","A pale, hard, close-grained hardwood, used for bench tops and tool handles."],
+      ["LARCH","A tough, durable softwood, often used for cladding."],
+      ["CEDAR","Western red cedar is light and naturally durable, used for cladding."],
+      ["FENCE","The guide on a saw or router that keeps the cut parallel to the edge."],
+      ["GUARD","Machine guards must be in place and set right before you cut."],
+      ["CHECK","Checks are splits along the grain that open as timber dries."],
+      ["TWIST","A warp where timber turns like a propeller. Spot it with winding strips."]
     ]
   };
   const TOPIC={brick:"a bricklaying word",site:"a site carpentry word",bench:"a joinery word"};
@@ -181,7 +231,17 @@
       ["PERPEND","An upright joint between two bricks"],["CORBEL","Brickwork that steps out from the face of the wall"],
       ["COPING","The top layer of a free-standing wall that throws off the rain"],["HOD","A tray on a pole for carrying bricks or mortar"],
       ["BOND","The pattern bricks are laid in, so the joints don’t line up"],["LINE","Pinned between the corners to keep each course straight"],
-      ["PIER","A thicker column of brickwork that stiffens a wall"],["JOINT","The mortar between bricks, usually 10 mm"]
+      ["PIER","A thicker column of brickwork that stiffens a wall"],["JOINT","The mortar between bricks, usually 10 mm"],
+      ["WEEPHOLE","A gap in a perpend that lets water out of the cavity"],["TRAY","Catches water in the cavity over an opening"],
+      ["DPC","Stops rising damp (initials)"],["GAUGEROD","A timber rod marked with the course heights"],
+      ["FOOTING","The concrete base a wall is built on"],["SOLDIER","A brick stood on its end, often in a row over an opening"],
+      ["ENGLISH","Bond with whole courses of headers and whole courses of stretchers"],["FLEMISH","Bond with headers and stretchers taking turns in each course"],
+      ["POINTING","Raking out joints and filling them with fresh mortar"],["PLASTICISER","Added to mortar to make it easier to work"],
+      ["LIME","Added to mortar to make it more workable and flexible"],["SAND","Mixed with cement to make mortar"],
+      ["BATTS","Slabs of insulation fitted between the wall ties"],["CHARIOT","Rakes joints back for a recessed finish"],
+      ["JOINTER","A tool for shaping mortar joints"],["SCAFFOLD","A temporary platform for working at height"],
+      ["CLOSER","A cut brick that finishes the bond at a corner or opening"],["BAT","Part of a brick, like a half"],
+      ["SILL","The ledge under a window"],["ARCH","A curved span over an opening"]
     ],
     site:[
       ["JOIST","A timber beam that carries a floor, usually at 400 mm centres"],["RAFTER","A sloping timber that carries the roof covering"],
@@ -194,7 +254,16 @@
       ["STUD","An upright timber in a partition wall"],["NOGGING","A short timber fixed between studs to stiffen the wall"],
       ["LINING","The frame of boards fixed in a doorway that the door hangs in"],["HINGE","Fire doors hang on three of these"],
       ["MITRE","A joint cut at 45° on each piece, like skirting on an outside corner"],["SCRIBE","To cut one piece to fit the shape of another"],
-      ["PLUMB","Perfectly upright"],["LATCH","Holds a door shut until you turn the handle"],["JAMB","An upright side of a door frame"]
+      ["PLUMB","Perfectly upright"],["LATCH","Holds a door shut until you turn the handle"],["JAMB","An upright side of a door frame"],
+      ["WALLPLATE","The timber on top of a wall that the rafters sit on"],["VERGE","The sloping edge of a roof at the gable"],
+      ["GABLE","The triangular top of an end wall"],["HIP","Where two roof slopes meet at an outside corner"],
+      ["VALLEY","Where two roof slopes meet at an inside corner"],["TRIMMER","A joist that frames round an opening, like a stairwell"],
+      ["HANGER","A steel bracket that carries the end of a joist"],["GOING","The depth of a stair tread, nosing to nosing"],
+      ["NOSING","The front edge of a stair tread"],["BALUSTER","One of the upright spindles under a handrail"],
+      ["HANDRAIL","What you hold going up the stairs"],["STOP","The strip a door closes against"],
+      ["BRACE","The diagonal that stops a ledged door sagging"],["PACKER","A thin piece used to level or plumb a frame"],
+      ["CLADDING","Boards fixed to the outside of a wall to weather it"],["BATTEN","A thin strip of timber that tiles or cladding are fixed to"],
+      ["SPAN","How far a joist reaches between supports"],["PITCH","The angle of a roof"]
     ],
     bench:[
       ["TENON","The tongue on the end of a rail that fits into a mortice"],["MORTICE","A rectangular hole cut to take a tenon"],
@@ -207,7 +276,17 @@
       ["VENEER","A thin sheet of wood glued onto a panel"],["PLYWOOD","Board made of thin layers glued with the grain crossing"],
       ["SASH","The part of a window that opens"],["ARRIS","The sharp edge between two faces"],["CHISEL","Cuts mortices and pares joints to fit"],
       ["MITRE","A joint cut at 45° on each piece to turn a corner"],["TEMPLATE","A pattern used to mark out the same shape many times"],
-      ["ROD","A full-size drawing of a job, used to set out joinery"],["GLUE","Holds a joint together once it’s cramped up"]
+      ["ROD","A full-size drawing of a job, used to set out joinery"],["GLUE","Holds a joint together once it’s cramped up"],
+      ["HAUNCH","The short part of a tenon that fills the groove at the end of a stile"],["WEDGE","Driven into a through tenon to lock it"],
+      ["MOULDING","A shaped strip of timber, like an architrave or dado rail"],["ROUTER","Cuts grooves, rebates and mouldings"],
+      ["SPOKESHAVE","A small plane with two handles for shaping curves"],["LATHE","Spins timber so it can be turned"],
+      ["AUGER","A bit for boring deep holes"],["GAUGE","A marking ___ scribes a line parallel to an edge"],
+      ["PANEL","Fills the space between the rails and stiles"],["BEAD","A small moulding that holds the glass in"],
+      ["TRANSOM","A horizontal bar across a window frame"],["MULLION","An upright bar dividing a window frame"],
+      ["HARDWOOD","Timber from broad-leaved trees, like oak"],["SOFTWOOD","Timber from conifers, like pine and spruce"],
+      ["CUP","A warp across the width of a board"],["TWIST","A warp like a propeller"],
+      ["FENCE","The guide that keeps a cut parallel to the edge"],["PUSHSTICK","Keeps your hands clear of the blade on a saw bench"],
+      ["SCRIBE","To mark or cut one piece to fit another"]
     ]
   };
   /* Build a crossword: words placed across and down, only touching where they cross. Tries a few times and keeps the
@@ -329,8 +408,67 @@
     ["A missing guard rail is OK if you’re careful.",false,"Guard rails must be in place along every open edge. Don’t work there until it’s fixed."],
     ["Report damaged scaffold boards straight away.",true,"Split or rotten boards can snap. Report them and don’t use that bay."],
     ["You should wear a harness on a normal tube scaffold with guard rails.",false,"Guard rails and toe boards are the protection there. Harnesses are for other jobs, like MEWPs, when you’ve been trained."],
-    ["Never climb the outside of a scaffold: use the ladder or stairs.",true,"Climbing the frame can pull it over, and you could slip. Use the access provided."]
+    ["Never climb the outside of a scaffold: use the ladder or stairs.",true,"Climbing the frame can pull it over, and you could slip. Use the access provided."],
+    ["Power tools on UK sites should run on 110 V.",true,"110 V cuts the risk of a fatal electric shock."],
+    ["A nicked cable can be taped up and used until the end of the day.",false,"A damaged cable can kill. Stop, label it and report it."],
+    ["An FFP1 mask is fine for silica dust.",false,"Silica dust needs FFP3, face-fit tested."],
+    ["Report a near miss even if nobody was hurt.",true,"So the cause is fixed before someone gets hurt."],
+    ["Wet cement can burn your skin.",true,"It’s alkaline. Wash it off straight away and wear waterproof gloves."],
+    ["You can skip the site induction if you’ve worked on sites before.",false,"Every site has its own rules, hazards and emergency plans."],
+    ["PPE is the first thing to think about when controlling a risk.",false,"It’s the last line of defence. Remove or reduce the hazard first."],
+    ["If you have to shout to be heard a metre away, you need hearing protection.",true,"It’s loud enough to damage your hearing."],
+    ["Damage from hand-arm vibration can be permanent.",true,"It damages nerves and blood vessels. Limit your time on vibrating tools."],
+    ["CO2 extinguishers are safe to use on electrical fires.",true,"CO2 doesn’t conduct and leaves nothing behind."],
+    ["Water is safe to use on a burning chip pan.",false,"Water on burning oil causes a fireball. Use wet chemical or a fire blanket."],
+    ["Buildings from before 2000 can contain asbestos.",true,"If you find something suspicious, stop and tell your supervisor."],
+    ["You can walk under a load being lifted if you’re quick.",false,"Never go under a suspended load."],
+    ["Lift with your knees bent and your back straight.",true,"Let your legs do the work, and keep the load close."]
   ];
+  /* Each trade's own safety gates, mixed in with the ones above. */
+  const TRADE_GATES={
+    brick:[
+      ["Wall ties go at 900 mm across and 450 mm up.",true,"That’s the standard spacing, with extra ties at openings."],
+      ["The DPC must be at least 150 mm above ground level.",true,"So rain splashing off the ground can’t bridge it."],
+      ["Stretcher bond overlaps by a quarter of a brick.",false,"It’s half a brick."],
+      ["Mortar that’s started to set can be knocked up with water and used.",false,"Retempering weakens it. Mix fresh."],
+      ["Weep holes let water out of the cavity.",true,"They drain the cavity tray."],
+      ["A standard brick is 215 mm long.",true,"215 × 102.5 × 65 mm."],
+      ["One course of brickwork with its joint is 75 mm.",true,"65 mm brick + 10 mm joint."],
+      ["Mortar droppings can be left in the cavity.",false,"They bridge the cavity and let damp across. Keep it clean."],
+      ["Fresh brickwork should be covered against frost and rain.",true,"Frost and rain ruin fresh joints."],
+      ["A lintel needs at least 150 mm bearing at each end.",true,"It spreads the load onto the wall."],
+      ["English bond has headers and stretchers taking turns in every course.",false,"That’s Flemish. English has whole courses of each."],
+      ["Dry-cutting blocks is fine without a mask if you’re outdoors.",false,"Silica dust still gets breathed in. Use water suppression and FFP3."]
+    ],
+    site:[
+      ["Floor joists are often set at 400 mm centres.",true,"400 or 600 mm, to suit the boards and loads."],
+      ["Trussed rafters can be cut or notched on site to fit.",false,"Never alter a truss without the designer’s say-so."],
+      ["The maximum pitch for a private stair is 42°.",true,"That’s the limit in Approved Document K."],
+      ["Fire doors need three hinges.",true,"Three hinges keep the door closed and in line in a fire."],
+      ["Measuring both diagonals checks a frame is square.",true,"If they’re equal, it’s square."],
+      ["Noggins stiffen a stud wall and give fixings for the boards.",true,"They go between the studs."],
+      ["It’s fine to tape back a nail gun’s safety tip to work faster.",false,"That’s how nails get fired into people."],
+      ["The maximum rise on a private stair is 250 mm.",false,"It’s 220 mm."],
+      ["Timber used outside should be treated against rot.",true,"Treated timber lasts much longer outside."],
+      ["Skirting on an outside corner is joined with a mitre.",true,"Two 45° cuts make a neat outside corner."],
+      ["A door lining can be a little out of plumb without problems.",false,"The door will swing open or shut on its own."],
+      ["Joist hangers need every nail hole filled with the right nails.",true,"Fewer nails means less strength."]
+    ],
+    bench:[
+      ["Use a push stick to feed short pieces through a saw bench.",true,"It keeps your hands away from the blade."],
+      ["It’s OK to take a guard off to see the cut better.",false,"Guards must be in place and set right."],
+      ["A dovetail joint resists being pulled apart.",true,"That’s why it’s used on drawers."],
+      ["A rip saw cuts across the grain.",false,"Rip saws cut along the grain."],
+      ["Timber shrinks most along its length.",false,"Hardly at all lengthways. Most along the growth rings."],
+      ["Hardwood comes from broad-leaved trees.",true,"Like oak, ash and beech."],
+      ["MDF dust is harmless.",false,"Wood dust, MDF included, can cause asthma and cancer. Use extraction and a mask."],
+      ["Plane with the grain to avoid tearing the surface.",true,"Against the grain tears the fibres."],
+      ["A mortise and tenon is the usual joint for rails into stiles.",true,"Strong and square."],
+      ["Stop and isolate a machine before clearing a blockage.",true,"Never reach in while it can start."],
+      ["Loose gloves are safe to wear on a spindle moulder.",false,"They can get caught and pull your hand in."],
+      ["Stack timber on bearers with sticks between the layers.",true,"Air circulates so it dries evenly and doesn’t warp."]
+    ]
+  };
   function flappy(ctx){
     ctx.body.innerHTML='<div class="fl"><canvas aria-label="Flappy Evia game"></canvas><div class="fl-hud"><b class="fl-score">0</b><span class="fl-shield" hidden>Shield</span></div>'+
       '<div class="fl-tip"><strong>Tap to flap</strong><span>Fly through the gaps in the scaffold. Every fifth gap is a safety gate: get it right for a shield and bonus points.</span></div><div class="fl-q" hidden></div></div>';
@@ -356,7 +494,7 @@
     document.addEventListener("keydown",kd);ctx.stops.push(()=>{document.removeEventListener("keydown",kd);cancelAnimationFrame(raf)});
 
     function ask(){
-      state="q";const pool=GATES.filter(q=>!asked.includes(q[0]));const q=pick(pool.length?pool:GATES);asked.push(q[0]);s.gates++;
+      state="q";const all=GATES.concat(TRADE_GATES[group()]||[]),pool=all.filter(q=>!asked.includes(q[0]));const q=pick(pool.length?pool:all);asked.push(q[0]);s.gates++;
       qEl.hidden=false;qEl.innerHTML='<div class="fl-q-card"><span class="fl-q-tag">Safety gate</span><p>'+esc(q[0])+'</p><div class="fl-q-btns"><button type="button" data-a="1">True</button><button type="button" data-a="0">False</button></div></div>';
       qEl.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{
         const ok=(b.dataset.a==="1")===q[1];if(ok){s.right++;s.score+=3;s.shield=true}
@@ -426,5 +564,5 @@
   function open(key){const g=GAMES.find(x=>x.key===key);if(!g||!RUN[key])return;const ctx=shell(g);RUN[key](ctx)}
   /* Bigger games live in their own files (site-run.js) and add themselves here. */
   function register(g,run,icon){if(!GAMES.some(x=>x.key===g.key))GAMES.push(g);RUN[g.key]=run;if(icon)ICONS[g.key]=icon}
-  window.eviaGames={GAMES,open,register,finish,group,iconFor:k=>ICONS[k]||"",WORDS,CLUES,build,GATES,score,esc,buzz,reduced};
+  window.eviaGames={GAMES,open,register,finish,group,iconFor:k=>ICONS[k]||"",WORDS,CLUES,build,GATES,TRADE_GATES,score,esc,buzz,reduced};
 })();

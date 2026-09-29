@@ -13,7 +13,7 @@
   const GAMES={
     showdown:{label:"Site Showdown",mode:"max",unit:["win","wins"],what:"Best run"},
     flappy:{label:"Flappy Evia",mode:"max",unit:["point","points"],what:"Best score"},
-    brickle:{label:"Brickle",mode:"add",perDay:1,unit:["word","words"],what:"Daily words solved"},
+    brickle:{label:"T.R.A.D.E",mode:"add",perDay:1,unit:["word","words"],what:"Daily words solved"},
     crossword:{label:"Crossword",mode:"add",perDay:5,unit:["crossword","crosswords"],what:"Solved without reveals"}
   };
   const read=(k,f)=>{try{const v=JSON.parse(localStorage.getItem(k)||"null");return v==null?f:v}catch(_){return f}};
