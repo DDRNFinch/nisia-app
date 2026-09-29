@@ -264,7 +264,7 @@
       $(".sd-me").classList.add("faint");
       G.finish(ctx,{title:s.wins?"You beat "+s.wins+" enem"+(s.wins===1?"y":"ies"):"Out of hearts",
         sub:(nb&&s.wins?"A new best!":"Best: "+Math.max(b,s.wins)+" wins")+(s.bosses?" · "+s.bosses+" boss"+(s.bosses===1?"":"es")+" beaten":""),
-        coins:Math.min(15,2+s.wins),again:start});
+        coins:Math.min(15,2+s.wins),lb:{game:"showdown",score:s.wins},again:start});
     }
     title();
   }

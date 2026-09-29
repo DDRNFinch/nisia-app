@@ -118,6 +118,9 @@
         "Your assessor looked at your "+escHtmlS(f.unit||"evidence")+" evidence and would like a bit more."+(f.feedback?" “"+escHtmlS(f.feedback.slice(0,160))+"”":""))+
         (()=>{const m=window.eviaMoreRequired?window.eviaMoreRequired().filter(x=>x.unit===f.unit).map(x=>x.code):[];return m.length?" <strong>More required: "+escHtmlS(m.slice(0,4).join(", "))+(m.length>4?"…":"")+"</strong>. Aim for "+(m.length===1?"it":"them")+" next time.":""})(),
       action:{label:"See it",kind:"feedback"}})}
+    /* A leaderboard prize from last month (leaderboard.js): celebrated once. */
+    const lbWon=window.eviaLeaderboard?window.eviaLeaderboard.unseenWins():[];
+    if(lbWon.length){const x=lbWon[0];list.push({id:"lb-"+x.id,celebrate:true,lbWin:true,text:"You came <strong>"+x.place+(x.place===1?"st":x.place===2?"nd":"rd")+"</strong> in "+escHtmlS(x.label)+" at your college in "+escHtmlS(x.month)+"! That’s <strong>+"+x.coins+" coins</strong>."+(lbWon.length>1?" And "+(lbWon.length-1)+" more prize"+(lbWon.length>2?"s":"")+".":""),action:{label:"See the leaderboards",kind:"leaderboard"}})}
     /* Near the end, with KSBs still to be signed off and none chosen: suggest picking the ones to aim for. */
     if(s.a&&s.a.signoff&&s.a.timePct!=null&&s.a.timePct>=75&&s.a.met<s.a.total&&!(s.a.aims||[]).length){const left=s.a.total-s.a.met;
       list.push({id:"aims",text:"You’re "+s.a.timePct+"% through your course with "+left+" KSB"+(left===1?"":"s")+" still to be signed off. Pick the ones to aim for next, and Evia will point you at the jobs that cover them.",action:{label:"Choose KSBs",kind:"stats"}})}

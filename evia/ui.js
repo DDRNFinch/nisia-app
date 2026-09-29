@@ -95,7 +95,7 @@
     const fire=()=>{
       if(screen!=="course"||!document.getElementById("ui-course-head")||document.querySelector(".chat-sheet"))return;
       if(document.querySelector(".evidence-toast")){bubbleTimer=setTimeout(fire,2400);return} /* wait for "Saved"-style messages to clear */
-      const dismiss=()=>{localStorage.setItem(TIP_KEY,JSON.stringify({day:today,id:n.id}));if(n.achievements)window.eviaStats.markSeen(n.achievements);if(n.feedback&&window.eviaFeedback)window.eviaFeedback.markSeen([n.feedback.id])};
+      const dismiss=()=>{localStorage.setItem(TIP_KEY,JSON.stringify({day:today,id:n.id}));if(n.achievements)window.eviaStats.markSeen(n.achievements);if(n.feedback&&window.eviaFeedback)window.eviaFeedback.markSeen([n.feedback.id]);if(n.lbWin&&window.eviaLeaderboard)window.eviaLeaderboard.markWinsSeen()};
       const lead=n.celebrate?(name?"Well done "+escHtml(name)+"! ":"Well done! "):partOfDay()+(name?" "+escHtml(name):"")+". ";
       eviaSay(lead+n.text,[{label:n.action.label,primary:true,run:()=>{dismiss();runNudge(n)}},{label:"Not now",run:dismiss}]);
       if(n.celebrate&&window.eviaMood)window.eviaMood("happy");
@@ -110,6 +110,7 @@
     else if(kind==="course")go(()=>nav("course"));
     else if(kind==="learning"){const run=()=>window.eviaCoachFlows&&window.eviaCoachFlows.hours?window.eviaCoachFlows.hours():nav("hours");if(inChat)queue=queue.then(run);else{window.chat({quiet:true});setTimeout(run,50)}}
     else if(kind==="backup")go(async()=>{try{await window.eviaStorage.backup();if(typeof showEvidenceToast==="function")showEvidenceToast("Backup saved to your downloads. Keep a copy somewhere safe, like your email")}catch(e){console.error(e);if(typeof showEvidenceToast==="function")showEvidenceToast("Couldn’t make the backup. Try again from Profile",true)}});
+    else if(kind==="leaderboard"){if(window.eviaLeaderboard){window.eviaLeaderboard.markWinsSeen();window.eviaLeaderboard.open()}}
     else if(kind==="feedback"){const f=n.feedback;if(window.eviaFeedback)window.eviaFeedback.markSeen([f.id]);const d=typeof data==="function"?data():null,i=d?d.u.findIndex(u=>u[0]===f.unit):-1;
       go(()=>{if(i>=0&&window.openUnit)window.openUnit(i);else nav("course");setTimeout(()=>{const e=typeof evidence!=="undefined"?evidence.find(x=>String(x.id)===f.id):null;if(e)viewPack(e)},500)})}
     else if(kind==="prep"){const run=()=>{userSays("Get ready for my review");window.eviaCoachFlows.prepare()};if(inChat)queue=queue.then(run);else{window.chat({quiet:true});setTimeout(run,50)}}

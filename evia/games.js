@@ -45,8 +45,11 @@
     const card=document.createElement("div");card.className="gm-end";
     card.innerHTML='<div class="gm-end-card"><h2>'+esc(o.title)+'</h2>'+(o.sub?'<p class="gm-end-sub">'+o.sub+'</p>':"")+
       '<div class="gm-end-coins">'+coinSvg()+'<b>+'+got+'</b><span>'+(got?"coins":o.coins>0?"Today’s game coins are all collected. Play for fun!":"coins")+'</span></div>'+
-      (o.html||"")+'<div class="gm-end-btns"><button type="button" class="primary" data-a="again">Play again</button><button type="button" class="secondary" data-a="done">Done</button></div></div>';
+      (o.html||"")+(o.lb||window.eviaLeaderboard&&window.eviaLeaderboard.GAMES[ctx.g.key]?'<div class="gm-lb"></div>':"")+'<div class="gm-end-btns"><button type="button" class="primary" data-a="again">Play again</button><button type="button" class="secondary" data-a="done">Done</button></div></div>';
     ctx.body.appendChild(card);
+    /* Leaderboards (leaderboard.js): the score goes to the college board, and the card says where they are. */
+    const lbEl=card.querySelector(".gm-lb");
+    if(lbEl&&window.eviaLeaderboard){if(o.lb)window.eviaLeaderboard.submit(o.lb.game,o.lb.score);window.eviaLeaderboard.endLine(ctx.g.key,lbEl)}
     card.querySelector('[data-a="again"]').onclick=()=>{card.remove();o.again()};
     card.querySelector('[data-a="done"]').onclick=()=>ctx.close();
     if(got&&window.eviaMood)window.eviaMood("happy");
@@ -157,7 +160,7 @@
       document.removeEventListener("keydown",kd);
       finish(ctx,{title:won?(rows.length<=2?"Brilliant!":rows.length<=4?"Nice one!":"Got it!"):"The word was "+word,
         sub:won?"You got <strong>"+word+"</strong> in "+rows.length+(rows.length===1?" try.":" tries."):"Here’s what it means, for next time.",
-        coins:won?Math.max(4,9-rows.length):2,
+        coins:won?Math.max(4,9-rows.length):2,lb:won?{game:"brickle",score:1}:null,
         html:'<div class="gm-learn"><strong>'+word+'</strong><p>'+esc(pair[1])+'</p></div>',
         again:()=>brickle(ctx)});
     }
@@ -307,7 +310,7 @@
     function end(){
       document.removeEventListener("keydown",kd);
       finish(ctx,{title:reveals?"Crossword done!":"Solved it yourself!",sub:reveals?"With "+reveals+(reveals===1?" letter":" letters")+" revealed.":"No letters revealed. Top work.",
-        coins:8,
+        coins:8,lb:reveals?null:{game:"crossword",score:1},
         html:'<ol class="gm-list">'+words.map(p=>'<li class="ok"><strong>'+p.w+'</strong><span>'+esc(p.clue)+'</span></li>').join("")+'</ol>',
         again:()=>crossword(ctx)});
     }
@@ -367,7 +370,7 @@
       state="over";buzz([30,40,30]);
       const best=Math.max(s.score,Number(localStorage.getItem("evia7-flappy-best")||0));try{localStorage.setItem("evia7-flappy-best",best)}catch(_){}
       setTimeout(()=>finish(ctx,{title:"Score: "+s.score,sub:(s.score>=best&&s.score?"A new best!":"Best: "+best)+(s.gates?" · Safety gates: "+s.right+" of "+s.gates:""),
-        coins:Math.min(15,Math.floor(s.score/2)+s.right),again:()=>flappy(ctx)}),500);
+        coins:Math.min(15,Math.floor(s.score/2)+s.right),lb:{game:"flappy",score:s.score},again:()=>flappy(ctx)}),500);
       return true;
     }
     /* Drawing: sky, buildings and a crane far away, scaffold towers, the ground, and Evia. */

@@ -161,7 +161,7 @@
      back, restarts Evia with it, then brings the photos and files down on WiFi. Sign-in, the sync bookkeeping and
      things that belong to one device stay where they are. */
   const STORE_SENT_KEY="evia7-nisia-store-sent",RESTORED_KEY="evia7-nisia-restored",FETCH_KEY="evia7-nisia-fetch";
-  const NOT_BACKED_UP=/^evia7-(nisia-(auth|status|media|store-sent|restored|fetch|snap|observations|review-targets|feedback)|data-synced|enrolment|learner-id|install-later|errors|offline-|evidence-db|supporting-files|last-backup|downloaded-unit-pdfs)/;
+  const NOT_BACKED_UP=/^evia7-(nisia-(auth|status|media|store-sent|restored|fetch|snap|observations|review-targets|feedback)|data-synced|enrolment|learner-id|install-later|errors|offline-|evidence-db|supporting-files|last-backup|downloaded-unit-pdfs|lb-queue|lb-daily)/;
   /* Most of Evia's data is in IndexedDB behind localStorage (storage.js), so its keys come from there. */
   const backupKeys=()=>{const all=new Set(window.eviaStorage&&window.eviaStorage.keys?window.eviaStorage.keys():[]);
     for(let i=0;i<localStorage.length;i++)all.add(localStorage.key(i));return [...all].filter(k=>k&&k.startsWith("evia7-")&&!NOT_BACKED_UP.test(k))};
@@ -300,6 +300,8 @@
       if(c)try{await refreshDetails(c,e)}catch(err){console.warn("Evia: Nisia details",err&&err.message)}
       if(c)try{await fetchTargets(c,e)}catch(err){console.warn("Evia: Nisia targets",err&&err.message)}
       if(c)try{await fetchFeedback(c)}catch(err){console.warn("Evia: Nisia feedback",err&&err.message)}
+      /* Game leaderboards: scores waiting to go, and prizes from last month (leaderboard.js). */
+      if(c&&window.eviaLeaderboard)try{await window.eviaLeaderboard.onSync()}catch(err){console.warn("Evia: Nisia leaderboards",err&&err.message)}
       /* Records: small, on any connection, in batches. (The demo keeps them on the phone.) */
       for(let i=0;i<changes.length;i+=50){const batch=changes.slice(i,i+50);if(c)await sendRecords(c,e,batch);D.markSynced(batch)}
       if(c)await sendSnapshot(c,e);
@@ -352,5 +354,10 @@
     const line=document.getElementById("pf-sync");if(line)line.textContent=statusText()}
   listeners.push(badge);addEventListener("offline",badge);addEventListener("online",badge);
   addEventListener("load",()=>setInterval(badge,30000));
-  window.eviaNisia={pair,accept,joined,sync,status,statusText,clean,onStatus:fn=>listeners.push(fn)};
+  /* One of Nisia's functions, for the learner's own enrolment (leaderboard.js). Needs signal and a live connection. */
+  async function rpc(name,args){
+    const e=joined();if(!e||!e.live)throw new Error("not connected");if(!navigator.onLine)throw new Error("offline");
+    const c=await sb(),{data,error}=await c.rpc(name,Object.assign({p_enrolment:e.enrolmentId},args||{}));if(error)throw error;return data;
+  }
+  window.eviaNisia={pair,accept,joined,sync,status,statusText,clean,rpc,onStatus:fn=>listeners.push(fn)};
 })();

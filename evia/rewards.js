@@ -151,6 +151,8 @@
   }
   /* Real work may have changed after any screen: check quietly a moment later. */
   let st=0;const later=()=>{clearTimeout(st);st=setTimeout(sync,400)};
+  /* A prize (leaderboards): paid in full, outside the daily game cap. */
+  function prize(n,why){n=Math.max(0,Math.floor(n)||0);if(!n)return 0;const r=read();r.bank+=n;write(r);badge();toast([{n,why}]);return n}
   const balance=()=>{const r=read();return Math.max(0,r.bank-r.spent)};
 
   /* ---------- Hard hats, fitted to each shape ----------
@@ -351,7 +353,7 @@
   /* The expression in use goes on <html>, so every Evia in the app shows it (moods still win for a moment). */
   function applyExpr(){const r=read(),on=r.expr&&owns("expr-"+r.expr);if(on)document.documentElement.setAttribute("data-evia-expr",r.expr);else document.documentElement.removeAttribute("data-evia-expr")}
   applyExpr();
-  window.eviaRewards={coin:()=>coin,gameCoins,gameRoom,GAME_DAILY,owns,page,later,XP_PER_COIN,EV_PAY,applyExpr,kitHtml,fitAll,locked,openItem,hatHtml,hatSvg,wearOn,sync,balance,catalogue,FIT};
+  window.eviaRewards={coin:()=>coin,gameCoins,prize,gameRoom,GAME_DAILY,owns,page,later,XP_PER_COIN,EV_PAY,applyExpr,kitHtml,fitAll,locked,openItem,hatHtml,hatSvg,wearOn,sync,balance,catalogue,FIT};
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)sync()});
   setTimeout(()=>{sync();wearOn()},500);
   /* Keep the hat on when Evia's shape changes. */
