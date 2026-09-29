@@ -59,7 +59,7 @@
   }
   /* Mini games: unlocked in Rewards, played here. */
   const LOCK='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>';
-  const SHOTS=["brickle","crossword","flappy","siterun","quest"]; /* games/<key>.jpg (siterun and quest are parked) */
+  const SHOTS=["brickle","crossword","flappy","showdown","siterun","quest"]; /* games/<key>.jpg (siterun and quest are parked) */
   function games(){
     const G=window.eviaGames,R=window.eviaRewards;if(!G||!R)return "";
     const PRICE={common:30,rare:80,epic:180},room=R.gameRoom(),earned=R.GAME_DAILY-room;

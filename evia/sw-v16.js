@@ -1,4 +1,4 @@
-const VERSION = "2026-10-15-evia7-v185";
+const VERSION = "2026-10-15-evia7-v186";
 const CACHE_NAME = "evia7-offline-" + VERSION;
 
 const APP_SHELL = [
@@ -56,9 +56,12 @@ const APP_SHELL = [
   "./orbs.js",
   "./tips.js",
   "./games.js",
+  "./showdown-data.js",
+  "./showdown.js",
   "./games/brickle.jpg",
   "./games/crossword.jpg",
   "./games/flappy.jpg",
+  "./games/showdown.jpg",
   "./manifest.json",
   "./icon.svg",
   "./icon-180.png",
