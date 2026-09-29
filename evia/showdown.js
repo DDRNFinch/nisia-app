@@ -211,7 +211,7 @@
         const n=s.wins/5,def=D.bosses[(n-1)%D.bosses.length],k=Math.min(n,5),idx=def.key.slice(0,k).sort((a,b)=>a-b);
         return {boss:true,name:def.name,art:def.art,intro:def.intro,type:"site",steps:idx.map(i=>def.steps[i]),at:0};
       }
-      const tier=s.wins<4?1:s.wins<12?2:3;
+      const tier=s.wins<3?1:s.wins<8?2:3;
       let c=pool.filter(f=>f[1]<=tier&&!s.seen.has(f[2]));
       if(!c.length){s.seen.clear();c=pool.filter(f=>f[1]<=tier)}
       /* Lean towards the newest tier once it's open, so it gets harder. */
