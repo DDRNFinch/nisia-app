@@ -16,6 +16,7 @@
   const nf=(n,dp)=>Number(n).toLocaleString("en-GB",{maximumFractionDigits:dp==null?2:dp,minimumFractionDigits:0});
   const pick=a=>a[Math.floor(Math.random()*a.length)];
   const ICON={
+    bell:'<svg viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15Z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg>',
     calc:'<svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M8 7h8M8.5 11h.01M12 11h.01M15.5 11h.01M8.5 14.5h.01M12 14.5h.01M15.5 14.5h.01M8.5 18h.01M12 18h3.5"/></svg>',
     book:'<svg viewBox="0 0 24 24"><path d="M5 4.5h9a3 3 0 0 1 3 3v12H8a3 3 0 0 1-3-3z"/><path d="M8 16.5h9"/></svg>',
     ksb:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.5l2.4 2.4 4.6-5"/></svg>',
@@ -443,12 +444,26 @@
     const S=window.eviaStats;let s=null,list=[];
     try{s=S.compute();list=S.nudges(s)}catch(_){}
     const a=s&&s.a,items=list.slice(0,3);
+    /* For learners connected to their college whose phone can have notifications, until they’ve answered once. */
+    const askPush=!!(window.eviaPush&&window.eviaPush.state()==="off"&&!window.eviaPush.asked());
     const stats=s?[a&&a.timePct!=null?a.timePct+"% through":"",a?a.ksbPct+"% of KSBs with evidence":"",(s.otjWeek?window.eviaHM(s.otjWeek):"0h")+" of learning this week"].filter(Boolean):[];
     const html='<div class="br-card br-today"><div class="br-head"><span class="br-ic">'+ICON.sun+'</span><strong>Today</strong><span class="br-date">'+esc(new Date().toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"short"}))+'</span></div>'+
       (stats.length?'<p class="br-stats">'+stats.map(esc).join(" · ")+'</p>':"")+
       (items.length?items.map((n,i)=>'<button type="button" class="br-todo'+(i===0?" first":"")+'" data-n="'+i+'"><span class="br-todo-ic">'+(KIND_IC[n.action.kind]||ICON.go)+'</span><span class="br-todo-t"><span>'+n.text+'</span><b>'+esc(n.action.label)+'</b></span>'+ICON.go+'</button>').join("")
-        :'<div class="br-todo done"><span class="br-todo-ic">'+ICON.tick+'</span><span class="br-todo-t"><span>You’re on track. Nothing urgent today.</span><b>Make your weakest unit stronger</b></span></div>')+'</div>';
-    K().widget(html,box=>box.querySelectorAll("[data-n]").forEach(b=>b.onclick=()=>{const n=items[+b.dataset.n];if(n.achievements&&S.markSeen)S.markSeen(n.achievements);K().userSays(n.action.label);K().runNudge(n)}));
+        :'<div class="br-todo done"><span class="br-todo-ic">'+ICON.tick+'</span><span class="br-todo-t"><span>You’re on track. Nothing urgent today.</span><b>Make your weakest unit stronger</b></span></div>')+
+      (askPush?'<button type="button" class="br-todo br-push" id="br-push"><span class="br-todo-ic">'+ICON.bell+'</span><span class="br-todo-t"><span>Get a notification when your assessor signs something off or a review is due.</span><b>Turn on notifications</b></span>'+ICON.go+'</button>':"")+'</div>';
+    K().widget(html,box=>{
+      box.querySelectorAll("[data-n]").forEach(b=>b.onclick=()=>{const n=items[+b.dataset.n];if(n.achievements&&S.markSeen)S.markSeen(n.achievements);K().userSays(n.action.label);K().runNudge(n)});
+      const pb=box.querySelector("#br-push");
+      if(pb)pb.onclick=async()=>{
+        pb.disabled=true;K().userSays("Turn on notifications");
+        let ok=false;try{ok=await window.eviaPush.on()}catch(_){}
+        pb.remove();
+        K().say(ok?"Done. I’ll only tell you about your course: sign-offs, targets, reviews and learning hours, and never between 9pm and 7:30am. You can turn them off in your profile."
+          :window.eviaPush.state()==="blocked"?"Notifications are blocked for Evia in your phone’s settings. Allow them there, then turn them on in your profile."
+          :"I couldn’t turn them on just now. You can try again from your profile.");
+      };
+    });
     if(opts&&opts.quiet)return;
   }
 

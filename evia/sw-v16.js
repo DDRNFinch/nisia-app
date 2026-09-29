@@ -1,4 +1,4 @@
-const VERSION = "2026-10-15-evia7-v198";
+const VERSION = "2026-10-15-evia7-v199";
 const CACHE_NAME = "evia7-offline-" + VERSION;
 
 const APP_SHELL = [
@@ -118,5 +118,36 @@ self.addEventListener("fetch", event => {
       }
       return new Response("", { status: 504, statusText: "Offline" });
     }
+  })());
+});
+
+/* Notifications from Nisia (course things only; the learner turned them on). Tapping one opens Evia at the right
+   place: the open Evia if there is one, otherwise a new one. */
+self.addEventListener("push", event => {
+  let m = {};
+  try { m = event.data ? event.data.json() : {}; } catch (_) { m = { title: "Evia", body: event.data ? event.data.text() : "" }; }
+  event.waitUntil(self.registration.showNotification(m.title || "Evia", {
+    body: m.body || "",
+    tag: m.tag || undefined,
+    renotify: !!m.tag,
+    icon: "./icon-192.png",
+    badge: "./icon-192.png",
+    lang: "en-GB",
+    data: { open: m.open || "" }
+  }));
+});
+
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  const open = (event.notification.data && event.notification.data.open) || "";
+  event.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const win = wins.find(w => w.url.startsWith(self.registration.scope));
+    if (win) {
+      await win.focus();
+      win.postMessage({ type: "evia-open", open });
+      return;
+    }
+    await self.clients.openWindow(self.registration.scope + (open ? "?open=" + encodeURIComponent(open) : ""));
   })());
 });

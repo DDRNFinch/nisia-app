@@ -360,4 +360,70 @@
     const c=await sb(),{data,error}=await c.rpc(name,Object.assign({p_enrolment:e.enrolmentId},args||{}));if(error)throw error;return data;
   }
   window.eviaNisia={pair,accept,joined,sync,status,statusText,clean,rpc,onStatus:fn=>listeners.push(fn)};
+
+  /* ---------- Notifications ----------
+     Course things only, and only if the learner turns them on: evidence signed off or sent back, new targets, reviews,
+     and reminders when a review or target is due or learning hours are behind on a Friday. Nisia sends them (Web
+     Push, no app store), outside 9pm to 7:30am. iPhones need Evia added to the Home Screen first.
+     state(): not-joined | unsupported | install | blocked | off | on */
+  const VAPID="BCvAqfno7ja_7c6SDkZXFkl37v0t7zrZ6RkqVvTGNhtB9pL_7fYN2wT9hwYQBp0Y_4QfiNFc2opCpVw4IAcyxLk",PUSH_KEY="evia7-push";
+  const canPush=()=>"serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;
+  const isIos=()=>/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+  const standalone=()=>{try{return matchMedia("(display-mode: standalone)").matches||navigator.standalone===true}catch(_){return false}};
+  const keyBytes=k=>Uint8Array.from(atob(k.replace(/-/g,"+").replace(/_/g,"/")+"===".slice((k.length+3)%4)),c=>c.charCodeAt(0));
+  const pushPref=v=>{const p=Object.assign(readJson(PUSH_KEY,{})||{},v||{});if(v)writeJson(PUSH_KEY,p);return p};
+  function pushState(){
+    const e=joined();if(!e||!e.live)return "not-joined";
+    if(!canPush())return isIos()&&!standalone()?"install":"unsupported";
+    if(Notification.permission==="denied")return "blocked";
+    return Notification.permission==="granted"&&pushPref().on?"on":"off";
+  }
+  async function pushSave(sub){
+    const c=await sb(),{data}=await c.auth.getSession();if(!data||!data.session)throw new Error("not signed in");
+    const j=sub.toJSON();
+    const {error}=await c.from("device_tokens").upsert({user_id:data.session.user.id,platform:"web",app:"evia",token:j.endpoint,subscription:{endpoint:j.endpoint,keys:j.keys},last_seen_at:new Date().toISOString()},{onConflict:"token"});
+    if(error)throw error;pushPref({saved:new Date().toISOString().slice(0,10)});
+  }
+  async function subscription(){
+    const reg=await navigator.serviceWorker.ready;
+    return (await reg.pushManager.getSubscription())||reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:keyBytes(VAPID)});
+  }
+  /* From a tap (phones only ask for permission from one). */
+  async function pushOn(){
+    if(!canPush())return false;
+    const perm=await Notification.requestPermission();
+    pushPref({asked:new Date().toISOString()});
+    if(perm!=="granted")return false;
+    await pushSave(await subscription());
+    pushPref({on:true});return true;
+  }
+  async function pushOff(){
+    pushPref({on:false});
+    try{const reg=await navigator.serviceWorker.ready,sub=await reg.pushManager.getSubscription();
+      if(sub){try{const c=await sb();await c.from("device_tokens").delete().eq("token",sub.endpoint)}catch(_){}await sub.unsubscribe()}}catch(_){}
+  }
+  /* Once a day while on: the phone's subscription can change, so Nisia gets the current one. */
+  async function pushRefresh(){
+    if(pushState()!=="on"||!navigator.onLine||pushPref().saved===new Date().toISOString().slice(0,10))return;
+    try{await pushSave(await subscription())}catch(err){console.warn("Evia: notifications",err&&err.message)}
+  }
+  /* What a tapped notification opens. */
+  function pushOpen(what){
+    const K=window.eviaChatKit;if(!K||!what)return;
+    const run=()=>{
+      if(what==="feedback"){const f=window.eviaFeedback&&window.eviaFeedback.unseen()[0];if(f)K.runNudge({action:{kind:"feedback",label:"See feedback"},feedback:f});else if(typeof nav==="function")nav("course")}
+      else if(what==="targets")K.runNudge({action:{kind:"targets",label:"My targets"}});
+      else if(what==="review")K.runNudge({action:{kind:"prep",label:"Get ready for my review"}});
+      else if(what==="hours")K.runNudge({action:{kind:"learning",label:"Log learning hours"}});
+    };
+    /* Fetch what the assessor did first, so it's there to show. */
+    Promise.race([joined()?sync().catch(()=>{}):null,new Promise(r=>setTimeout(r,6000))]).then(run);
+  }
+  if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("message",ev=>{if(ev.data&&ev.data.type==="evia-open")pushOpen(ev.data.open)});
+  addEventListener("load",()=>{
+    let open="";try{const q=new URLSearchParams(location.search);open=q.get("open")||"";if(open){q.delete("open");history.replaceState(null,"",location.pathname+(q.toString()?"?"+q:"")+location.hash)}}catch(_){}
+    if(open)setTimeout(()=>pushOpen(open),1200);
+    setTimeout(pushRefresh,8000);
+  });
+  window.eviaPush={state:pushState,on:pushOn,off:pushOff,asked:()=>!!pushPref().asked,open:pushOpen};
 })();

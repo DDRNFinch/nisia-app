@@ -67,6 +67,7 @@
         sw("profile-maths","Maths","Include maths in tests and reviews")+
         sw("profile-english","English","Include English in tests and reviews")+
         (nis?"":'<details class="pf-more pf-change"><summary>Change course<span>Only if you’ve moved course</span></summary><div class="course-options">'+window.eviaPacks.catalogue().map(c=>'<button type="button" class="course-option '+(c.id===course?"selected":"")+'" data-profile-course="'+c.id+'">'+esc(c.name)+'<span>'+(c.id===course?"Current":"›")+'</span></button>').join("")+'</div></details>'))+
+      (window.eviaPush&&window.eviaPush.state()!=="not-joined"?group("Notifications",pushRow()):"")+
       group("Evia",
         row("open-shape-picker",'<span class="evia-mini"><span class="evia-face"><i></i><i></i></span></span>',"Evia’s shape")+
         row("open-theme-picker",'<i class="pf-dot"></i>',"Evia’s colour")+
@@ -103,6 +104,7 @@
       shapePickerBtn.onclick=()=>{if(window.eviaShowShapePicker)window.eviaShowShapePicker()};
       shapePickerBtn.onkeydown=e=>{if((e.key==="Enter"||e.key===" ")&&window.eviaShowShapePicker)window.eviaShowShapePicker()};
     }
+    bindPush();
     const joinBtn=document.getElementById("join-college");if(joinBtn)joinBtn.onclick=()=>window.eviaJoinCollege();
     const themePickerBtn=document.getElementById("open-theme-picker");
     if(themePickerBtn){
@@ -258,6 +260,25 @@
   }
 
   let eviaProfileInitialised=false;
+  /* Course notifications: a switch when the phone can have them, otherwise what to do to get them. */
+  function pushRow(){
+    const st=window.eviaPush.state(),why={install:"On iPhone, add Evia to your Home Screen first (Share, then Add to Home Screen), then turn them on here.",
+      blocked:"They’re blocked for Evia in your phone’s settings. Allow notifications for Evia there, then come back.",unsupported:"This phone or browser can’t get notifications from Evia."}[st];
+    return why?'<div class="pf-row pf-push-off"><span class="pf-row-copy"><strong>Course notifications</strong><small>'+why+'</small></span></div>'
+      :'<label class="pf-row pf-switch"><span class="pf-row-copy"><strong>Course notifications</strong><small id="pf-push-sub">'+"Sign-offs, targets, reviews and learning hours. Never between 9pm and 7:30am."+'</small></span><input id="pf-push" type="checkbox" role="switch"'+(st==="on"?" checked":"")+'><i aria-hidden="true"></i></label>';
+  }
+  function bindPush(){
+    const box=document.getElementById("pf-push");if(!box)return;
+    const sub=document.getElementById("pf-push-sub");
+    box.onchange=async()=>{
+      box.disabled=true;
+      try{
+        if(box.checked){const ok=await window.eviaPush.on();box.checked=ok;if(sub)sub.textContent=ok?"Sign-offs, targets, reviews and learning hours. Never between 9pm and 7:30am.":window.eviaPush.state()==="blocked"?"Blocked in your phone’s settings.":"Not turned on."}
+        else{await window.eviaPush.off();if(sub)sub.textContent="Sign-offs, targets, reviews and learning hours. Never between 9pm and 7:30am."}
+      }catch(err){console.warn("Evia: notifications",err&&err.message);box.checked=window.eviaPush.state()==="on";if(sub)sub.textContent="Couldn’t reach your college. Try again with signal."}
+      box.disabled=false;
+    };
+  }
   function initEviaProfile(){
     if(eviaProfileInitialised)return;
     eviaProfileInitialised=true;
