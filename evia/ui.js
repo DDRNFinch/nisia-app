@@ -517,7 +517,9 @@
       const syn=SYNONYMS[alt];
       if(syn&&syn.test(text))return true;
       const words=alt.replace(/&/g," ").split(/[^a-z0-9]+/).filter(w=>w.length>=3&&!["and","the","for","with"].includes(w));
-      return words.length>0&&words.every(w=>{const stem=w.replace(/s$/,"").slice(0,5);return text.includes(stem)});
+      /* Five letters is enough for most words; "-ion" words keep six after the ending, so "inclusion" (inclus) isn't
+         found in "including" but "installation" (instal) still is in "install". */
+      return words.length>0&&words.every(w=>{const stem=/ions?$/.test(w)?w.replace(/(at)?ions?$/,"").slice(0,6):w.replace(/s$/,"").slice(0,5);return text.includes(stem)});
     });
   }
   const photoCount=e=>Array.isArray(e.photoIds)?e.photoIds.length:Number.isFinite(Number(e.photoCount))?Number(e.photoCount):Array.isArray(e.p)?e.p.length:0;
