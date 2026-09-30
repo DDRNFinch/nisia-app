@@ -1,4 +1,4 @@
-const VERSION = "2026-10-15-evia7-v200";
+const VERSION = "2026-10-15-evia7-v201";
 const CACHE_NAME = "evia7-offline-" + VERSION;
 
 const APP_SHELL = [
@@ -66,7 +66,7 @@ const APP_SHELL = [
   "./manifest.json",
   "./icon.svg",
   "./icon-180.png",
-  "./icon-192.png",
+  "./icon-192.png","./badge-96.png",
   "./icon-512.png"
 ];
 
@@ -131,7 +131,7 @@ self.addEventListener("push", event => {
     tag: m.tag || undefined,
     renotify: !!m.tag,
     icon: "./icon-192.png",
-    badge: "./icon-192.png",
+    badge: "./badge-96.png",
     lang: "en-GB",
     data: { open: m.open || "" }
   }));
