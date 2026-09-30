@@ -12,12 +12,34 @@
     .evia-fab{position:fixed!important;bottom:calc(var(--evia-nav-bottom) + (var(--evia-nav-height) - var(--evia-fab-size))/2)!important;width:var(--evia-fab-size)!important;height:var(--evia-fab-size)!important;transform:translateX(-50%)!important}
     body.evia-keyboard-editing .bottom-nav{transform:none!important;opacity:1!important;pointer-events:auto!important}
     body.evia-keyboard-editing .evia-fab{transform:translateX(-50%)!important;opacity:1!important}
+    .bottom-nav,.evia-fab{-webkit-backface-visibility:hidden;backface-visibility:hidden}
+    body.evia-kb-open .bottom-nav,body.evia-kb-open .evia-fab{opacity:0!important;visibility:hidden!important;pointer-events:none!important}
   `;
   document.head.appendChild(style);
 
 
   document.addEventListener("focusin",()=>document.body.classList.remove("evia-keyboard-editing"));
   document.addEventListener("focusout",()=>document.body.classList.remove("evia-keyboard-editing"));
+
+  /* iPhone: the keyboard covers the page without making it shorter, so a fixed bar at the bottom ends up floating
+     over the middle of what's being typed, and can stay out of place after the keyboard closes. While the keyboard
+     is up (the visible part of the page is much shorter than the page), the nav and Evia's button step aside; when
+     it goes, the page is nudged so iOS puts fixed things back. Android shortens the page itself, so this never fires
+     there. */
+  const vv=window.visualViewport;
+  if(vv){
+    let kb=false;
+    const typing=()=>{const a=document.activeElement;return !!a&&(/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)||a.isContentEditable)};
+    const check=()=>{
+      const now=typing()&&window.innerHeight-vv.height>120;
+      if(now===kb)return;
+      kb=now;document.body.classList.toggle("evia-kb-open",kb);
+      if(!kb)setTimeout(()=>window.scrollTo(window.scrollX,window.scrollY),60);
+    };
+    vv.addEventListener("resize",check);
+    document.addEventListener("focusin",()=>setTimeout(check,300));
+    document.addEventListener("focusout",()=>setTimeout(check,150));
+  }
 })();
 
 // Supporting evidence blob storage.
