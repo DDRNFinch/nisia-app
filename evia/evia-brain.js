@@ -413,10 +413,12 @@
     const C=code.toUpperCase().replace(/\s+/g,""),units=[];let text="";
     d.u.forEach((u,i)=>u[1].forEach(k=>{const [c,...t]=String(k).split("|");if(c.trim().toUpperCase()===C){text=text||t.join("|").trim();units.push({name:u[0],index:i})}}));
     if(!text){K().say("I can’t find <strong>"+esc(C)+"</strong> on the "+esc(d.name)+" standard. KSB codes look like K1, S14 or B2.");return true}
-    const so=typeof ksbSignoff==="function"?ksbSignoff():{signed:new Set(),on:false},signed=so.signed&&so.signed.has(C);
-    const inEvidence=(typeof evidence!=="undefined"?evidence:[]).some(e=>e&&e.c===course&&(e.k||[]).map(x=>String(x).split("|")[0].trim().toUpperCase()).includes(C));
+    const so=typeof ksbSignoff==="function"?ksbSignoff():{signed:new Set(),on:false};
+    const inEvidence=(typeof evidence!=="undefined"?evidence:[]).some(e=>e&&e.c===course&&(e.k||[]).map(x=>String(x).split("|")[0].trim().toUpperCase()).includes(C))||(typeof inductionKsbs==="function"&&inductionKsbs().includes(C));
+    /* Connected to a college, the assessor signs KSBs off; on their own, Evia marks off what's in their evidence. */
+    const signed=so.on?!!(so.signed&&so.signed.has(C)):inEvidence;
     const kind={K:"Knowledge",S:"Skill",B:"Behaviour"}[C[0]]||"KSB";
-    const status=signed?'<span class="br-pill good">'+ICON.tick+'Signed off</span>':inEvidence?'<span class="br-pill mid">In your evidence'+(so.on?", waiting for your assessor":"")+'</span>':'<span class="br-pill low">No evidence yet</span>';
+    const status=signed?'<span class="br-pill good">'+ICON.tick+(so.on?'Signed off':'Evidenced')+'</span>':inEvidence?'<span class="br-pill mid">In your evidence'+(so.on?", waiting for your assessor":"")+'</span>':'<span class="br-pill low">No evidence yet</span>';
     K().say(pick(["Here’s "+esc(C)+" in plain words.",esc(C)+" is a "+kind.toLowerCase()+" on your course."]));
     K().widget('<div class="br-card"><div class="br-head"><span class="br-ic">'+ICON.ksb+'</span><strong>'+esc(C)+' · '+kind+'</strong>'+status+'</div><p class="br-def">'+esc(text)+'</p>'+
       '<p class="br-small">In '+units.map(u=>'<b>'+esc(u.name)+'</b>').join(", ")+'.</p></div>');

@@ -4,7 +4,7 @@
    2. A short welcome lesson from Evia, with one quick question.
    3. The PPE induction, on a real evidence page with the real "Let Evia guide you": photos, two questions, a statement.
       It's saved to Supporting evidence as a PDF, linked to the KSBs it shows, and Evia shows where it went.
-   4. "Tap this" steps round the app with everything else blurred, ending with the signature on the profile.
+   4. "Tap this" steps round the app, what Evia means ringed (the rest can't be tapped), ending with the signature on the profile.
    Where the learner got to is kept (evia7-onboarding), so closing the app carries on from the same step. */
 (function(){
   const KEY="evia7-onboarding",IND_KEY="evia7-induction";
@@ -89,11 +89,17 @@
       .profile-sheet.ob-profile .pf-save{position:static;margin-top:16px}
       .profile-sheet.ob-profile{padding-bottom:45vh}
       #ob-spot i,#ob-spot b{position:fixed;z-index:10010;display:block}
-      #ob-spot i{background:rgba(15,23,42,.22);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+      /* The rest of the page stays as it is (clear, not blurred), just not tappable; what Evia is talking about gets a ring. */
+      #ob-spot i{background:transparent}
+      #ob-spot u{position:fixed;z-index:10011;display:block;pointer-events:none;border:3px solid var(--evia-accent,var(--yellow));border-radius:16px;box-shadow:0 0 0 6px rgba(231,185,0,.22),0 10px 28px rgba(16,24,40,.14);animation:obRing 1.6s ease-in-out infinite;transition:left .2s ease,top .2s ease,width .2s ease,height .2s ease}
+      #ob-spot.none u{display:none}
+      @keyframes obRing{0%,100%{box-shadow:0 0 0 5px rgba(231,185,0,.18),0 10px 28px rgba(16,24,40,.14)}50%{box-shadow:0 0 0 11px rgba(231,185,0,.10),0 10px 28px rgba(16,24,40,.14)}}
+      @media(prefers-reduced-motion:reduce){#ob-spot u{animation:none;transition:none}}
+      body.ob-lock .evia-guide-target{outline:none!important;animation:none!important}
       #ob-spot b{background:transparent}
-      #ob-spot.none i{background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none}
+      #ob-spot.none i{background:transparent}
       #ob-spot.none i:first-child{inset:0!important;width:auto!important;height:auto!important}
-      /* Evia's button stays in view, above the blur, for her speech bubble. */
+      /* Evia's button stays in view, above the spotlight, for her speech bubble. */
       body.ob-lock .evia-fab{z-index:10020!important;opacity:1!important;translate:none!important}
       body.evia-onboarding .bottom-nav:has(.evia-guide-target) button:not(.evia-guide-target){opacity:.45}
 
@@ -133,7 +139,7 @@
       #ob-scan-view .ob-scan-frame{position:absolute;left:50%;top:42%;width:min(64vw,260px);aspect-ratio:1;transform:translate(-50%,-50%);border:3px solid var(--yellow);border-radius:24px;box-shadow:0 0 0 100vmax rgba(0,0,0,.45)}
       #ob-scan-view p,#ob-scan-view button{position:relative;margin:0;font-size:15px;font-weight:700}
       #ob-scan-view button{min-width:160px}
-      /* The tour speaks through Evia's normal bubble; it sits above the blur, with the tour's progress along the top. */
+      /* The tour speaks through Evia's normal bubble; it sits above the spotlight, with the tour's progress along the top. */
       html body .ui-evia-bubble.ob-card{z-index:10030}
       .ob-card-top{display:flex;align-items:center;gap:10px;margin:-2px 0 10px}
       .ob-card-top .tm-prog{height:8px}
@@ -485,20 +491,21 @@
     {profile:true,seen:"profile"}
   ];
   let card=null,tapWatch=null,profileObserver=null;
-  /* The spotlight: everything but what Evia is pointing at is blurred, and can't be used. Four blurred panels frame it;
+  /* The spotlight: what Evia is pointing at gets a ring; everything else stays as it is but can't be used. Four clear panels frame it;
      when she's only showing it (Next), a clear cover stops it being tapped too. With nothing to point at, the page stays
      sharp but can't be used. */
   let spot=null,spotEl=null,spotLook=false,spotRaf=0;
   function spotlight(el,look){
-    if(!spot){spot=document.createElement("div");spot.id="ob-spot";spot.innerHTML='<i></i><i></i><i></i><i></i><b></b>';document.body.appendChild(spot)}
+    if(!spot){spot=document.createElement("div");spot.id="ob-spot";spot.innerHTML='<i></i><i></i><i></i><i></i><b></b><u></u>';document.body.appendChild(spot)}
     spotEl=el||null;spotLook=!!look;spot.classList.toggle("none",!el);
     cancelAnimationFrame(spotRaf);
-    const [t,r,btm,l]=spot.querySelectorAll("i"),cover=spot.querySelector("b");
+    const [t,r,btm,l]=spot.querySelectorAll("i"),cover=spot.querySelector("b"),ring=spot.querySelector("u");
     const frame=()=>{
       if(spotEl&&document.body.contains(spotEl)){
         const R=spotEl.getBoundingClientRect(),p=6,x1=Math.max(0,R.left-p),y1=Math.max(0,R.top-p),x2=Math.min(innerWidth,R.right+p),y2=Math.min(innerHeight,R.bottom+p);
         t.style.cssText="left:0;top:0;width:100%;height:"+y1+"px";btm.style.cssText="left:0;top:"+y2+"px;width:100%;bottom:0";
         l.style.cssText="left:0;top:"+y1+"px;width:"+x1+"px;height:"+(y2-y1)+"px";r.style.cssText="left:"+x2+"px;top:"+y1+"px;right:0;height:"+(y2-y1)+"px";
+        ring.style.cssText="left:"+(x1-2)+"px;top:"+(y1-2)+"px;width:"+(x2-x1+4)+"px;height:"+(y2-y1+4)+"px";
         cover.style.cssText=spotLook?"left:"+x1+"px;top:"+y1+"px;width:"+(x2-x1)+"px;height:"+(y2-y1)+"px":"display:none";
       }
       spotRaf=requestAnimationFrame(frame);
@@ -518,7 +525,7 @@
     card.querySelector(".ob-skip").onclick=skipDemo;
     const n=card.querySelector(".ob-next");if(n)n.onclick=onNext;
   }
-  /* Evia points at one thing on the page: waits for it to be drawn, scrolls to it, blurs the rest. A tap on it runs
+  /* Evia points at one thing on the page: waits for it to be drawn, scrolls to it, rings it. A tap on it runs
      onTap (the thing's own action runs too); with no tap, Next runs onNext. */
   function point(sel,tap,text,onNext,pct,onTap){
     stopWatch();clearTargets();

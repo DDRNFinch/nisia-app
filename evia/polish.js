@@ -124,7 +124,9 @@
      to this pack if the job shows them. The assessor decides in Milos. */
   function aimsHtml(u,pack){
     if(!window.eviaKsbAims)return"";
-    const so=window.eviaKsbSignoff?window.eviaKsbSignoff():{on:false},ev=so.on?so.signed:new Set();
+    /* Evidenced: signed off by the assessor when connected to a college; on their own, what the learner has mapped. */
+    const so=window.eviaKsbSignoff?window.eviaKsbSignoff():{on:false};
+    const ev=so.on?so.signed:new Set((typeof evidence!=="undefined"?evidence:[]).filter(e=>e&&e.c===course).flatMap(e=>e.k||[]).concat(typeof inductionKsbs==="function"?inductionKsbs():[]));
     const aims=window.eviaKsbAims.list().filter(k=>!ev.has(k));if(!aims.length)return"";
     const codes=u[1].map(code),asked=(window.eviaMoreRequired?window.eviaMoreRequired():[]).filter(x=>x.unit===u[0]).map(x=>x.code),here=aims.filter(k=>codes.includes(k)&&!asked.includes(k)),other=aims.filter(k=>!codes.includes(k));
     if(!here.length&&!other.length)return"";
