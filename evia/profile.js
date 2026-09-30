@@ -78,6 +78,7 @@
       group("Your data",
         '<div class="evia-storage-block pf-data"><p id="evia-storage-usage">Checking storage…</p><p id="evia-storage-status"></p><p class="evia-storage-last" id="evia-storage-last"></p></div>'+
         '<div class="pf-data-actions"><button type="button" class="secondary" id="evia-backup">Back up</button><label class="secondary evia-restore-label">Restore<input id="evia-restore" type="file" accept=".zip,application/zip" hidden></label><button type="button" class="secondary" id="download-portfolio">Portfolio PDF</button></div>'+
+        sw("usage-share","Share anonymous usage","Which features you use, as counts. Never your name, work or photos.")+
         row("open-problems",'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3.5 2.8 19.5h18.4z"/><path d="M12 10v4.5M12 17.2v.1"/></svg>',"Problem log",problemsSummary())+
         (window.eviaStorage&&window.eviaStorage.removeAll?row("remove-all",'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13"/></svg>',"Remove all data from this phone",nis?"Start again. Connect again to get your records back from "+esc(nis.college):"Start again with an empty Evia"):""))+
       '<div class="pf-save"><button type="button" class="primary" id="save-profile">Save</button></div>'+
@@ -120,6 +121,7 @@
     };
     document.getElementById("download-portfolio").onclick=downloadEvidencePack;
     document.getElementById("open-problems").onclick=openProblems;
+    const us=document.getElementById("usage-share");if(us){us.checked=!(window.eviaUsage&&window.eviaUsage.off());us.onchange=()=>{if(window.eviaUsage)window.eviaUsage.setOff(!us.checked)}}
     const rm=document.getElementById("remove-all");if(rm)rm.onclick=openRemoveAll;
     if(window.eviaStorage)window.eviaStorage.bindProfileCard(document.getElementById("modal-root"));
     document.getElementById("profile-maths").checked=!!p.mathsEnabled;
