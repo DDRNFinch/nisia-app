@@ -283,7 +283,7 @@
   const DRAFT="evia7-review-draft";
   function hideResume(){const b=document.getElementById("rv-resume");if(b)b.remove()}
   function showResume(){
-    hideResume();const d=readJson(DRAFT,null);if(!d||Date.now()-(d.at||0)>864e5)return;
+    hideResume();const d=readJson(DRAFT,null);if(!d||Date.now()-(d.at||0)>864e5||!collegeSets())return;
     const b=document.createElement("div");b.id="rv-resume";b.className="rv-resume";
     b.innerHTML='<button type="button" class="rv-resume-go">‹ Back to your review</button><button type="button" class="rv-resume-x" aria-label="Finish the review another time">×</button>';
     document.body.appendChild(b);
@@ -359,6 +359,7 @@
     return Object.assign(base,{id:"review-"+Date.now(),format:2,snapshot:snapshot(S),targets:targets.map(t=>Object.assign({},t,{reason:t.why,deadline:t.due})),reflection:{}});
   }
   function chatReview(){
+    if(!collegeSets())return reminder();
     const k=window.eviaChatKit,r=newReview();
     if(!k||!r){startReview();return}
     const list=slides(r,false);
@@ -402,7 +403,26 @@
     window.eviaData.put("reviews",r);
     if(!collegeSets())setTargets(r.targets.map(t=>Object.assign({},t,{reviewId:r.id,reviewDate:r.date})));
   }
+  /* Not connected to a college: the assessor has no access to Evia, so there's no review here, just the reminder.
+     Reviews happen with the assessor and employer every 3 months; Evia says when, helps them get ready, and counts
+     from the day they say it's been held. */
+  const HELD="evia7-reviews-held";
+  const heldDates=()=>(readJson(HELD,[])||[]).filter(x=>x&&x.course===course).map(x=>Date.parse(x.date)).filter(Boolean);
+  function markHeld(){const a=readJson(HELD,[])||[];a.push({course,date:new Date().toISOString()});localStorage.setItem(HELD,JSON.stringify(a))}
+  let tries=0;
+  function reminder(){
+    const k=window.eviaChatKit;
+    if(!k||!document.querySelector(".chat-sheet")){if(window.chat&&tries++<3){window.chat({quiet:true});setTimeout(reminder,180)}return}
+    tries=0;
+    const rd=window.eviaReviewDue&&window.eviaReviewDue(),d=t=>t.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"});
+    k.say(rd?(rd.days<0?"Your progress review was due on <strong>"+d(rd.due)+"</strong>.":rd.days===0?"Your progress review is due <strong>today</strong>.":"Your next progress review is due on <strong>"+d(rd.due)+"</strong>."):"Progress reviews are every 3 months.");
+    k.say("Reviews are with your assessor and your employer. Evia isn’t connected to your college, so book it with them. I can help you get ready for it.");
+    k.replies([{label:"Get ready for my review",primary:true,run:()=>window.eviaCoachFlows&&window.eviaCoachFlows.prepare()},
+      {label:"I’ve had my review",run:()=>{markHeld();const n=window.eviaReviewDue();k.say("Great. Your next one is due on <strong>"+d(n.due)+"</strong>. I’ll remind you.");if(typeof render==="function")setTimeout(()=>{if(!document.querySelector(".chat-sheet"))render()},50);k.somethingElse()}},
+      {label:"Something else",run:k.somethingElse}]);
+  }
   function startReview(resume){
+    if(!collegeSets()){localStorage.removeItem(DRAFT);return reminder()}
     if(resume&&resume.type)resume=null; /* called straight from a click */
     const r=newReview();if(!r)return;
     /* Picking up where they left off: fresh figures (the quick action may have changed them), same comments and step. */
@@ -417,6 +437,7 @@
 
   window.eviaTargets={ensure:ensureTargets,mine,progress,cardHtml,bind,check,stats};
   window.eviaStartReview=()=>startReview();
+  window.eviaReviewReminder=reminder;
   window.eviaChatReview=chatReview;
   window.eviaResumeReview=resumeReview;
   /* Reviews are due every 3 calendar months: 3 months after the last one, or after the course start. */
@@ -431,7 +452,8 @@
       const commentsDone=all.some(r=>Date.parse(r.date)>=from&&said(r));
       return {due:nd,days:Math.ceil((nd-Date.now())/864e5),first:!en.lastReview,college:true,commentsDone};
     }
-    const from=last?new Date(last.date):p.start?new Date(p.start+"T12:00:00"):null;if(!from||isNaN(from))return null;
+    const since=[last?Date.parse(last.date):0].concat(heldDates()).filter(Boolean);
+    const from=since.length?new Date(Math.max(...since)):p.start?new Date(p.start+"T12:00:00"):null;if(!from||isNaN(from))return null;
     const due=new Date(from);due.setMonth(due.getMonth()+3);
     const days=Math.ceil((due-Date.now())/864e5);return {due,days,first:!last};
   };

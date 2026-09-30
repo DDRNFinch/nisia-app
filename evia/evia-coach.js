@@ -362,7 +362,8 @@
     const skipped=st.key===key?(st.skipped||[]):[];
     const list=areas().filter(x=>!x.ok&&DOIT[x.id]).sort((a,b)=>ORDER.indexOf(a.id)-ORDER.indexOf(b.id));
     const todo=list.filter(x=>!skipped.includes(x.id)).concat(list.filter(x=>skipped.includes(x.id)));
-    const commentsDone=rd?(rd.college?!!rd.commentsDone:(window.eviaGetReviews?window.eviaGetReviews():[]).some(r=>Date.now()-Date.parse(r.date)<21*864e5)):false;
+    /* Comments for the assessor are only asked for when connected to a college (the assessor reads them in Milos). */
+    const commentsDone=rd?(rd.college||(window.eviaNisia&&window.eviaNisia.joined())?!!rd.commentsDone:true):false;
     return {rd,key,todo,commentsDone,all:areas()};
   }
   window.eviaReviewPrepCount=()=>{try{const p=prepTasks();return p.todo.length+(p.commentsDone?0:1)}catch(_){return 0}};

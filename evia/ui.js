@@ -184,7 +184,7 @@
     $("#screen").innerHTML=pageHead("My progress")+
       '<div class="ui-page">'+
         (st?S.heroHtml(st):"")+
-        (()=>{const rd=window.eviaReviewDue&&window.eviaReviewDue();if(!rd)return"";const d=rd.due.toLocaleDateString("en-GB",{day:"numeric",month:"short"});return '<button type="button" class="ui-card ui-review-due'+(rd.days<=14?" soon":"")+'" id="ui-review-due"><span><small>Next progress review</small><strong>'+(rd.days<0?"Overdue · was due "+d:rd.days===0?"Due today":"Due "+d+(rd.days<=14?" · in "+rd.days+" day"+(rd.days===1?"":"s"):""))+'</strong></span><em>'+(rd.days<=14?"Start now":"Do it early")+' ›</em></button>'})()+
+        (()=>{const rd=window.eviaReviewDue&&window.eviaReviewDue();if(!rd)return"";const d=rd.due.toLocaleDateString("en-GB",{day:"numeric",month:"short"});return '<button type="button" class="ui-card ui-review-due'+(rd.days<=14?" soon":"")+'" id="ui-review-due"><span><small>Next progress review</small><strong>'+(rd.days<0?"Overdue · was due "+d:rd.days===0?"Due today":"Due "+d+(rd.days<=14?" · in "+rd.days+" day"+(rd.days===1?"":"s"):""))+'</strong></span><em>'+(!rd.college&&!(window.eviaNisia&&window.eviaNisia.joined())?"Get ready":rd.days<=14?"Start now":"Do it early")+' ›</em></button>'})()+
         (window.eviaTargets?(window.eviaTargets.check(false),window.eviaTargets.cardHtml()):"")+
         (tip?'<section class="ui-card ui-tip"><span class="evia-mini" aria-hidden="true"><span class="evia-face"><i></i><i></i></span></span><div><p>'+escHtml(tip.text)+'</p><button type="button" class="ui-tip-go" id="ui-tip-go">'+escHtml(tip.action.label)+' ›</button></div></section>':"")+
         (st?S.tilesHtml(st):"")+
@@ -629,11 +629,13 @@
       T.bind(box);scrollChat();
       requestAnimationFrame(()=>requestAnimationFrame(()=>{const card=box.querySelector(".pg-card");if(card)card.classList.add("pg-in")}));
     });
-    replies([{label:"See them in My progress",primary:true,run:()=>{closeChat();setTimeout(()=>{nav("progress");setTimeout(()=>{const el=document.getElementById("pg-targets");if(el)el.scrollIntoView({block:"start",behavior:"smooth"})},400)},60)}},{label:"Start a progress review",run:reviewFromMenu},{label:"Something else",run:somethingElse}]);
+    replies([{label:"See them in My progress",primary:true,run:()=>{closeChat();setTimeout(()=>{nav("progress");setTimeout(()=>{const el=document.getElementById("pg-targets");if(el)el.scrollIntoView({block:"start",behavior:"smooth"})},400)},60)}},{label:"My progress review",run:reviewFromMenu},{label:"Something else",run:somethingElse}]);
   }
   /* Progress review: a short click-through of sections; finishing it sets new targets. */
   function reviewFromMenu(){
     userSays("Review me");
+    /* Not connected to a college: reviews are with the assessor and employer, so Evia just reminds and helps get ready. */
+    if(!(window.eviaNisia&&window.eviaNisia.joined())&&window.eviaReviewReminder)return window.eviaReviewReminder();
     const last=(window.eviaGetReviews?window.eviaGetReviews():[])[0],rd=window.eviaReviewDue?window.eviaReviewDue():null;
     if(rd)say(rd.days<0?"Your review was due on <strong>"+rd.due.toLocaleDateString("en-GB",{day:"numeric",month:"long"})+"</strong>, so now’s a good time.":"Your next review is due on <strong>"+rd.due.toLocaleDateString("en-GB",{day:"numeric",month:"long"})+"</strong>"+(rd.days<=14?", so now’s a good time.":". You can do one early whenever you like."));
     say("We’ll go through it together, right here: where you are, your evidence, learning, tests, skills and staying safe. At the end I’ll set your new targets. It takes about 5 minutes."+(last?" Your last review was on "+new Date(last.date).toLocaleDateString("en-GB",{day:"numeric",month:"short"})+".":""));
