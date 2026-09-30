@@ -2636,3 +2636,10 @@ html body .sd-evia{transform:scale(3.3);animation-name:sdBreathe3}
 @keyframes ci-spin{to{transform:rotate(360deg)}}
 @keyframes ci-pop{from{transform:scale(.4);opacity:0}}
 @media (prefers-reduced-motion:reduce){#ci-view .ci-tick,#ci-view .ci-spin{animation:none}}
+/* Remove all data from this phone */
+.rm-sheet .rm-warn{background:#fff4ed;border-color:#f9dbc5}
+.rm-sheet .rm-warn button{margin-top:8px;min-height:40px;padding:8px 14px;border-radius:12px}
+.rm-type{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--ui-ink)}
+.rm-type input{min-height:46px;padding:10px 12px;border-radius:14px;border:1px solid var(--ui-line);font:inherit;font-size:16px;letter-spacing:.08em;text-transform:uppercase}
+.rm-sheet .rm-go{background:#b42318!important;border-color:#b42318!important;color:#fff!important}
+.rm-sheet .rm-go:disabled{opacity:.45}

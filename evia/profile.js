@@ -78,7 +78,8 @@
       group("Your data",
         '<div class="evia-storage-block pf-data"><p id="evia-storage-usage">Checking storage…</p><p id="evia-storage-status"></p><p class="evia-storage-last" id="evia-storage-last"></p></div>'+
         '<div class="pf-data-actions"><button type="button" class="secondary" id="evia-backup">Back up</button><label class="secondary evia-restore-label">Restore<input id="evia-restore" type="file" accept=".zip,application/zip" hidden></label><button type="button" class="secondary" id="download-portfolio">Portfolio PDF</button></div>'+
-        row("open-problems",'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3.5 2.8 19.5h18.4z"/><path d="M12 10v4.5M12 17.2v.1"/></svg>',"Problem log",problemsSummary()))+
+        row("open-problems",'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3.5 2.8 19.5h18.4z"/><path d="M12 10v4.5M12 17.2v.1"/></svg>',"Problem log",problemsSummary())+
+        (window.eviaStorage&&window.eviaStorage.removeAll?row("remove-all",'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13"/></svg>',"Remove all data from this phone",nis?"Start again. Connect again to get your records back from "+esc(nis.college):"Start again with an empty Evia"):""))+
       '<div class="pf-save"><button type="button" class="primary" id="save-profile">Save</button></div>'+
       '</section></div>';
 
@@ -119,6 +120,7 @@
     };
     document.getElementById("download-portfolio").onclick=downloadEvidencePack;
     document.getElementById("open-problems").onclick=openProblems;
+    const rm=document.getElementById("remove-all");if(rm)rm.onclick=openRemoveAll;
     if(window.eviaStorage)window.eviaStorage.bindProfileCard(document.getElementById("modal-root"));
     document.getElementById("profile-maths").checked=!!p.mathsEnabled;
     document.getElementById("profile-english").checked=!!p.englishEnabled;
@@ -126,6 +128,36 @@
     [["profile-maths","mathsEnabled"],["profile-english","englishEnabled"]].forEach(([id,key])=>{const el=document.getElementById(id);el.onchange=()=>{set(Object.assign(get(),{[key]:el.checked}));if(typeof render==="function")render()}});
   }
 
+  /* Remove all data from this phone: everything Evia keeps here goes, and Evia starts again from the beginning.
+     Connected learners get their records back by connecting again (a code from their assessor): Nisia keeps them.
+     Anything that hasn't reached Nisia yet would be lost, so it says so, and offers to send it first. */
+  function openRemoveAll(){
+    const N=window.eviaNisia,nis=N&&N.joined(),st=nis?N.status():null,waiting=st?st.changes+st.media:0;
+    const root=document.getElementById("modal-root");
+    root.innerHTML='<div class="overlay"><section class="sheet pr-sheet rm-sheet" role="dialog" aria-modal="true" aria-labelledby="rm-title"><div class="sheet-head"><div><div class="chat-kicker">YOUR DATA</div><h2 id="rm-title">Remove all data from this phone?</h2></div><button class="close" id="rm-close" type="button" aria-label="Close">×</button></div><div class="pr-body">'+
+      '<p class="pr-intro">This removes everything Evia has saved on this phone: your evidence, photos, learning hours, lessons, tests, rewards and settings. Evia then starts again from the beginning.</p>'+
+      (nis?'<div class="pr-banner"><strong>'+esc(nis.college)+' keeps your records.</strong> To get them back, connect again with a new code from your assessor, and Evia brings them down.</div>'
+        :'<div class="pr-banner"><strong>This can’t be undone.</strong> Evia isn’t connected to a college, so nothing is kept anywhere else. Back up first if you might want it again.</div>')+
+      (waiting?'<div class="pr-banner rm-warn" id="rm-waiting"><strong>'+waiting+(waiting===1?" thing hasn’t":" things haven’t")+' reached '+esc(nis.college)+' yet</strong> and would be lost. '+(st.online?'<button type="button" class="secondary" id="rm-send">Send now</button>':"Connect to the internet (photos need WiFi) and wait for it to send first.")+'</div>':"")+
+      '<label class="rm-type"><span>Type <b>DELETE</b> to confirm</span><input id="rm-word" autocomplete="off" autocapitalize="characters" spellcheck="false"></label>'+
+      '<div class="pr-actions">'+(nis?"":'<button type="button" class="secondary" id="rm-backup">Back up first</button>')+'<button type="button" class="secondary" id="rm-cancel">Cancel</button><button type="button" class="primary rm-go" id="rm-go" disabled>Remove everything</button></div><p class="pr-note" id="rm-note" role="status"></p>'+
+      '</div></section></div>';
+    const close=()=>{root.innerHTML=""};
+    root.querySelector("#rm-close").onclick=root.querySelector("#rm-cancel").onclick=close;
+    const word=root.querySelector("#rm-word"),go=root.querySelector("#rm-go"),note=root.querySelector("#rm-note");
+    word.oninput=()=>{go.disabled=word.value.trim().toUpperCase()!=="DELETE"};
+    const bk=root.querySelector("#rm-backup");if(bk)bk.onclick=async()=>{bk.disabled=true;try{await window.eviaStorage.backup();note.textContent="Backup saved."}catch(_){note.textContent="The backup didn’t work. Try again from Your data."}bk.disabled=false};
+    const send=root.querySelector("#rm-send");if(send)send.onclick=async()=>{send.disabled=true;note.textContent="Sending…";
+      try{await N.sync();const s=N.status(),left=s.changes+s.media;note.textContent=left?left+" still to send"+(s.media&&!s.wifi?" (photos wait for WiFi).":"."):"Everything has reached "+nis.college+".";if(!left){const w=root.querySelector("#rm-waiting");if(w)w.remove()}}
+      catch(_){note.textContent="Couldn’t send just now. Check your signal and try again."}send.disabled=false};
+    go.onclick=async()=>{
+      if(go.disabled)return;go.disabled=true;go.textContent="Removing…";
+      try{if(window.eviaPush&&window.eviaPush.state()==="on")await Promise.race([window.eviaPush.off(),new Promise(r=>setTimeout(r,3000))])}catch(_){}
+      try{await window.eviaStorage.removeAll()}catch(err){console.error("Evia: remove all",err)}
+      location.replace(location.pathname);
+    };
+    word.focus();
+  }
   function canvasHasInk(canvas){
     const d=canvas.getContext("2d").getImageData(0,0,canvas.width,canvas.height).data;
     for(let i=3;i<d.length;i+=4)if(d[i]>20)return true;

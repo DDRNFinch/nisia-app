@@ -32,7 +32,9 @@
   }
   /* Writes happen in the background; flush() waits for them all, e.g. before a reload after restoring a backup. */
   const pendingWrites=new Set();
+  let wiping=false; /* removeAll(): nothing more is saved */
   function write(key,value){
+    if(wiping||!db)return;
     const tx=db.transaction(STORE,"readwrite"),store=tx.objectStore(STORE);
     if(value===null)store.delete(key);else store.put(value,key);
     const done=txDone(tx).catch(reportWriteError);
@@ -276,7 +278,22 @@
     };
   }
 
-  window.eviaStorage={flush,backup,restore,estimate,persisted,requestPersist,bindProfileCard,formatBytes,keys:appDataKeys};
+  /* ---------- 5. Remove everything from this device ----------
+     Evia's own data only (every evia7-* key, its databases and the Nisia sign-in): the other Nisia apps share this
+     website, so their data is left alone, and the app itself stays installed and works offline. Nothing on Nisia is
+     touched, so connecting again with a code from the college brings the learner's records back. */
+  async function removeAll(){
+    wiping=true;
+    await flush().catch(()=>{});
+    const own=s=>{const out=[];for(let i=0;i<s.length;i++){const k=orig.key.call(s,i);if(k&&k.startsWith("evia7-"))out.push(k)}return out};
+    own(localStorage).forEach(k=>orig.removeItem.call(localStorage,k));
+    try{own(sessionStorage).forEach(k=>sessionStorage.removeItem(k))}catch(_){}
+    cache.clear();
+    try{if(db)db.close()}catch(_){}
+    db=null;
+    await Promise.all([DB_NAME].concat(BLOB_DBS).map(name=>new Promise(res=>{try{const r=indexedDB.deleteDatabase(name);r.onsuccess=r.onerror=r.onblocked=()=>res()}catch(_){res()}})));
+  }
+  window.eviaStorage={flush,backup,restore,estimate,persisted,requestPersist,bindProfileCard,formatBytes,keys:appDataKeys,removeAll};
 
   /* ---------- Boot: load data, then the app scripts in order ---------- */
   function loadScripts(me){
