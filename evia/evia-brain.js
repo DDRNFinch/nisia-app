@@ -412,6 +412,7 @@
     const d=typeof data==="function"?data():null;if(!d)return false;
     const C=code.toUpperCase().replace(/\s+/g,""),units=[];let text="";
     d.u.forEach((u,i)=>u[1].forEach(k=>{const [c,...t]=String(k).split("|");if(c.trim().toUpperCase()===C){text=text||t.join("|").trim();units.push({name:u[0],index:i})}}));
+    if(text&&typeof officialKsb==="function"&&officialKsb(C))text=officialKsb(C);
     if(!text){K().say("I can’t find <strong>"+esc(C)+"</strong> on the "+esc(d.name)+" standard. KSB codes look like K1, S14 or B2.");return true}
     const so=typeof ksbSignoff==="function"?ksbSignoff():{signed:new Set(),on:false};
     const inEvidence=(typeof evidence!=="undefined"?evidence:[]).some(e=>e&&e.c===course&&(e.k||[]).map(x=>String(x).split("|")[0].trim().toUpperCase()).includes(C))||(typeof inductionKsbs==="function"&&inductionKsbs().includes(C));

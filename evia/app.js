@@ -348,7 +348,10 @@ function courses(){
  }).join("")+'<div class="card unit-card supporting-course-card" data-supporting-evidence><div class="unit-title">Supporting Evidence</div><small>Witness testimony, photos, videos and files</small><span class="supporting-course-arrow">›</span></div>';
  document.querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>openUnit(+b.dataset.u));const supportingCard=document.querySelector("[data-supporting-evidence]");if(supportingCard)supportingCard.onclick=()=>openSupportingEvidence();
 }
-function allK(){if(window.eviaNvq&&window.eviaNvq.on())return window.eviaNvq.allK();let m=new Map();data().u.forEach(u=>u[1].forEach(k=>m.set(code(k),text(k))));return [...m].sort((a,b)=>a[0][0].localeCompare(b[0][0])||Number(a[0].slice(1))-Number(b[0].slice(1)))}
+/* Every KSB on the course with the standard's own wording (ksb-official.js); a unit's shorter wording only if the
+   standard's isn't there. */
+function officialKsb(c){return ((window.EVIA_KSB_OFFICIAL||{})[course]||{})[c]||""}
+function allK(){if(window.eviaNvq&&window.eviaNvq.on())return window.eviaNvq.allK();let m=new Map();data().u.forEach(u=>u[1].forEach(k=>{const c=code(k);if(!m.has(c))m.set(c,officialKsb(c)||text(k))}));return [...m].sort((a,b)=>a[0][0].localeCompare(b[0][0])||Number(a[0].slice(1))-Number(b[0].slice(1)))}
 function courseProgressMeta(){
  const metas={
   bricklayer:{durationMonths:24,epaMonths:3},
