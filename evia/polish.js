@@ -96,7 +96,7 @@
       "Wall and floor units":{photos:"wall/floor units · PPE · environmental practices",writeup:"units/fitments · PPE · recycling · reuse · waste · jig production · employment types · small business · tax · health · safety · wellbeing"},
       "Timber mouldings":{photos:"timber mouldings · safe working · environmental practices",writeup:"moulding manufacture · recycling · reuse · waste · wellbeing · mental/physical health · teamwork · environment"},
       "Staircase spindles and balustrades":{photos:"spindles · balustrades · safety · jigs",writeup:"staircase components · safety · jig production · teamwork"},
-      "Ironmongery":{photos:"ironmongery · measuring/marking · hand tools",writeup:"ironmongery · standards · building regulations · warranty standards · hand tools · tool storage · inclusion · equity · diversity · learning & development"},
+      "Ironmongery":{photos:"ironmongery · measuring/marking · hand tools · products used",writeup:"ironmongery · mastics · preservatives · wood fillers · plastics · standards · building regulations · warranty standards · hand tools · tool storage · inclusion · equity · diversity · learning & development"},
       "Fixed Machinery":{photos:"fixed machinery · PPE · safe working area",writeup:"machinery · safe systems · site inductions · toolbox talks · risk assessments · method statements · hazard identification · building principles · learning & development · teamwork"}
     }
   };

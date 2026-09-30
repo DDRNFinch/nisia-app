@@ -47,6 +47,7 @@
     "hinging":"The hinges let in flush, with the screws in.",
     "insulation":"The insulation fitted tight, with no gaps.",
     "ironmongery":"The handle, lock or hinges fitted, close up.",
+    "products used":"The labels of the products you used (filler, mastic, preservative or fixings), and one being applied.",
     "jigs":"Your jig set up, then the part it made.",
     "joint finishes":"The finished joints close up, all the same style.",
     "joints":"The joint cut, then fitted together.",
