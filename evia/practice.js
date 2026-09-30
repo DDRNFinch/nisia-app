@@ -59,7 +59,7 @@
       '<h3 class="pr-h">Tests</h3><div class="pr-list">'+rows.join("")+'</div>'+
       (!p.mathsEnabled&&!p.englishEnabled?'<p class="pr-note">Maths and English practice can be switched on in your Profile.</p>':"")+
       '<h3 class="pr-h">Your skills</h3><div class="pr-list"><button type="button" class="pr-row" data-pr="confidence"><span class="pr-icon">'+icon(ICONS.confidence)+'</span><span class="pr-copy"><strong>Confidence check'+(daysAgo(conf.last)>30?' <em class="pr-due">Due</em>':"")+'</strong><small>Rate yourself on each practical skill</small><small class="pr-sum">'+escHtml(conf.last?conf.practise.length+" need more training · rated "+ago(conf.last):"Not done yet")+'</small></span></button>'+
-      (allTasks().length?'<button type="button" class="pr-row" data-pr="task"><span class="pr-icon">'+icon(ICONS.task)+'</span><span class="pr-copy"><strong>College tasks</strong><small>'+(tasks.length?"Evia’s pick: "+escHtml(tasks[0].task.title):allTasks().length+" workshop tasks for your course")+'</small><small class="pr-sum">'+escHtml(tasks.length?"Practises "+listText(tasks[0].covers):conf.last?"All your skills are rated OK. Pick any task.":"Do a confidence check and Evia will pick one for you")+'</small></span></button>':"")+'</div>';
+      (allTasks().length?'<button type="button" class="pr-row" data-pr="task"><span class="pr-icon">'+icon(ICONS.task)+'</span><span class="pr-copy"><strong>Skills</strong><small>'+(tasks.length?"Evia’s pick: "+escHtml(tasks[0].task.title):allTasks().length+" college tasks for your course")+'</small><small class="pr-sum">'+escHtml(tasks.length?"Practises "+listText(tasks[0].covers):conf.last?"All your skills are rated OK. Pick any task.":"Do a confidence check and Evia will pick one for you")+'</small></span></button>':"")+'</div>';
     const el=sheet("PRACTICE","Tests and checks",body);
     const kb=el.querySelector("#pr-knowledge");if(kb)kb.onclick=()=>window.eviaNvq.openKnowledge();
     el.querySelectorAll("[data-pr]").forEach(b=>b.onclick=()=>{
@@ -193,36 +193,100 @@
   }
   const listText=a=>a.length<2?a.join(""):a.slice(0,-1).join(", ")+" and "+a[a.length-1];
   const allTasks=()=>(window.EVIA_PRACTICE_TASKS||{})[course]||[];
-  /* Every task for the course, with Evia's picks (from the confidence check) at the top. */
-  function openAllTasks(){
-    const picks=suggestTasks(3),all=allTasks();
-    if(!all.length){openConfidence();return}
-    const card=(t,covers,pick)=>'<button type="button" class="pr-task" data-id="'+escHtml(t.id)+'"><span class="pr-task-kicker">'+(pick?"Evia’s pick for you":escHtml(t.time))+'</span><strong>'+escHtml(t.title)+'</strong><small>'+(pick?"Practises "+escHtml(listText(covers)):escHtml(listText(t.skills)))+'</small></button>';
-    const rest=all.filter(t=>!picks.some(x=>x.task===t));
-    const body=(picks.length?picks.map(x=>card(x.task,x.covers,true)).join("")+'<h3 class="pr-h">All tasks</h3>'
-        :'<p class="pr-intro">Tasks to try in the workshop at college. '+(confidenceState().last?"None of your skills are rated low, so pick whichever you like.":"Do a confidence check and Evia will pick the ones that practise your weakest skills.")+'</p>'+(confidenceState().last?"":'<div class="pr-actions"><button type="button" class="secondary" id="pr-conf">Do a confidence check</button></div>'))+
-      rest.map(t=>card(t,[],false)).join("");
-    const el=sheet("PRACTICE","College tasks",body);
+  /* ---------- Skills (Teach me) ----------
+     Practical tasks for the college workshop, 1 to 6 hours. Evia picks the ones aimed at the skills the learner rated
+     low; later Symi (the tutor) will feed in too. The learner starts a task, then marks their own work against its mark
+     sheet, and it's kept here as completed. College time is on the register, so no learning hours are logged. */
+  const SKILLS_KEY="evia7-skills";
+  const skillsStore=()=>{const d=readJson(SKILLS_KEY,{})||{};return {active:d.active&&d.active.course===course?d.active:null,done:(Array.isArray(d.done)?d.done:[]).filter(x=>x&&x.course===course),raw:d}};
+  function saveSkills(fn){
+    const d=readJson(SKILLS_KEY,{})||{};d.done=Array.isArray(d.done)?d.done:[];fn(d);d.updatedAt=Date.now();
+    try{localStorage.setItem(SKILLS_KEY,JSON.stringify(d))}catch(_){}
+    if(typeof persist==="function")try{persist()}catch(_){}
+  }
+  const hoursText=h=>h+(h===1?" hour":" hours");
+  const findTask=id=>allTasks().find(t=>t.id===id);
+  const BANDS=[["all","All"],["short","1–2 hours",h=>h<=2],["mid","3–4 hours",h=>h>=3&&h<=4],["long","5–6 hours",h=>h>=5]];
+  function skillsSummary(){const st=skillsStore(),picks=suggestTasks(3);return {picks:picks.length,done:st.done.length,active:st.active?findTask(st.active.id):null,checked:!!confidenceState().last}}
+  function openSkills(band){
+    const all=allTasks();
+    if(!all.length){sheet("SKILLS","Skills",'<p class="pr-note">There are no college tasks for this course yet.</p>');return}
+    const st=skillsStore(),picks=suggestTasks(3),checked=!!confidenceState().last,b=BANDS.find(x=>x[0]===band)||BANDS[0];
+    const doneCount=id=>st.done.filter(x=>x.taskId===id).length;
+    const card=(t,why,kicker,plain)=>'<button type="button" class="pr-task sk-task'+(plain?" plain":"")+'" data-id="'+escHtml(t.id)+'"><span class="sk-task-top"><span class="pr-task-kicker">'+escHtml(kicker)+'</span><span class="sk-hours">'+escHtml(hoursText(t.hours))+'</span></span><strong>'+escHtml(t.title)+'</strong><small>'+escHtml(why)+'</small>'+(doneCount(t.id)?'<small class="sk-done-tag">Done '+(doneCount(t.id)>1?doneCount(t.id)+" times":"once")+'</small>':"")+'</button>';
+    const active=st.active&&findTask(st.active.id);
+    const rest=all.filter(t=>!picks.some(x=>x.task===t)&&(!b[2]||b[2](t.hours)));
+    const body='<p class="pr-intro">Practical tasks for the college workshop, from 1 to 6 hours. Mark your own work when you finish; your tutor can check it too. College time is on the register, so these don’t add learning hours.</p>'+
+      (active?'<h3 class="pr-h">In progress</h3>'+card(active,"Started "+new Date(st.active.startedAt).toLocaleDateString("en-GB",{day:"numeric",month:"short"})+". Tap to mark your work.","Carry on"):"")+
+      (picks.length?'<h3 class="pr-h">Evia’s picks for you</h3>'+picks.map(x=>card(x.task,"Practises "+listText(x.covers)+": you rated "+(x.covers.length>1?"them":"it")+" low","Evia’s pick")).join("")
+        :'<div class="pr-banner">'+(checked?"None of your skills are rated low right now, so pick any task you like. Evia will pick again after your next confidence check.":"Do a confidence check and Evia will pick the tasks that work on your weakest skills.")+'</div>'+(checked?"":'<div class="pr-actions"><button type="button" class="primary" id="pr-conf">Do a confidence check</button></div>'))+
+      '<h3 class="pr-h">All tasks</h3><div class="sk-bands" role="group" aria-label="Filter by time">'+BANDS.map(x=>'<button type="button" class="sk-band'+(x===b?" on":"")+'" data-band="'+x[0]+'" aria-pressed="'+(x===b)+'">'+x[1]+'</button>').join("")+'</div>'+
+      (rest.length?rest.map(t=>card(t,listText(t.skills),"College task",true)).join(""):'<p class="pr-note">No other tasks of that length.</p>')+
+      '<h3 class="pr-h">Completed</h3>'+(st.done.length?st.done.slice().reverse().map(x=>{const met=x.marks.filter(m=>m.met).length;return '<button type="button" class="sk-doneitem" data-done="'+escHtml(x.id)+'"><span><strong>'+escHtml(x.title)+'</strong><small>'+new Date(x.doneAt).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})+' · '+escHtml(hoursText(x.hours))+'</small></span><b class="'+(met===x.marks.length?"all":"")+'">'+met+'/'+x.marks.length+'</b></button>'}).join(""):'<p class="pr-note">Tasks you finish and mark are kept here.</p>');
+    const el=sheet("TEACH ME","Skills",body,"sk-sheet");
     const cb=el.querySelector("#pr-conf");if(cb)cb.onclick=()=>{closeSheet();openConfidence()};
-    el.querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>{const p=picks.find(x=>x.task.id===b.dataset.id);viewTask(all.find(t=>t.id===b.dataset.id),p?p.covers:[])});
+    el.querySelectorAll("[data-band]").forEach(x=>x.onclick=()=>{openSkills(x.dataset.band);const f=document.querySelector(".sk-bands");if(f)f.scrollIntoView({block:"start"})});
+    el.querySelectorAll("[data-id]").forEach(x=>x.onclick=()=>{const t=findTask(x.dataset.id),p=picks.find(y=>y.task===t);if(active&&t===active)openMarkSheet(t);else viewTask(t,p?p.covers:[])});
+    el.querySelectorAll("[data-done]").forEach(x=>x.onclick=()=>viewDone(st.done.find(d=>d.id===x.dataset.done)));
+  }
+  const openAllTasks=()=>openSkills();
+  function viewTask(t,covers,another){
+    const st=skillsStore(),on=st.active&&st.active.id===t.id;
+    const body='<p class="pr-intro">'+escHtml(t.brief)+'</p>'+
+      '<div class="pr-chips"><span class="pr-chip sk-hchip">'+escHtml(hoursText(t.hours))+'</span>'+t.skills.map(k=>'<span class="pr-chip '+(covers.includes(k)?"low":"")+'">'+escHtml(k)+'</span>').join("")+'</div>'+
+      (covers.length?'<p class="pr-note">Highlighted skills are ones you rated low.</p>':"")+
+      '<h3 class="pr-h">Steps</h3><ol class="pr-steps">'+t.steps.map(x=>'<li>'+escHtml(x)+'</li>').join("")+'</ol>'+
+      '<h3 class="pr-h">Your mark sheet</h3><ul class="sk-marks-preview">'+t.marks.map(m=>'<li>'+escHtml(m)+'</li>').join("")+'</ul>'+
+      '<div class="pr-banner">'+escHtml(t.check)+' Take photos as you go: you can add them to your portfolio as supporting evidence.</div>'+
+      '<div class="pr-actions">'+(another?'<button type="button" class="secondary" id="pr-other">Another idea</button>':'<button type="button" class="secondary" id="pr-other">All tasks</button>')+'<button type="button" class="secondary" id="pr-share">Show my tutor</button><button type="button" class="primary" id="pr-ok">'+(on?"Mark my work":"Start this task")+'</button></div><p class="pr-note" id="pr-sent" role="status"></p>';
+    const el=sheet("COLLEGE TASK · "+escHtml(hoursText(t.hours).toUpperCase()),escHtml(t.title),body);
+    el.querySelector("#pr-ok").onclick=()=>{if(on){openMarkSheet(t);return}
+      const other=st.active&&findTask(st.active.id);
+      if(other&&!confirm("You’re part way through “"+other.title+"”. Start this one instead?"))return;
+      saveSkills(d=>{d.active={course,id:t.id,startedAt:Date.now()}});openSkills()};
+    el.querySelector("#pr-other").onclick=another||(()=>openSkills());
+    el.querySelector("#pr-share").onclick=()=>share("College task: "+t.title,"College task: "+t.title+" ("+hoursText(t.hours)+")\n"+t.brief+(covers.length?"\n\nPractises: "+covers.join(", "):"")+"\n\n"+t.steps.map((x,n)=>(n+1)+". "+x).join("\n")+"\n\nMark sheet:\n"+t.marks.map(m=>"☐ "+m).join("\n")+"\n\n"+t.check,el);
+  }
+  /* The self mark sheet: Met or Not yet for each point, and a note. Saving keeps it in Completed. */
+  function openMarkSheet(t){
+    const picked=new Array(t.marks.length).fill(null);
+    const body='<p class="pr-intro">Check your own work against each point, honestly. Your tutor can go through it with you.</p>'+
+      '<div class="sk-sheetlist">'+t.marks.map((m,i)=>'<div class="sk-mark" data-i="'+i+'"><span>'+escHtml(m)+'</span><span class="sk-yn" role="group" aria-label="'+escHtml(m)+'"><button type="button" data-v="1" aria-pressed="false">Met</button><button type="button" data-v="0" aria-pressed="false">Not yet</button></span></div>').join("")+'</div>'+
+      '<label class="sk-notelabel" for="sk-note">What went well, and what would you do differently?</label><textarea id="sk-note" class="sk-note" rows="3" maxlength="600" placeholder="Optional"></textarea>'+
+      '<div class="pr-actions"><button type="button" class="secondary" id="sk-back">Back</button><button type="button" class="primary" id="sk-save" disabled>Save as completed</button></div><p class="pr-note" id="sk-left" role="status">'+t.marks.length+' to mark</p>';
+    const el=sheet("MARK SHEET",escHtml(t.title),body);
+    const upd=()=>{const left=picked.filter(v=>v===null).length;el.querySelector("#sk-save").disabled=!!left;el.querySelector("#sk-left").textContent=left?left+" to mark":picked.filter(Boolean).length+" of "+picked.length+" met"};
+    el.querySelectorAll(".sk-mark").forEach(row=>row.querySelectorAll("[data-v]").forEach(btn=>btn.onclick=()=>{
+      const i=+row.dataset.i;picked[i]=btn.dataset.v==="1";
+      row.querySelectorAll("[data-v]").forEach(x=>x.setAttribute("aria-pressed",String(x===btn)));row.dataset.met=String(picked[i]);upd()}));
+    el.querySelector("#sk-back").onclick=()=>viewTask(t,[]);
+    el.querySelector("#sk-save").onclick=()=>{
+      const st=skillsStore(),rec={id:"sk-"+Date.now().toString(36),course,taskId:t.id,title:t.title,hours:t.hours,skills:t.skills.slice(),
+        startedAt:st.active&&st.active.id===t.id?st.active.startedAt:null,doneAt:Date.now(),marks:t.marks.map((m,i)=>({text:m,met:!!picked[i]})),note:el.querySelector("#sk-note").value.trim(),markedBy:"self"};
+      saveSkills(d=>{d.done.push(rec);if(d.active&&d.active.course===course&&d.active.id===t.id)d.active=null});
+      viewDone(rec,true);
+    };
+  }
+  function viewDone(x,fresh){
+    if(!x){openSkills();return}
+    const met=x.marks.filter(m=>m.met).length,notYet=x.marks.filter(m=>!m.met);
+    const body=(fresh?'<div class="pr-banner good"><strong>Saved in Skills.</strong> '+(met===x.marks.length?"Every point met. Nice work.":met+" of "+x.marks.length+" met. The ones marked not yet are what to work on next time.")+'</div>':"")+
+      '<p class="pr-note">'+new Date(x.doneAt).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short",year:"numeric"})+' · '+escHtml(hoursText(x.hours))+' · marked by you</p>'+
+      '<ul class="sk-result">'+x.marks.map(m=>'<li class="'+(m.met?"met":"notyet")+'"><b>'+(m.met?"Met":"Not yet")+'</b>'+escHtml(m.text)+'</li>').join("")+'</ul>'+
+      (x.note?'<h3 class="pr-h">Your note</h3><p class="pr-intro">'+escHtml(x.note)+'</p>':"")+
+      (fresh&&window.eviaTeach?'<p class="pr-note">Feel more confident with '+escHtml(listText(x.skills))+' now? Update your confidence check so Evia’s picks stay right.</p>':"")+
+      '<div class="pr-actions">'+(fresh?'<button type="button" class="secondary" id="sk-conf">Update confidence</button>':'')+'<button type="button" class="secondary" id="pr-share">Show my tutor</button><button type="button" class="primary" id="sk-done">'+(fresh?"Done":"Back to Skills")+'</button></div><p class="pr-note" id="pr-sent" role="status"></p>';
+    const el=sheet("COMPLETED",escHtml(x.title),body);
+    el.querySelector("#sk-done").onclick=()=>openSkills();
+    const c=el.querySelector("#sk-conf");if(c)c.onclick=()=>{closeSheet();openConfidence()};
+    el.querySelector("#pr-share").onclick=()=>{const name=String(profile().name||"").trim();
+      share("Skills: "+x.title,"College task: "+x.title+(name?" – "+name:"")+" ("+new Date(x.doneAt).toLocaleDateString("en-GB")+", "+hoursText(x.hours)+")\nSelf-marked: "+met+" of "+x.marks.length+" met\n\n"+x.marks.map(m=>(m.met?"✓ ":"✗ ")+m.text).join("\n")+(x.note?"\n\nNote: "+x.note:""),el)};
   }
   function openTask(index){
     const list=suggestTasks(3);
-    if(!list.length){openAllTasks();return}
+    if(!list.length){openSkills();return}
     const i=Math.min(index||0,list.length-1);
     viewTask(list[i].task,list[i].covers,list.length>1?()=>openTask((i+1)%list.length):null);
-  }
-  function viewTask(t,covers,another){
-    const body='<p class="pr-intro">'+escHtml(t.brief)+'</p>'+
-      '<div class="pr-chips">'+t.skills.map(k=>'<span class="pr-chip '+(covers.includes(k)?"low":"")+'">'+escHtml(k)+'</span>').join("")+'</div>'+
-      '<p class="pr-note">'+(covers.length?"Highlighted skills are ones you rated low. ":"")+'Time: about '+escHtml(t.time)+'.</p>'+
-      '<h3 class="pr-h">Steps</h3><ol class="pr-steps">'+t.steps.map(st=>'<li>'+escHtml(st)+'</li>').join("")+'</ol>'+
-      '<div class="pr-banner">'+escHtml(t.check)+' Take photos as you go: you can add them to your portfolio as supporting evidence.</div>'+
-      '<div class="pr-actions">'+(another?'<button type="button" class="secondary" id="pr-other">Another idea</button>':'<button type="button" class="secondary" id="pr-other">All tasks</button>')+'<button type="button" class="secondary" id="pr-share">Show my tutor</button><button type="button" class="primary" id="pr-ok">Got it</button></div><p class="pr-note" id="pr-sent" role="status"></p>';
-    const el=sheet("COLLEGE TASK",escHtml(t.title),body);
-    el.querySelector("#pr-ok").onclick=closeSheet;
-    el.querySelector("#pr-other").onclick=another||openAllTasks;
-    el.querySelector("#pr-share").onclick=()=>share("College task: "+t.title,"College task: "+t.title+"\n"+t.brief+(covers.length?"\n\nPractises: "+covers.join(", "):"")+"\n\n"+t.steps.map((st,n)=>(n+1)+". "+st).join("\n")+"\n\n"+t.check,el);
   }
   async function share(title,text,el){
     const note=el.querySelector("#pr-sent");
@@ -231,5 +295,5 @@
     catch(_){note.textContent="Sharing isn’t available here. Show your tutor this screen instead."}
   }
 
-  window.eviaPractice={openHub,openConfidence,epaDue,startTest,suggestTasks,openTask,openAllTasks};
+  window.eviaPractice={openHub,openConfidence,epaDue,startTest,suggestTasks,openTask,openAllTasks,openSkills,skillsSummary};
 })();

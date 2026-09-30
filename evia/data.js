@@ -119,6 +119,12 @@
         goal:t.targetValue??null,baseline:0,param:t.measure||null,due:iso(t.deadline),setBy:"evia",reviewId:null,metAt:t.done||t.completed?iso(t.doneAt||t.completedAt):null,createdAt:null,updatedAt:null,store:"legacy",detail:t}));
       return a.concat(b);
     },
+    /* Skills (practice.js): college tasks the learner finished and marked. Symi will add the tutor's marks later. */
+    skills(){
+      return ((readJson("evia7-skills",{})||{}).done||[]).filter(x=>x&&x.id).map(x=>base(x.id,{course:x.course||"",taskId:x.taskId||"",title:x.title||"",hours:x.hours||0,
+        skills:x.skills||[],startedAt:iso(x.startedAt),completedAt:iso(x.doneAt),markedBy:x.markedBy||"self",marks:(x.marks||[]).map(m=>({text:m.text,met:!!m.met})),
+        note:x.note||"",updatedAt:iso(x.doneAt)}));
+    },
     /* The problem log (errors.js): read only, so Nisia can see what went wrong on the phone. */
     errors(){
       return (window.eviaErrors?window.eviaErrors.list():[]).map(x=>base(x.id,{message:x.message,where:x.where||"",stack:x.stack||"",kind:x.kind||"error",
@@ -317,7 +323,7 @@
   /* ---------- Sync with Nisia ----------
      Works whoever wrote the data (a screen not yet moved here included): each record's fingerprint is compared with
      the one last sent. changesSince() gives new and changed records, plus ids that have gone (deleted). */
-  const SYNCED=["learner","evidence","supporting","nvqAnswers","hours","lessonResults","tests","confidence","scenarios","reviews","targets","rewards","errors"];
+  const SYNCED=["learner","evidence","supporting","nvqAnswers","hours","lessonResults","tests","confidence","scenarios","reviews","targets","rewards","errors","skills"];
   const fp=r=>{const s=JSON.stringify(r);let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return (h>>>0).toString(36)};
   function changesSince(){
     const done=readJson(SYNC_KEY,{})||{},out=[];

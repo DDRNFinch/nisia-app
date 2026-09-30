@@ -647,10 +647,10 @@
     if(picks.length){
       const x=picks[0];
       say("Try this in the workshop: <strong>"+escHtml(x.task.title)+"</strong>. It practises "+escHtml(x.covers.join(", "))+", which you rated low in your confidence check. It takes about "+escHtml(x.task.time)+".");
-      replies([{label:"Show me the steps",primary:true,run:open(()=>P.openTask(0))},{label:"See all college tasks",run:open(P.openAllTasks)},{label:"Something else",run:somethingElse}]);
+      replies([{label:"Show me the steps",primary:true,run:open(()=>P.openTask(0))},{label:"Open Skills",run:open(P.openAllTasks)},{label:"Something else",run:somethingElse}]);
     }else if(all.length){
       say("I pick college tasks from your confidence check, so I can aim them at the skills you’re least sure of. You haven’t rated anything low yet. Do a quick confidence check, or have a look at all "+all.length+" tasks for your course.");
-      replies([{label:"Do a confidence check",primary:true,run:open(P.openConfidence)},{label:"See all college tasks",run:open(P.openAllTasks)},{label:"Something else",run:somethingElse}]);
+      replies([{label:"Do a confidence check",primary:true,run:open(P.openConfidence)},{label:"Open Skills",run:open(P.openAllTasks)},{label:"Something else",run:somethingElse}]);
     }else{
       say("I don’t have college tasks for your course yet. Ask your tutor which jobs to practise in the workshop.");
       replies([{label:"Something else",run:somethingElse}]);

@@ -213,7 +213,7 @@
       tile("tests","tests",lastPct!=null?lastPct+"%":"–",nvq?"Knowledge tests":"Tests and EPA mocks",s.testCount?"Last score · "+s.testCount+" taken":"None taken yet",epaDue?"Due":""),
       nvq&&window.eviaNvq.myQuestions?(()=>{const qs=window.eviaNvq.myQuestions(),ans=window.eviaNvq.answers(),d=qs.filter(q=>ans[q]&&String(ans[q].t).trim().split(/\s+/).length>=12).length;return tile("knowledge","quality",d+'<small> / '+qs.length+'</small>',"Knowledge questions","Answered")})():"",
       tile("skills","skills",s.confidence.last?String(low):"–","Skills to practise",s.confidence.last?"Rated "+escHtml(ago(s.confidence.last).toLowerCase()):"Rate your skills",s.confidence.last&&Date.now()-s.confidence.last>30*DAY?"Due":""),
-      tasks?tile("tasks","camera",String(tasks),"College tasks",picks.length?"1 picked for you":"For the workshop"):"",
+      tasks?tile("tasks","camera",String(tasks),"Skills",picks.length?"1 picked for you":"For the workshop"):"",
       tr&&tr.total?tile("teach","award",tr.avg==null?"–":tr.avg+"%","Teach me",tr.medalCount+" medal"+(tr.medalCount===1?"":"s")+" · "+tr.areasDone+" of "+tr.areasTotal+" areas"):"",
       tile("badges","award",ach.count+'<small> / '+ach.list.length+'</small>',"Achievements",ach.fresh.length?"New one earned":"Earned",ach.fresh.length?"New":""),
       tile("reviews","pace",String(reviews),"Progress reviews",reviews?"Saved":"None yet")

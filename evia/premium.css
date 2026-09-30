@@ -315,3 +315,46 @@ html body .tg-tile{position:relative;overflow:hidden;isolation:isolate}
 .tg-doodle{position:absolute;right:-6px;bottom:-4px;width:62%;max-width:150px;color:var(--yellow);opacity:.22;z-index:-1;pointer-events:none}
 .tg-doodle svg{display:block;width:100%;height:auto}
 html[data-a11y-contrast="on"] .tg-doodle{opacity:.12}
+
+/* Teach me: Skills and EPA practice share a row. EPA stays dark and stacks in its half. */
+.tg-duo{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;align-items:stretch}
+.tg-duo .tg-epa{margin-top:0;flex-direction:column;align-items:flex-start;gap:6px;padding:14px}
+.tg-duo .tg-epa-ic{width:44px;height:44px;margin-bottom:6px}
+.tg-duo .tg-epa-copy strong{font-size:15.5px}
+.tg-duo .tg-epa-copy>span{display:none}
+.tg-duo .tg-epa-score{align-items:flex-start;flex-direction:row;align-items:baseline;gap:6px;margin-top:auto}
+.tg-duo .tg-epa-score b{font-size:17px}
+.tg-duo .tg-epa:only-child{grid-column:1/-1}
+.tg-badge{min-width:28px;height:28px;padding:0 8px;border-radius:999px;display:grid;place-items:center;background:var(--yellow);color:var(--ui-ink);font-size:13px;font-weight:800}
+.tg-tile .tg-sub{margin-top:auto;padding-top:4px;font-size:11.5px}
+/* Skills sheet */
+.sk-task-top{display:flex;justify-content:space-between;align-items:center;width:100%;gap:8px}
+.sk-hours{flex:0 0 auto;font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:999px;background:#fff;border:1px solid var(--yellow-line,#f1d878);color:var(--ui-ink)}
+.sk-task:not(:first-of-type){margin-top:0}
+.sk-done-tag{font-weight:700;color:var(--yellow-ink)!important}
+.sk-bands{display:flex;flex-wrap:wrap;gap:6px}
+.sk-band{min-height:36px;padding:6px 12px;border-radius:999px;border:1px solid var(--ui-line);background:#fff;font:inherit;font-size:13px;font-weight:700;color:var(--ui-ink);cursor:pointer}
+.sk-band.on{background:var(--ui-ink);border-color:var(--ui-ink);color:#fff}
+.sk-doneitem{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:12px 14px;border-radius:16px;border:1px solid var(--ui-line);background:#fff;font:inherit;text-align:left;cursor:pointer;color:var(--ui-ink)}
+.sk-doneitem span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.sk-doneitem strong{font-size:14.5px}.sk-doneitem small{font-size:12px;color:var(--ui-muted)}
+.sk-doneitem b{flex:0 0 auto;font-size:14px;padding:4px 10px;border-radius:999px;background:#fff4ed;color:#93370d}
+.sk-doneitem b.all{background:#ecfdf3;color:#067647}
+.sk-hchip{background:var(--ui-ink)!important;border-color:var(--ui-ink)!important;color:#fff!important}
+.sk-marks-preview{margin:0;padding-left:20px;font-size:13.5px;line-height:1.5;color:var(--ui-text)}
+.sk-sheetlist{display:flex;flex-direction:column;gap:8px}
+.sk-mark{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:16px;border:1px solid var(--ui-line);background:#fff;font-size:14px;line-height:1.4;color:var(--ui-ink)}
+.sk-mark[data-met="true"]{border-color:#abefc6;background:#f6fef9}
+.sk-mark[data-met="false"]{border-color:#f9dbc5;background:#fffaf5}
+.sk-yn{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sk-yn button{min-height:40px;border-radius:12px;border:1px solid var(--ui-line);background:#fff;font:inherit;font-size:13.5px;font-weight:700;color:var(--ui-ink);cursor:pointer}
+.sk-yn button[data-v="1"][aria-pressed="true"]{background:#067647;border-color:#067647;color:#fff}
+.sk-yn button[data-v="0"][aria-pressed="true"]{background:#b54708;border-color:#b54708;color:#fff}
+.sk-notelabel{font-size:13.5px;font-weight:700;color:var(--ui-ink);margin-top:4px}
+.sk-note{width:100%;box-sizing:border-box;padding:10px 12px;border-radius:14px;border:1px solid var(--ui-line);font:inherit;font-size:14px;resize:vertical}
+.sk-result{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.sk-result li{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:14px;font-size:13.5px;line-height:1.4;color:var(--ui-ink);background:#f6fef9;border:1px solid #abefc6}
+.sk-result li.notyet{background:#fffaf5;border-color:#f9dbc5}
+.sk-result li b{flex:0 0 auto;font-size:11px;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:#067647;color:#fff}
+.sk-result li.notyet b{background:#b54708}
+.sk-task.plain{background:#fff;border-color:var(--ui-line)}.sk-task.plain .pr-task-kicker{color:var(--ui-muted)}.sk-task.plain .sk-hours{background:var(--soft,#fff7d6)}

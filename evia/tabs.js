@@ -8,6 +8,7 @@
     course:'<svg viewBox="0 0 24 24"><rect x="3" y="14" width="8" height="5" rx="1"/><rect x="13" y="14" width="8" height="5" rx="1"/><rect x="8" y="8" width="8" height="5" rx="1"/><path d="M3 21h18"/></svg>',
     maths:'<svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 7.5h8M8.5 12h1M12 12h1M15 12h1M8.5 16h1M12 16h1M15 16h1"/></svg>',
     edi:'<svg viewBox="0 0 24 24"><circle cx="8" cy="7.5" r="2.6"/><circle cx="16" cy="7.5" r="2.6"/><path d="M3.5 19c0-3 2-5 4.5-5s4.5 2 4.5 5M11.5 19c0-3 2-5 4.5-5s4.5 2 4.5 5"/></svg>',
+    skills:'<svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2.5"/><path d="M9 4V3h6v1"/><path d="M8.5 10l1.5 1.5 3-3M8.5 16l1.5 1.5 3-3M15 11h1.5M15 17h1.5"/></svg>',
     english:'<svg viewBox="0 0 24 24"><path d="M4 20l5.5-15h1L16 20M6.2 14.5h7.6"/><path d="M17 12.5c1-1 3.5-1 3.5 1.2V20M20.5 16.2c-2.7-.4-4 .5-4 1.9 0 1 .8 1.9 2 1.9 1.3 0 2-1 2-1"/></svg>'
   };
   /* Lessons done out of the total for a list of units, from the Teach me store. */
@@ -31,6 +32,8 @@
     maths:D('<path d="M44 20h16M52 12v16"/><path d="M118 14l12 12M130 14l-12 12"/><path d="M82 30h16M82 38h16"/><path d="M60 108V60l48 48z"/><path d="M68 92v8h8"/><rect x="118" y="44" width="16" height="70" rx="3" transform="rotate(12 126 79)"/><path d="M124 56l6 1M123 66l6 1M121 76l6 1M119 86l6 1M117 96l6 1"/><path d="M20 70c0-8 12-8 12 0s-12 12-12 18h12"/>'),
     /* A speech bubble, a pencil, lines of writing and quote marks. */
     english:D('<path d="M86 14h56a10 10 0 0 1 10 10v24a10 10 0 0 1-10 10h-34l-14 12V58h-8a10 10 0 0 1-10-10V24a10 10 0 0 1 10-10z"/><path d="M92 28h42M92 40h28"/><path d="M40 112l6-20 56-56 14 14-56 56z"/><path d="M96 42l14 14"/><path d="M122 84h30M122 96h30M122 108h20"/><path d="M26 22c-6 2-8 8-6 14M38 22c-6 2-8 8-6 14"/>'),
+    /* A clipboard with ticks, a tape measure and a square. */
+    skills:D('<rect x="70" y="16" width="56" height="74" rx="6"/><path d="M88 16v-6h20v6"/><path d="M80 36l5 5 9-9M80 56l5 5 9-9M80 76l5 5 9-9M102 38h16M102 58h16M102 78h16"/><rect x="18" y="80" width="34" height="34" rx="8"/><circle cx="35" cy="97" r="7"/><path d="M52 104h40"/><path d="M134 50v62h-22"/>'),
     /* People together, a heart and a shield. */
     edi:D('<circle cx="54" cy="70" r="9"/><circle cx="84" cy="62" r="10"/><circle cx="114" cy="70" r="9"/><path d="M38 110c2-14 9-22 16-22s14 8 16 22M66 110c2-18 9-28 18-28s16 10 18 28M98 110c2-14 9-22 16-22s14 8 16 22"/><path d="M84 36c-6-10-20-6-18 4 2 8 18 16 18 16s16-8 18-16c2-10-12-14-18-4z"/><path d="M140 14l14 6v12c0 10-6 16-14 20-8-4-14-10-14-20V20z"/><path d="M134 32l5 5 9-9"/>')
   };
@@ -51,13 +54,22 @@
     const next=nx?'<button type="button" class="tg-next" data-play="'+esc(nx.id)+'"><span class="tg-next-copy"><small>'+(nx.resume?"Carry on":"Up next")+' · '+esc(nx.unit)+'</small><strong>'+esc(nx.title)+'</strong><span>Lesson '+nx.n+' of '+nx.of+' · about '+nx.mins+' min</span></span><span class="tg-play">'+PLAY+'</span></button>':"";
     const tile=([id,title,c])=>{const pct=c.total?Math.round(c.done/c.total*100):0;
       return '<button type="button" class="tt-card tg-tile tg-'+id+'" data-go="'+id+'">'+doodleFor(id)+'<span class="tg-tile-top"><span class="tg-tile-ic" aria-hidden="true">'+ICON[id]+'</span><span class="tg-ring" style="--p:'+pct+'" aria-hidden="true"><b>'+pct+'%</b></span></span><strong>'+esc(title)+'</strong><small>'+c.done+' of '+c.total+' lessons</small></button>'};
-    scr().innerHTML=head("Teach me")+player+next+'<h2 class="ui-section-label">Subjects</h2><div class="tg-grid">'+subjects.map(tile).join("")+'</div>'+epaTile()+games();
+    scr().innerHTML=head("Teach me")+player+next+'<h2 class="ui-section-label">Subjects</h2><div class="tg-grid">'+subjects.map(tile).join("")+'</div><div class="tg-duo">'+skillsTile()+epaTile()+'</div>'+games();
     const et=document.getElementById("tg-epa");if(et)et.onclick=()=>window.eviaOpenEpa&&window.eviaOpenEpa();
+    const sk=document.getElementById("tg-skills");if(sk)sk.onclick=()=>window.eviaPractice&&window.eviaPractice.openSkills();
     scr().querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{if(T)T.open(b.dataset.go)});
     scr().querySelectorAll("[data-play]").forEach(b=>b.onclick=()=>{if(T&&T.play)T.play(b.dataset.play)});
     const lbo=document.getElementById("lb-open");if(lbo)lbo.onclick=()=>window.eviaLeaderboard.open();
     scr().querySelectorAll("[data-game]").forEach(b=>b.onclick=()=>{const id=b.dataset.game;
       if(R&&R.owns(id))window.eviaGames.open(b.dataset.key);else if(R)R.openItem(id)});
+  }
+  /* Skills: practical college tasks (1 to 6 hours) that Evia picks from the confidence check, with a self mark sheet
+     (practice.js). Sits beside EPA practice, the two sharing a row. */
+  function skillsTile(){
+    const P=window.eviaPractice,s=P&&P.skillsSummary?P.skillsSummary():null;
+    if(!s||!(window.EVIA_PRACTICE_TASKS||{})[course])return "";
+    const line=s.active?"In progress":s.picks?s.picks+(s.picks===1?" pick":" picks")+" for you":s.checked?"Pick a task":"Do a confidence check";
+    return '<button type="button" class="tt-card tg-tile tg-skills" id="tg-skills">'+DOODLE.skills+'<span class="tg-tile-top"><span class="tg-tile-ic" aria-hidden="true">'+ICON.skills+'</span>'+(s.picks&&!s.active?'<span class="tg-badge" aria-hidden="true">'+s.picks+'</span>':"")+'</span><strong>Skills</strong><small>'+esc(line)+'</small><small class="tg-sub">'+(s.done?s.done+" completed":"College tasks, 1 to 6 hours")+'</small></button>';
   }
   /* EPA practice: the end-point assessment (knowledge tests on the NVQ), dark like the practice itself. */
   function epaTile(){

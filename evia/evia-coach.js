@@ -177,7 +177,7 @@
     k.widget('<div class="ut"><span class="ut-kicker">College task · about '+esc(t.time)+'</span><strong>'+esc(t.title)+'</strong><p>'+esc(t.brief)+'</p><ol>'+t.steps.slice(0,3).map(s=>'<li>'+esc(s)+'</li>').join("")+'</ol>'+(t.steps.length>3?'<button type="button" class="ut-more">All '+t.steps.length+' steps ›</button>':"")+'</div>',el=>{
       const m=el.querySelector(".ut-more");if(m)m.onclick=()=>{k.closeChat();setTimeout(()=>picks.length?P.openTask(0):P.openAllTasks(),80)};
     });
-    k.replies([{label:"Another idea",run:upskillTask},{label:"All college tasks",run:()=>{k.closeChat();setTimeout(P.openAllTasks,80)}},{label:"Something else",run:k.somethingElse}]);
+    k.replies([{label:"Another idea",run:upskillTask},{label:"Open Skills",run:()=>{k.closeChat();setTimeout(P.openAllTasks,80)}},{label:"Something else",run:k.somethingElse}]);
   }
 
   /* ---------- Check my evidence: unit by unit, plainly ---------- */
