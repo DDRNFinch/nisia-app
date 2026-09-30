@@ -351,7 +351,9 @@ function courses(){
 /* Every KSB on the course with the standard's own wording (ksb-official.js); a unit's shorter wording only if the
    standard's isn't there. */
 function officialKsb(c){return ((window.EVIA_KSB_OFFICIAL||{})[course]||{})[c]||""}
-function allK(){if(window.eviaNvq&&window.eviaNvq.on())return window.eviaNvq.allK();let m=new Map();data().u.forEach(u=>u[1].forEach(k=>{const c=code(k);if(!m.has(c))m.set(c,officialKsb(c)||text(k))}));return [...m].sort((a,b)=>a[0][0].localeCompare(b[0][0])||Number(a[0].slice(1))-Number(b[0].slice(1)))}
+function allK(){if(window.eviaNvq&&window.eviaNvq.on())return window.eviaNvq.allK();let m=new Map();data().u.forEach(u=>u[1].forEach(k=>{const c=code(k);if(!m.has(c))m.set(c,officialKsb(c)||text(k))}));
+ /* The whole standard, including any KSB no unit covers (it can still be added to evidence that shows it). */
+ Object.entries((window.EVIA_KSB_OFFICIAL||{})[course]||{}).forEach(([c,t])=>{if(!m.has(c))m.set(c,t)});return [...m].sort((a,b)=>a[0][0].localeCompare(b[0][0])||Number(a[0].slice(1))-Number(b[0].slice(1)))}
 function courseProgressMeta(){
  const metas={
   bricklayer:{durationMonths:24,epaMonths:3},

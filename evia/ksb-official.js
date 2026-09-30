@@ -127,8 +127,26 @@
     S21:"Site carpenter: Apply measuring, marking out, cutting (square and angled), mitring, hinging and recessing techniques.",
     S22:"Site carpenter: Carrying out splicing and scribing techniques."
   });
-  /* ST0264 v1.4 Architectural Joiner option: the core for now. Its own K30–K39 and S23–S30 keep Evia's unit wording
-     until the official statements are added here. */
-  const joiner=Object.assign({},carpentryCore);
+  /* ST0264 v1.4 Architectural Joiner option. */
+  const joiner=Object.assign({},carpentryCore,{
+    K30:"Architectural joiner: Requirements of fire door assemblies.",
+    K31:"Architectural joiner: Safe use of fixed machinery, inspection, preparation and operation techniques: Crosscut saw, band saw, planer and thicknesser and mortiser.",
+    K32:"Architectural joiner: Setting out and marking out techniques for joinery product manufacture and potential effects of marking out errors.",
+    K33:"Architectural joiner: Timber joints, types and production techniques: Dovetails, mortise and tenon, bridals and halvings.",
+    K34:"Architectural joiner: Manufacture and assembly techniques for standard right angled timber windows.",
+    K35:"Architectural joiner: Connection methods in joinery: Dowels, biscuit, staples and adhesives.",
+    K36:"Architectural joiner: Manufacture and assembly techniques for timber first fix products: 1. straight staircases 2. door frames and linings.",
+    K37:"Architectural joiner: Manufacture and assembly techniques for second fix timber products: 1. timber wall and floor units 2. timber doors 3. timber mouldings.",
+    K38:"Architectural joiner: Finishing techniques for manufactured timber products: Sanding, painting, waxing, polishing, oiling and applying preservative.",
+    K39:"Architectural joiner: Ironmongery installation techniques.",
+    S23:"Architectural joiner: Produce setting out details, including setting rods, and mark out for timber products.",
+    S24:"Architectural joiner: Produce basic woodworking joints including dovetail, bridal, mortise and tenon and halving.",
+    S25:"Architectural joiner: Form connections using dowels, biscuit, staples and adhesives.",
+    S26:"Architectural joiner: Apply techniques and practices to the manufacture and assembly of a timber window with casement including glazing rebates and associated ironmongery.",
+    S27:"Architectural joiner: Apply manufacture and assembly techniques for first fix products: 1. straight staircases, 2. door frames and linings.",
+    S28:"Architectural joiner: Apply manufacture and assembly techniques for second fix products: 1. timber doors, 2. wall and floor units, 3. timber mouldings, 4. staircase spindles and balustrades.",
+    S29:"Architectural joiner: Fit ironmongery including door locks, door handles, door hinges, latches and draw runners.",
+    S30:"Architectural joiner: Inspect, prepare and operate fixed machinery."
+  });
   window.EVIA_KSB_OFFICIAL={bricklayer,site,joiner};
 })();
