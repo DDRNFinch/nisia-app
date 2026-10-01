@@ -30,7 +30,7 @@
     const h=big?14:10;
     return '<div class="pv-timeline'+(big?" big":"")+'" role="img" aria-label="'+(timePct!=null?timePct+"% of the way through the course, ":"")+ksbPct+"% of "+term().many+' with evidence">'+
       '<div class="pv-tl-track" style="height:'+h+'px"><i class="pv-tl-fill pv-grow-x" style="width:'+ksbPct+'%"></i></div>'+
-      (timePct!=null?'<div class="pv-tl-mark pv-fade'+(timePct<15?" at-start":timePct>85?" at-end":"")+'" style="left:'+clamp(timePct,0,100)+'%"><span>You are here</span></div>':"")+
+      (timePct!=null?'<div class="pv-tl-mark pv-fade'+(timePct<15?" at-start":timePct>85?" at-end":"")+'" style="left:'+clamp(timePct,0,100)+'%"><span>Time</span></div>':"")+
       '<div class="pv-tl-ends"><span>Start</span><span>End</span></div></div>';
   }
   /* Ring: stroke drawn round from 12 o'clock. */
