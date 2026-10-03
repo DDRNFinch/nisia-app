@@ -245,6 +245,54 @@
       got[x.id]=new Date().toISOString();writeJson(OBS_KEY,got);
     }
   }
+  /* From the employer (Paros): witness testimonies go into Supporting evidence as a document (for the assessor to
+     sign off, so they don't tick anything off by themselves), and behaviour ratings show in My progress. */
+  const EMP_KEY="evia7-nisia-employer";
+  const WRATE=["","Getting there","Competent","Excellent"];
+  function loadPdf(){
+    if(window.jspdf)return Promise.resolve(window.jspdf);
+    return new Promise((res,rej)=>{const el=document.createElement("script");el.src="vendor/jspdf.umd.min.js";el.onload=()=>window.jspdf?res(window.jspdf):rej(new Error("no pdf"));el.onerror=()=>rej(new Error("no pdf"));document.head.appendChild(el)});
+  }
+  async function witnessFile(w,who,learner){
+    const on=new Date(w.signed_at||w.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"});
+    try{
+      const {jsPDF}=await loadPdf(),doc=new jsPDF({unit:"mm",format:"a4"}),W=170;let y=24;
+      doc.setFont("helvetica","bold");doc.setFontSize(18);doc.text("Witness testimony",20,y);y+=8;
+      doc.setFont("helvetica","normal");doc.setFontSize(11);doc.setTextColor(90);
+      [["Apprentice",learner],["Employer",who],["Unit",w.unit||""],["Date",on],["How well",WRATE[w.rating]||""],["KSBs",(w.ksbs||[]).join(", ")]].forEach(([k,v])=>{if(!v)return;doc.text(k+": "+v,20,y);y+=6});
+      y+=4;doc.setTextColor(20);doc.setFontSize(12);
+      doc.splitTextToSize(String(w.statement||""),W).forEach(l=>{if(y>275){doc.addPage();y=20}doc.text(l,20,y);y+=6});
+      y+=6;doc.setFontSize(10);doc.setTextColor(90);
+      if(w.signed_at)doc.text("Signed in Paros by the employer as seen first hand, "+on+".",20,y);
+      return {blob:doc.output("blob"),mime:"application/pdf",ext:"pdf"};
+    }catch(_){
+      const t="Witness testimony\n\nApprentice: "+learner+"\nEmployer: "+who+"\nUnit: "+(w.unit||"")+"\nDate: "+on+"\nHow well: "+(WRATE[w.rating]||"")+"\nKSBs: "+(w.ksbs||[]).join(", ")+"\n\n"+(w.statement||"")+"\n";
+      return {blob:new Blob([t],{type:"text/plain"}),mime:"text/plain",ext:"txt"};
+    }
+  }
+  async function fetchEmployer(c,e){
+    const [w,b]=await Promise.all([
+      c.from("witness_testimonies").select("id,unit,statement,rating,ksbs,signed_at,created_at").eq("enrolment_id",e.enrolmentId).order("created_at",{ascending:false}).limit(50),
+      c.from("behaviour_ratings").select("id,ratings,comment,created_at").eq("enrolment_id",e.enrolmentId).order("created_at",{ascending:false}).limit(20)]);
+    if(w.error)throw w.error;if(b.error)throw b.error;
+    const was=readJson(EMP_KEY,{})||{},seen=new Set(was.seen||[]),who=e.employer||"Your employer",learner=(window.eviaData.learner()||{}).name||e.name||"";
+    const have=new Set(window.eviaData.list("supporting").map(x=>x.id));
+    for(const t of w.data||[]){
+      const id="emp-"+t.id;if(have.has(id))continue;
+      const f=await witnessFile(t,who,learner),on=String(t.signed_at||t.created_at).slice(0,10);
+      await window.eviaSupportingFilePut({id,blob:f.blob});
+      window.eviaData.put("supporting",{id,title:"Witness testimony: "+(t.unit||"workplace"),type:"document",mime:f.mime,size:f.blob.size,
+        filename:("Witness testimony "+(t.unit||"")+" "+on).replace(/[^A-Za-z0-9 -]+/g,"").trim().replace(/\s+/g,"-")+"."+f.ext,
+        witness:{name:who,role:"Employer"},employer:{id:t.id,statement:t.statement,rating:t.rating,unit:t.unit||"",ksbs:t.ksbs||[],at:t.signed_at||t.created_at,signed:!!t.signed_at}});
+      window.eviaData.markSynced(window.eviaData.changesSince().filter(ch=>ch.collection==="supporting"&&ch.record.id===id));   /* it came from Nisia */
+    }
+    writeJson(EMP_KEY,{who,witness:(w.data||[]).map(t=>({id:t.id,unit:t.unit,rating:t.rating,statement:t.statement,ksbs:t.ksbs||[],at:t.signed_at||t.created_at})),ratings:b.data||[],seen:[...seen],at:Date.now()});
+  }
+  window.eviaEmployer={
+    get(){const d=readJson(EMP_KEY,null);return d&&((d.witness||[]).length||(d.ratings||[]).length)?d:null},
+    unseen(){const d=this.get();if(!d)return 0;const s=new Set(d.seen||[]);return [...d.witness,...d.ratings].filter(x=>!s.has(x.id)).length},
+    markSeen(){const d=readJson(EMP_KEY,null);if(!d)return;d.seen=[...(d.witness||[]),...(d.ratings||[])].map(x=>x.id);writeJson(EMP_KEY,d)}
+  };
   /* College hours: each session the tutor finished in Symi, with what was taught. They're in the learning log,
      confirmed by the tutor, so the learner can't change or delete them; a session later marked absent goes. */
   async function fetchCollege(c){
@@ -410,6 +458,7 @@
       if(c)try{await fetchTargets(c,e)}catch(err){console.warn("Evia: Nisia targets",err&&err.message)}
       if(c)try{await fetchFeedback(c)}catch(err){console.warn("Evia: Nisia feedback",err&&err.message)}
       if(c)try{await fetchCollege(c)}catch(err){console.warn("Evia: Nisia college hours",err&&err.message)}
+      if(c)try{await fetchEmployer(c,e)}catch(err){console.warn("Evia: Nisia employer feedback",err&&err.message)}
       if(c)try{await sendCheckIns(c);await sendAbsences(c);await fetchSessions(c);await fetchAbsences(c)}catch(err){console.warn("Evia: Nisia registers",err&&err.message)}
       /* Game leaderboards: scores waiting to go, and prizes from last month (leaderboard.js). */
       if(c&&window.eviaLeaderboard)try{await window.eviaLeaderboard.onSync()}catch(err){console.warn("Evia: Nisia leaderboards",err&&err.message)}
@@ -523,7 +572,7 @@
   function pushOpen(what){
     const K=window.eviaChatKit;if(!K||!what)return;
     const run=()=>{
-      if(what==="feedback"){const f=window.eviaFeedback&&window.eviaFeedback.unseen()[0];if(f)K.runNudge({action:{kind:"feedback",label:"See feedback"},feedback:f});else if(typeof nav==="function")nav("course")}
+      if(what==="feedback"){const f=window.eviaFeedback&&window.eviaFeedback.unseen()[0];if(f)K.runNudge({action:{kind:"feedback",label:"See feedback"},feedback:f});else if(window.eviaEmployer&&window.eviaEmployer.unseen()&&window.eviaOpenEmployer)window.eviaOpenEmployer();else if(typeof nav==="function")nav("course")}
       else if(what==="targets")K.runNudge({action:{kind:"targets",label:"My targets"}});
       else if(what==="review")K.runNudge({action:{kind:"prep",label:"Get ready for my review"}});
       else if(what==="hours")K.runNudge({action:{kind:"learning",label:"Log learning hours"}});

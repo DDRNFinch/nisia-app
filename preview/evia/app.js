@@ -284,6 +284,15 @@ function supportingSummary(x){if(x.observation)return ["Observed by "+(x.observa
 /* About this evidence: mark it as witness testimony and, on NVQ courses, link it to a unit and the criteria it shows. */
 function openSupportingDetails(id,fresh,after){
  const all=supportingMeta(),x=all.find(r=>r.id===id);if(!x)return;
+ /* An employer's witness testimony (Paros): read it here; the assessor signs off what it shows. */
+ if(x.employer){const E=x.employer,R=["","Getting there","Competent","Excellent"];
+  $("#modal-root").innerHTML='<div class="overlay"><section class="sheet pr-sheet sd-sheet"><div class="sheet-head"><div><div class="chat-kicker">WITNESS TESTIMONY</div><h2>'+esc(E.unit||"From your employer")+'</h2></div><button class="close" id="sd-close" aria-label="Close">×</button></div><div class="pr-body">'+
+   '<p class="sd-emp-meta">'+esc((x.witness&&x.witness.name)||"Your employer")+' · '+esc(new Date(E.at).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}))+(R[E.rating]?' · <strong>'+esc(R[E.rating])+'</strong>':"")+'</p>'+
+   '<blockquote class="sd-emp-quote">'+esc(E.statement)+'</blockquote>'+
+   ((E.ksbs||[]).length?'<div class="sd-emp-ksbs">'+E.ksbs.map(k=>'<span>'+esc(k)+'</span>').join("")+'</div>':"")+
+   '<p class="sd-emp-note">'+(E.signed?"Signed by your employer as seen first hand. ":"")+'Your assessor checks it and signs off the KSBs it shows.</p>'+
+   '<div class="pr-save"><button type="button" class="primary" id="sd-skip">Done</button></div></div></section></div>';
+  const done=()=>{$("#modal-root").innerHTML="";if(after)after()};$("#sd-close").onclick=$("#sd-skip").onclick=done;return}
  const nvq=window.eviaNvq&&window.eviaNvq.on(),w=x.witness||{};
  const units=nvq?window.eviaNvq.selected():[];
  const critList=u=>{const list=u?window.eviaNvq.doCodesFor(u):[];return list.length?'<div class="sd-crit-head">What does it show? Tick what applies, your assessor will check it.</div>'+list.map(([c,t])=>'<label class="sd-crit"><input type="checkbox" value="'+esc(c)+'"'+((x.ksbs||[]).includes(c)?" checked":"")+'><span><strong>'+esc(c.split(".").slice(1).join("."))+'</strong> '+esc(t)+'</span></label>').join(""):""};

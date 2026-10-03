@@ -2733,3 +2733,14 @@ body.evia-epa .chat-sheet .chat{animation:none}
 @media (prefers-reduced-motion:reduce){#chat .td-away,#chat .td-days,#chat .td-note,#chat .td-item,#chat .td-ic,#chat .td-go,#chat .td-count,#chat .td-done circle,#chat .td-done path,.chat-sheet .ev-head-face,.chat-sheet .ev-head-face .evia-face i,html body .chat-sheet .chat,#chat .td-item.urgent .td-ic::after{animation:none!important}#chat .td-done circle,#chat .td-done path{stroke-dashoffset:0}}
 html[data-a11y-motion="reduce"] #chat .td-item,html[data-a11y-motion="reduce"] #chat .td-ic,html[data-a11y-motion="reduce"] #chat .td-go,html[data-a11y-motion="reduce"] #chat .td-count,html[data-a11y-motion="reduce"] .chat-sheet .ev-head-face,html[data-a11y-motion="reduce"] .chat-sheet .ev-head-face .evia-face i,html[data-a11y-motion="reduce"] body .chat-sheet .chat,html[data-a11y-motion="reduce"] #chat .td-item.urgent .td-ic::after{animation:none!important}
 html[data-a11y-motion="reduce"] #chat .td-done circle,html[data-a11y-motion="reduce"] #chat .td-done path{animation:none!important;stroke-dashoffset:0}
+
+/* From the employer (Paros): the witness testimony, and their view in My progress. */
+.sd-emp-meta{margin:0 0 10px;color:var(--muted,#667085);font-size:14px}
+.sd-emp-quote{margin:0;padding:14px 16px;border-radius:14px;background:var(--soft,#fff7d6);font-size:15.5px;line-height:1.55;white-space:pre-wrap}
+.sd-emp-ksbs{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.sd-emp-ksbs span{padding:4px 10px;border-radius:999px;border:1px solid var(--ui-line,#e4e7ec);font-size:13px;font-weight:700}
+.sd-emp-note{margin:12px 0 0;color:var(--muted,#667085);font-size:13.5px}
+.pv-h3{margin:14px 0 4px;font-size:16px}
+.pv-quote{margin:10px 0 0;padding:10px 14px;border-left:3px solid var(--yellow,#f5c518);font-size:14.5px;line-height:1.5;white-space:pre-wrap}
+.pv-witness{padding:10px 0;border-top:1px solid var(--ui-line,#edf0f4)}
+.pv-card.pv-new{box-shadow:0 0 0 2px var(--yellow,#f5c518)}

@@ -150,6 +150,9 @@
     body.querySelectorAll(".pv-deep-acts [data-act]").forEach(b=>b.onclick=()=>{const a=ACTS[id][+b.dataset.act];document.getElementById("modal-root").innerHTML="";a[1]()});
   }
   const openDeep=id=>{deep(id,gather());addActs(id)};
+  const BEH=["","Needs support","Developing","Good","Excellent"],WIT=["","Getting there","Competent","Excellent"];
+  const behName=k=>{try{const o=window.EVIA_KSB_OFFICIAL||{},c=typeof course==="string"?course:"",m=o[c]||o[c==="trowel3"?"bricklayer":c]||{};return m[k]||""}catch(_){return ""}};
+  window.eviaOpenEmployer=()=>{if(typeof nav==="function")nav("learning");setTimeout(()=>openDeep("employer"),250)};
   const card=(id,title,big,sub,chart,extra)=>cardBtn(id,title,big,sub,chart,extra);
   const cardBtn=(id,title,big,sub,chart,extra)=>'<button type="button" class="pv-card'+(extra||"")+'" data-pv="'+id+'" id="pv-'+id+'"><span class="pv-head"><span class="pv-title">'+title+'</span><span class="pv-chev">'+CHEV+'</span></span><span class="pv-big">'+big+'</span>'+(sub?'<span class="pv-sub">'+sub+'</span>':"")+(chart?'<span class="pv-chart">'+chart+'</span>':"")+'</button>';
   const empty=text=>'<span class="pv-empty">'+esc(text)+'</span>';
@@ -203,6 +206,15 @@
     // Teach me: average score, areas completed, and the medals popping in bronze, then silver, then gold.
     const TR=window.eviaTeach&&window.eviaTeach.report?window.eviaTeach.report():null;
     if(TR&&TR.total)out.push(card("teach","Teach me",TR.avg==null?"–":num(TR.avg,"%"),TR.avg==null?"Finish a lesson to get a score":"average score · "+TR.areasDone+" of "+TR.areasTotal+" areas completed",medalRow(TR.medals)));
+    // From the employer (Paros): how they rate the behaviours, and their witness testimonies.
+    const EM=window.eviaEmployer&&window.eviaEmployer.get();
+    if(EM){
+      const b=(EM.ratings||[])[0],n=(EM.witness||[]).length,fresh=window.eviaEmployer.unseen();
+      const avg=b?Object.values(b.ratings||{}).reduce((t,v)=>t+Number(v),0)/Math.max(1,Object.keys(b.ratings||{}).length):null;
+      out.push(card("employer","From your employer",b?BEH[Math.round(avg)]||"–":num(n),
+        (fresh?"New · ":"")+(b?"behaviours overall"+(n?" · "+n+" witness testimon"+(n===1?"y":"ies"):""):"witness testimon"+(n===1?"y":"ies")),
+        b?'<span class="pv-rows">'+Object.entries(b.ratings||{}).sort().slice(0,3).map(([k,v],i)=>'<span class="pv-row"><span class="pv-row-top"><span>'+esc(k+" "+behName(k))+'</span><strong>'+esc(BEH[v]||v)+'</strong></span>'+bar(v/4*100,v<=2?"low":v>=4?"good":"",i*80)+'</span>').join("")+'</span>':"",fresh?" pv-new":""));
+    }
     // Achievements
     const ach=window.eviaStats.achievements(S),earned=ach.list.filter(x=>x.earned);
     out.push(card("ach","Achievements",num(ach.count)+'<small> / '+ach.list.length+'</small>',ach.fresh.length?"New one earned":"earned",earned.length?'<span class="pv-badges">'+earned.slice(0,6).map((x,i)=>'<span class="pv-badge pv-pop" style="--d:'+(i*70)+'ms" title="'+esc(x.label)+'">'+BADGE+'</span>').join("")+(earned.length>6?'<span class="pv-badge more">+'+(earned.length-6)+'</span>':"")+'</span>':empty("Your first one isn’t far away")));
@@ -225,6 +237,19 @@
 
   function deep(id,D){
     if(id==="guide"){window.eviaStrength.guide();return}
+    if(id==="employer"){
+      const EM=window.eviaEmployer&&window.eviaEmployer.get();if(!EM)return;
+      window.eviaEmployer.markSeen();
+      const b=(EM.ratings||[])[0],prev=(EM.ratings||[])[1];
+      sheet("FROM YOUR EMPLOYER",esc(EM.who||"Your employer"),
+        (b?'<h3 class="pv-h3">Your behaviours</h3><p class="pv-sub">Rated '+esc(longDate(b.created_at))+(prev?', compared with '+esc(longDate(prev.created_at)):"")+'</p>'+
+          '<div class="pv-rows">'+Object.entries(b.ratings||{}).sort().map(([k,v],i)=>{const was=prev&&prev.ratings?Number(prev.ratings[k]):null,ch=was?v-was:0;
+            return '<span class="pv-row"><span class="pv-row-top"><span><strong>'+esc(k)+'</strong> '+esc(behName(k))+'</span><strong>'+(ch>0?'<em class="pv-up">↑</em> ':ch<0?'<em class="pv-down">↓</em> ':"")+esc(BEH[v]||v)+'</strong></span>'+bar(v/4*100,v<=2?"low":v>=4?"good":"",i*60)+'</span>'}).join("")+'</div>'+
+          (b.comment?'<p class="pv-quote">“'+esc(b.comment)+'”</p>':""):"")+
+        ((EM.witness||[]).length?'<h3 class="pv-h3">Witness testimonies</h3>'+EM.witness.map(w=>'<div class="pv-witness"><div class="pv-row-top"><strong>'+esc(w.unit||"Witness testimony")+'</strong><span>'+esc(WIT[w.rating]||"")+'</span></div><p class="pv-quote">“'+esc(w.statement)+'”</p><small class="pv-row-note">'+esc(longDate(w.at))+((w.ksbs||[]).length?" · "+esc(w.ksbs.join(", ")):"")+'</small></div>').join("")+
+          note("They’re in your <strong>Supporting evidence</strong> too. Your assessor checks them and signs off the KSBs they show."):""));
+      return;
+    }
     if(id==="review"){
       const rd=window.eviaReviewDue&&window.eviaReviewDue(),revs=window.eviaGetReviews?window.eviaGetReviews():[];
       sheet("MY PROGRESS","Progress review",
