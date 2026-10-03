@@ -270,11 +270,29 @@
       return {blob:new Blob([t],{type:"text/plain"}),mime:"text/plain",ext:"txt"};
     }
   }
+  const BRATE=["","Needs support","Developing","Good","Excellent"];
+  const behName=k=>{try{const o=window.EVIA_KSB_OFFICIAL||{},c=typeof course==="string"?course:"";return (o[c]||o[c==="trowel3"?"bricklayer":c]||{})[k]||""}catch(_){return ""}};
+  async function ratingFile(b,who,learner){
+    const on=new Date(b.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}),rows=Object.entries(b.ratings||{}).sort();
+    try{
+      const {jsPDF}=await loadPdf(),doc=new jsPDF({unit:"mm",format:"a4"});let y=24;
+      doc.setFont("helvetica","bold");doc.setFontSize(18);doc.text("Employer feedback: behaviours",20,y);y+=8;
+      doc.setFont("helvetica","normal");doc.setFontSize(11);doc.setTextColor(90);
+      [["Apprentice",learner],["Employer",who],["Date",on]].forEach(([k,v])=>{if(v){doc.text(k+": "+v,20,y);y+=6}});
+      y+=4;doc.setTextColor(20);
+      rows.forEach(([k,v])=>{const lines=doc.splitTextToSize(k+"  "+behName(k),130);doc.setFont("helvetica","normal");doc.text(lines,20,y);doc.setFont("helvetica","bold");doc.text(BRATE[v]||String(v),190,y,{align:"right"});y+=lines.length*5.5+3;if(y>270){doc.addPage();y=20}});
+      if(b.comment){y+=4;doc.setFont("helvetica","normal");doc.setFontSize(12);doc.splitTextToSize("“"+b.comment+"”",170).forEach(l=>{if(y>275){doc.addPage();y=20}doc.text(l,20,y);y+=6})}
+      return {blob:doc.output("blob"),mime:"application/pdf",ext:"pdf"};
+    }catch(_){
+      const t="Employer feedback: behaviours\n\nApprentice: "+learner+"\nEmployer: "+who+"\nDate: "+on+"\n\n"+rows.map(([k,v])=>k+" "+behName(k)+": "+(BRATE[v]||v)).join("\n")+(b.comment?"\n\n"+b.comment:"")+"\n";
+      return {blob:new Blob([t],{type:"text/plain"}),mime:"text/plain",ext:"txt"};
+    }
+  }
   async function fetchEmployer(c,e){
-    const [w,b]=await Promise.all([
+    const [w,r]=await Promise.all([
       c.from("witness_testimonies").select("id,unit,statement,rating,ksbs,signed_at,created_at").eq("enrolment_id",e.enrolmentId).order("created_at",{ascending:false}).limit(50),
       c.from("behaviour_ratings").select("id,ratings,comment,created_at").eq("enrolment_id",e.enrolmentId).order("created_at",{ascending:false}).limit(20)]);
-    if(w.error)throw w.error;if(b.error)throw b.error;
+    if(w.error)throw w.error;if(r.error)throw r.error;
     const was=readJson(EMP_KEY,{})||{},seen=new Set(was.seen||[]),who=e.employer||"Your employer",learner=(window.eviaData.learner()||{}).name||e.name||"";
     const have=new Set(window.eviaData.list("supporting").map(x=>x.id));
     for(const t of w.data||[]){
@@ -286,7 +304,16 @@
         witness:{name:who,role:"Employer"},employer:{id:t.id,statement:t.statement,rating:t.rating,unit:t.unit||"",ksbs:t.ksbs||[],at:t.signed_at||t.created_at,signed:!!t.signed_at}});
       window.eviaData.markSynced(window.eviaData.changesSince().filter(ch=>ch.collection==="supporting"&&ch.record.id===id));   /* it came from Nisia */
     }
-    writeJson(EMP_KEY,{who,witness:(w.data||[]).map(t=>({id:t.id,unit:t.unit,rating:t.rating,statement:t.statement,ksbs:t.ksbs||[],at:t.signed_at||t.created_at})),ratings:b.data||[],seen:[...seen],at:Date.now()});
+    for(const b of r.data||[]){
+      const id="emp-"+b.id;if(have.has(id))continue;
+      const f=await ratingFile(b,who,learner),on=String(b.created_at).slice(0,10);
+      await window.eviaSupportingFilePut({id,blob:f.blob});
+      window.eviaData.put("supporting",{id,title:"Employer feedback: behaviours",type:"document",mime:f.mime,size:f.blob.size,
+        filename:("Employer feedback behaviours "+on).replace(/\s+/g,"-")+"."+f.ext,
+        witness:{name:who,role:"Employer"},employer:{id:b.id,kind:"behaviours",ratings:b.ratings||{},comment:b.comment||"",at:b.created_at}});
+      window.eviaData.markSynced(window.eviaData.changesSince().filter(ch=>ch.collection==="supporting"&&ch.record.id===id));
+    }
+    writeJson(EMP_KEY,{who,witness:(w.data||[]).map(t=>({id:t.id,unit:t.unit,rating:t.rating,statement:t.statement,ksbs:t.ksbs||[],at:t.signed_at||t.created_at})),ratings:r.data||[],seen:[...seen],at:Date.now()});
   }
   window.eviaEmployer={
     get(){const d=readJson(EMP_KEY,null);return d&&((d.witness||[]).length||(d.ratings||[]).length)?d:null},
@@ -572,7 +599,9 @@
   function pushOpen(what){
     const K=window.eviaChatKit;if(!K||!what)return;
     const run=()=>{
-      if(what==="feedback"){const f=window.eviaFeedback&&window.eviaFeedback.unseen()[0];if(f)K.runNudge({action:{kind:"feedback",label:"See feedback"},feedback:f});else if(window.eviaEmployer&&window.eviaEmployer.unseen()&&window.eviaOpenEmployer)window.eviaOpenEmployer();else if(typeof nav==="function")nav("course")}
+      if(what==="feedback"){const f=window.eviaFeedback&&window.eviaFeedback.unseen()[0];if(f)K.runNudge({action:{kind:"feedback",label:"See feedback"},feedback:f});else if(window.eviaEmployer&&window.eviaEmployer.unseen()&&typeof openSupportingDetails==="function"){
+        const x=window.eviaData.list("supporting").filter(r=>String(r.id).startsWith("emp-")).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)))[0];
+        window.eviaEmployer.markSeen();if(x)openSupportingDetails(x.id,false);else if(window.eviaOpenEmployer)window.eviaOpenEmployer()}else if(typeof nav==="function")nav("course")}
       else if(what==="targets")K.runNudge({action:{kind:"targets",label:"My targets"}});
       else if(what==="review")K.runNudge({action:{kind:"prep",label:"Get ready for my review"}});
       else if(what==="hours")K.runNudge({action:{kind:"learning",label:"Log learning hours"}});

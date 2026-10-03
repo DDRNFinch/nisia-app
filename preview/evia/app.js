@@ -280,11 +280,19 @@ function supportingPrepare(base,type){
    stopBtn.onclick=()=>{if(recorder&&recorder.state!=="inactive")recorder.stop()};
  }
 }
-function supportingSummary(x){if(x.observation)return ["Observed by "+(x.observation.by||"your assessor"),x.ksbs&&x.ksbs.length?x.ksbs.length+" signed off":""].filter(Boolean).join(" · ");return [x.witness&&x.witness.name?"Witness testimony · "+x.witness.name+(x.witness.role?", "+x.witness.role:""):supportingTypeLabel(x.type),x.nvqUnit?"Unit "+x.nvqUnit+(Array.isArray(x.ksbs)&&x.ksbs.length?" · "+x.ksbs.length+" criteria":""):""].filter(Boolean).join(" · ")}
+function supportingSummary(x){if(x.employer)return (x.witness&&x.witness.name||"Your employer")+" · "+(x.employer.kind==="behaviours"?"Behaviour ratings":"Witness testimony")+" · "+new Date(x.employer.at).toLocaleDateString("en-GB",{day:"numeric",month:"short"});if(x.observation)return ["Observed by "+(x.observation.by||"your assessor"),x.ksbs&&x.ksbs.length?x.ksbs.length+" signed off":""].filter(Boolean).join(" · ");return [x.witness&&x.witness.name?"Witness testimony · "+x.witness.name+(x.witness.role?", "+x.witness.role:""):supportingTypeLabel(x.type),x.nvqUnit?"Unit "+x.nvqUnit+(Array.isArray(x.ksbs)&&x.ksbs.length?" · "+x.ksbs.length+" criteria":""):""].filter(Boolean).join(" · ")}
 /* About this evidence: mark it as witness testimony and, on NVQ courses, link it to a unit and the criteria it shows. */
 function openSupportingDetails(id,fresh,after){
  const all=supportingMeta(),x=all.find(r=>r.id===id);if(!x)return;
  /* An employer's witness testimony (Paros): read it here; the assessor signs off what it shows. */
+ if(x.employer&&x.employer.kind==="behaviours"){const E=x.employer,B=["","Needs support","Developing","Good","Excellent"],off=(window.EVIA_KSB_OFFICIAL||{})[course==="trowel3"?"bricklayer":course]||{};
+  $("#modal-root").innerHTML='<div class="overlay"><section class="sheet pr-sheet sd-sheet"><div class="sheet-head"><div><div class="chat-kicker">EMPLOYER FEEDBACK</div><h2>Your behaviours</h2></div><button class="close" id="sd-close" aria-label="Close">×</button></div><div class="pr-body">'+
+   '<p class="sd-emp-meta">'+esc((x.witness&&x.witness.name)||"Your employer")+' · '+esc(new Date(E.at).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}))+'</p>'+
+   '<div class="sd-emp-beh">'+Object.entries(E.ratings||{}).sort().map(([k,v])=>'<div class="sd-emp-row"><span><strong>'+esc(k)+'</strong> '+esc(off[k]||"")+'</span><em class="l'+Number(v)+'">'+esc(B[v]||v)+'</em></div>').join("")+'</div>'+
+   (E.comment?'<blockquote class="sd-emp-quote">'+esc(E.comment)+'</blockquote>':"")+
+   '<p class="sd-emp-note">Your assessor can see this too, and uses it at your progress reviews.</p>'+
+   '<div class="pr-save"><button type="button" class="primary" id="sd-skip">Done</button></div></div></section></div>';
+  const done=()=>{$("#modal-root").innerHTML="";if(after)after()};$("#sd-close").onclick=$("#sd-skip").onclick=done;return}
  if(x.employer){const E=x.employer,R=["","Getting there","Competent","Excellent"];
   $("#modal-root").innerHTML='<div class="overlay"><section class="sheet pr-sheet sd-sheet"><div class="sheet-head"><div><div class="chat-kicker">WITNESS TESTIMONY</div><h2>'+esc(E.unit||"From your employer")+'</h2></div><button class="close" id="sd-close" aria-label="Close">×</button></div><div class="pr-body">'+
    '<p class="sd-emp-meta">'+esc((x.witness&&x.witness.name)||"Your employer")+' · '+esc(new Date(E.at).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}))+(R[E.rating]?' · <strong>'+esc(R[E.rating])+'</strong>':"")+'</p>'+

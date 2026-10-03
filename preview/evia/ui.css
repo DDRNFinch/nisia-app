@@ -2744,3 +2744,8 @@ html[data-a11y-motion="reduce"] #chat .td-done circle,html[data-a11y-motion="red
 .pv-quote{margin:10px 0 0;padding:10px 14px;border-left:3px solid var(--yellow,#f5c518);font-size:14.5px;line-height:1.5;white-space:pre-wrap}
 .pv-witness{padding:10px 0;border-top:1px solid var(--ui-line,#edf0f4)}
 .pv-card.pv-new{box-shadow:0 0 0 2px var(--yellow,#f5c518)}
+.sd-emp-beh{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.sd-emp-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--ui-line,#edf0f4);font-size:14px}
+.sd-emp-row span{min-width:0}
+.sd-emp-row em{flex:none;font-style:normal;font-weight:800;font-size:13px;padding:3px 10px;border-radius:999px;background:#eaf8f0;color:#2f7d56}
+.sd-emp-row em.l1{background:#fde8e6;color:#b3261e}.sd-emp-row em.l2{background:#fff4d6;color:#8a6100}
