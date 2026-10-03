@@ -1,0 +1,165 @@
+/* Signing in, shared by the portal and Milos:
+   an invite link (#invite=CODE) → name and password → sign in → add Nisia to an authenticator app (first time)
+   or type its 6-digit code (every other time) → onReady(). */
+import { db, AUTH_KEY, call, state, signIn, signOut, startAuthenticator, verifyCode, esc } from "./nisia.js";
+
+/* The email last used on this device, so signing back in is just the password and the code. Kept after signing out
+   (it's only the address); "Not you?" forgets it. */
+/* Each app keeps its own, as each keeps its own sign-in (the portal's is the original key). */
+const EMAIL_KEY = AUTH_KEY === "nisia-auth" ? "nisia-last-email" : AUTH_KEY + "-last-email";
+const lastEmail = () => { try { return localStorage.getItem(EMAIL_KEY) || ""; } catch (_) { return ""; } };
+const keepEmail = (e) => { try { if (e) localStorage.setItem(EMAIL_KEY, e.trim().toLowerCase()); else localStorage.removeItem(EMAIL_KEY); } catch (_) {} };
+/* The authenticator code goes by itself once all 6 digits are in (typed, pasted or filled in by the phone). */
+function autoSend(f) {
+  let sent = "";
+  f.c.addEventListener("input", () => { const v = f.c.value.replace(/\D/g, ""); if (v.length === 6 && v !== sent) { sent = v; f.requestSubmit ? f.requestSubmit() : f.dispatchEvent(new Event("submit", { cancelable: true })); } });
+}
+
+const PW_RULE = "At least 10 characters, with upper and lower case letters, a number and a symbol.";
+
+export function inviteCode() {
+  const m = /[#&]invite=([A-Za-z0-9-]+)/.exec(location.hash);
+  return m ? m[1] : "";
+}
+
+/* The master admin's test accounts (their email with +nisia-test-…): a badge says so on every screen, so a test
+   account is never mistaken for a real one. */
+export const isTestEmail = (e) => /\+nisia-test-[a-z]+@/i.test(String(e || ""));
+async function testBadge() {
+  let email = "";
+  try { const { data } = await db.auth.getSession(); email = data.session && data.session.user.email; } catch (_) {}
+  const old = document.getElementById("nisia-test-badge");
+  if (!isTestEmail(email)) { if (old) old.remove(); return; }
+  const role = /\+nisia-test-([a-z]+)@/i.exec(email)[1], label = { admin: "college admin", quality: "quality" }[role] || role;
+  const b = old || document.createElement("div");
+  b.id = "nisia-test-badge"; b.setAttribute("role", "note");
+  b.style.cssText = "position:fixed;left:10px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:99999;padding:5px 11px;border-radius:999px;background:#B42318;color:#fff;font:700 11px/1.3 system-ui,sans-serif;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 4px 14px rgba(0,0,0,.2);pointer-events:none";
+  b.textContent = "Test account · " + label;
+  if (!old) document.body.appendChild(b);
+}
+db.auth.onAuthStateChange(() => { setTimeout(testBadge, 0); });
+
+export async function auth(root, o) {
+  if (!o.badged) { const ready = o.onReady; o = { ...o, badged: true, onReady: (...a) => { testBadge(); return ready(...a); } }; }
+  const code = inviteCode();
+  if (code) return acceptInvite(root, o, code);
+  const s = await state();
+  if (s.step === "ready") return o.onReady();
+  if (s.step === "needs-setup") return setupAuthenticator(root, o);
+  if (s.step === "needs-code") return askCode(root, o, s.factorId);
+  return signInForm(root, o);
+}
+
+/* Two looks: Evia's (Milos), or o.split, the portal's: a dark panel with the Nisia islands beside the form. */
+const ISLANDS = '<svg class="islands" viewBox="0 0 420 260" aria-hidden="true"><path d="M0 200 C60 185 120 215 180 200 S300 185 420 200 V260 H0z" fill="#1B3350"/><path d="M40 200 C70 150 110 130 150 150 C170 120 210 115 240 150 C255 140 275 150 290 200z" fill="#0B6E78"/><path d="M300 200 C315 170 340 160 365 175 C380 165 400 175 410 200z" fill="#E7B900"/><path d="M190 205 C200 190 220 188 235 205z" fill="#2C85F7"/><path d="M0 225 C60 212 120 238 180 225 S300 212 420 225" fill="none" stroke="#3FB8C3" stroke-width="2" opacity=".5"/></svg>';
+export const MARK = '<svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="10" fill="var(--accent)"/><path d="M6 23c3-3 6-3 9 0s6 3 9 0 3-1.5 4-1.5" fill="none" stroke="var(--accent-ink)" stroke-width="2.2" stroke-linecap="round"/><path d="M9 18.5c1.5-4 3.5-6 5.5-6s3 2 4 3.5c1-1 2-1.5 3-1.5 1.6 0 2.8 1.4 3.5 4" fill="none" stroke="var(--accent-ink)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const frame = (o, body, say) => o.split
+  ? '<div class="signin"><section class="signin-art"><div class="label" style="color:#7FD0D8">Nisia · for colleges and training providers</div>' +
+    '<div style="display:flex;flex-direction:column;gap:14px;position:relative;z-index:1"><h1>See how every apprentice is really doing.</h1><p>Live progress from Evia, your learners’ app: who’s active, who’s gone quiet, and where evidence or learning hours are falling behind.</p></div>' + ISLANDS + '</section>' +
+    '<section class="signin-form"><div class="form"><div style="display:flex;align-items:center;gap:10px">' + MARK + '<span class="brand-name">' + esc(o.title) + '</span></div>' +
+    (say ? '<p class="muted small">' + say + '</p>' : '<div><h2>Sign in</h2><p class="muted small">' + esc(o.subtitle || "") + '</p></div>') + body + '</div></section></div>'
+  : '<div class="auth"><div class="box"><div class="hello"><span class="av lg" aria-hidden="true"><i></i><i></i></span>' +
+  '<div><h1>' + esc(o.title) + '</h1><p class="muted">' + esc(o.subtitle || "") + '</p></div>' + (say ? '<p class="say">' + say + '</p>' : "") + '</div>' + body + '</div></div>';
+
+function signInForm(root, o, email, err) {
+  const known = email === undefined ? lastEmail() : "";
+  email = email || known;
+  root.innerHTML = frame(o,
+    '<form class="box" id="f" novalidate>' +
+    '<label class="field">Email<input id="email" name="email" type="email" autocomplete="username" value="' + esc(email || "") + '" required></label>' +
+    '<label class="field">Password<input id="pw" name="password" type="password" autocomplete="current-password" required></label>' +
+    '<p class="err" id="err" role="alert">' + esc(err || "") + '</p>' +
+    '<button class="btn primary wide" type="submit">Sign in</button>' +
+    (known ? '<button class="btn ghost" type="button" id="notMe">Not you? Use a different email</button>' : "") +
+    '<button class="btn ghost" type="button" id="haveInvite">New here? I have an invite</button></form>');
+  const f = root.querySelector("#f");
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    const b = f.querySelector("button"); b.disabled = true; b.textContent = "Signing in…";
+    try { await signIn(f.email.value, f.pw.value); keepEmail(f.email.value); await auth(root, o); }
+    catch (x) { signInForm(root, o, f.email.value, x.message); }
+  };
+  root.querySelector("#haveInvite").onclick = () => pasteInvite(root, o);
+  const nm = root.querySelector("#notMe"); if (nm) nm.onclick = () => { keepEmail(""); signInForm(root, o, ""); };
+  (email ? f.pw : f.email).focus();
+}
+
+/* For when the invite link opens without its code (some apps' browsers drop the part after #): paste it instead. */
+function pasteInvite(root, o, err) {
+  root.innerHTML = frame(o,
+    '<form class="box" id="f" novalidate>' +
+    '<label class="field">Your invite link or code<input id="code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Paste the link, or type the code"></label>' +
+    '<p class="err" role="alert">' + esc(err || "") + '</p>' +
+    '<button class="btn primary wide" type="submit">Continue</button>' +
+    '<button class="btn ghost" type="button" id="back">Back to sign in</button></form>', "Paste the invite link you were sent, or just the code at the end of it.");
+  const f = root.querySelector("#f");
+  f.onsubmit = (e) => {
+    e.preventDefault();
+    const v = f.code.value.trim(), m = /invite=([A-Za-z0-9-]+)/.exec(v), code = (m ? m[1] : v).toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (code.length < 12) return pasteInvite(root, o, "That doesn’t look like a whole invite code. It’s 16 letters and numbers.");
+    acceptInvite(root, o, code);
+  };
+  root.querySelector("#back").onclick = () => signInForm(root, o);
+  f.code.focus();
+}
+
+function acceptInvite(root, o, code, err) {
+  root.innerHTML = frame(o,
+    '<form class="box" id="f" novalidate>' +
+    '<label class="field">Your name<input id="name" autocomplete="name" required></label>' +
+    '<label class="field">Choose a password<input id="pw" type="password" autocomplete="new-password"><small>' + PW_RULE + ' If you already use Nisia, leave this empty and sign in as usual afterwards.</small></label>' +
+    '<p class="err" id="err" role="alert">' + esc(err || "") + '</p>' +
+    '<button class="btn primary wide" type="submit">Accept invite</button></form>', "You’ve been invited to " + esc(o.title) + ". Set up your sign-in.");
+  const f = root.querySelector("#f");
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    const b = f.querySelector("button"); b.disabled = true; b.textContent = "Setting up…";
+    try {
+      const r = await call("nisia-setup", { action: "accept", code, name: f.name.value, password: f.pw.value });
+      history.replaceState(null, "", location.pathname + location.search);
+      keepEmail(r.email);
+      if (f.pw.value) { await signIn(r.email, f.pw.value); return auth(root, o); }
+      signInForm(root, o, r.email);
+    } catch (x) { acceptInvite(root, o, code, x.message); }
+  };
+  f.name.focus();
+}
+
+async function setupAuthenticator(root, o, err) {
+  let a;
+  try { a = await startAuthenticator(); } catch (x) { root.innerHTML = frame(o, '<p class="err">' + esc(x.message) + '</p>'); return; }
+  root.innerHTML = frame(o,
+    '<div class="qr">' + (a.qr.startsWith("data:") ? '<img alt="QR code for your authenticator app" src="' + a.qr + '">' : a.qr) + '</div>' +
+    '<p class="secret">Can’t scan it? Type this key instead:<br>' + esc(a.secret) + '</p>' +
+    '<form class="box" id="f"><label class="field">The 6-digit code it shows<input id="c" inputmode="numeric" autocomplete="one-time-code" maxlength="7"></label>' +
+    '<p class="err" role="alert">' + esc(err || "") + '</p><button class="btn primary wide" type="submit">Turn on</button>' +
+    '<button class="btn ghost" type="button" id="out">Use a different account</button></form>',
+    "One more step, to keep learners’ records safe. Scan this with an authenticator app (Google Authenticator, Microsoft Authenticator or your phone’s passwords app).");
+  const f = root.querySelector("#f");
+  autoSend(f);
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    if (f.dataset.busy) return; f.dataset.busy = "1";
+    try { await verifyCode(a.factorId, f.c.value); o.onReady(); }
+    catch (x) { delete f.dataset.busy; f.querySelector(".err").textContent = x.message; f.c.value = ""; f.c.focus(); }
+  };
+  root.querySelector("#out").onclick = async () => { await signOut(); auth(root, o); };
+  f.c.focus();
+}
+
+function askCode(root, o, factorId) {
+  root.innerHTML = frame(o,
+    '<form class="box" id="f"><label class="field">Code from your authenticator app<input id="c" inputmode="numeric" autocomplete="one-time-code" maxlength="7"></label>' +
+    '<p class="err" role="alert"></p><button class="btn primary wide" type="submit">Continue</button>' +
+    '<button class="btn ghost" type="button" id="out">Use a different account</button></form>');
+  const f = root.querySelector("#f");
+  autoSend(f);
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    if (f.dataset.busy) return; f.dataset.busy = "1";
+    try { await verifyCode(factorId, f.c.value); o.onReady(); }
+    catch (x) { delete f.dataset.busy; f.querySelector(".err").textContent = x.message; f.c.value = ""; f.c.focus(); }
+  };
+  root.querySelector("#out").onclick = async () => { await signOut(); auth(root, o); };
+  f.c.focus();
+}
