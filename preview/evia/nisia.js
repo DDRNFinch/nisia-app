@@ -477,8 +477,9 @@
       if(c)try{await fetchTargets(c,e)}catch(err){console.warn("Evia: Nisia targets",err&&err.message)}
       /* Everything Nisia has for the learner, in one request (whatsNew): registers, attendance, days off, feedback. */
       if(c)try{await sendKept();const w=await fetchRegisters();
-        try{await fetchFeedback(w.feedback||[])}catch(err){console.warn("Evia: Nisia feedback",err&&err.message)}
-        try{await fetchEmployer(w.employer,e)}catch(err){console.warn("Evia: Nisia employer feedback",err&&err.message)}
+        /* Only what Nisia actually sent replaces what Evia has: an older Nisia without these parts leaves them alone. */
+        try{await fetchFeedback(Array.isArray(w.feedback)?w.feedback:await c.rpc("nisia_my_feedback").then(r=>{if(r.error)throw r.error;return r.data||[]}))}catch(err){console.warn("Evia: Nisia feedback",err&&err.message)}
+        try{if(w.employer)await fetchEmployer(w.employer,e)}catch(err){console.warn("Evia: Nisia employer feedback",err&&err.message)}
       }catch(err){console.warn("Evia: Nisia registers",err&&err.message)}
       /* Game leaderboards: scores waiting to go, and prizes from last month (leaderboard.js). */
       if(c&&window.eviaLeaderboard)try{await window.eviaLeaderboard.onSync()}catch(err){console.warn("Evia: Nisia leaderboards",err&&err.message)}
