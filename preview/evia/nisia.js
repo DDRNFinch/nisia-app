@@ -288,11 +288,8 @@
       return {blob:new Blob([t],{type:"text/plain"}),mime:"text/plain",ext:"txt"};
     }
   }
-  async function fetchEmployer(c,e){
-    const [w,r]=await Promise.all([
-      c.from("witness_testimonies").select("id,unit,statement,rating,ksbs,signed_at,created_at").eq("enrolment_id",e.enrolmentId).order("created_at",{ascending:false}).limit(50),
-      c.from("behaviour_ratings").select("id,ratings,comment,created_at").eq("enrolment_id",e.enrolmentId).order("created_at",{ascending:false}).limit(20)]);
-    if(w.error)throw w.error;if(r.error)throw r.error;
+  async function fetchEmployer(emp,e){
+    const w={data:(emp&&emp.witness)||[]},r={data:(emp&&emp.ratings)||[]};
     const was=readJson(EMP_KEY,{})||{},seen=new Set(was.seen||[]),who=e.employer||"Your employer",learner=(window.eviaData.learner()||{}).name||e.name||"";
     const have=new Set(window.eviaData.list("supporting").map(x=>x.id));
     for(const t of w.data||[]){
@@ -344,7 +341,7 @@
      everyone with the learner: their tutor, assessor and employer. */
   const A=window.NisiaActions;
   A.use(async(fn,args)=>{const c=await sb(),{data,error}=await c.rpc(fn,args);if(error)throw new Error(error.message||"That didn’t work. Try again.");return data},{app:"evia"});
-  const SESS_KEY="evia7-nisia-sessions",CR_KEY="evia7-nisia-checkin-results",ABS_KEY="evia7-nisia-absences";
+  const SESS_KEY="evia7-nisia-sessions",CR_KEY="evia7-nisia-checkin-results",ABS_KEY="evia7-nisia-absences",ATT_KEY="evia7-nisia-attendance";
   /* Kept by an older Evia (before the shared actions): moved across once. */
   try{const q=readJson("evia7-nisia-checkin-queue",[])||[],b=readJson("evia7-nisia-absence-queue",[])||[];
     if(q.length||b.length){const K="nisia-outbox-v1:evia",o=readJson(K,[])||[];
@@ -366,6 +363,8 @@
     writeJson(SESS_KEY,{at:Date.now(),list:w.sessions||[]});
     const kept=new Set(A.waiting().filter(x=>x.name==="bookAbsence").map(x=>x.tag));
     writeJson(ABS_KEY,(w.absences||[]).concat((readJson(ABS_KEY,[])||[]).filter(a=>a.local&&kept.has("absence:"+a.id))));
+    if(Array.isArray(w.attendance))writeJson(ATT_KEY,{at:Date.now(),list:w.attendance});
+    return w;
   }
   /* Kept with no signal, now sent. A check-in Nisia turns down is kept as a problem for the learner to see. */
   async function sendKept(){
@@ -424,8 +423,7 @@
   }
   /* The assessor's sign-offs and feedback on the learner's own evidence (Milos), kept by Evia's id for each piece. */
   const FEEDBACK_KEY="evia7-nisia-feedback";
-  async function fetchFeedback(c){
-    const {data,error}=await c.rpc("nisia_my_feedback");if(error)throw error;
+  async function fetchFeedback(data){
     const was=readJson(FEEDBACK_KEY,{})||{},now={};
     (data||[]).forEach(f=>{const m=/^(evidence|supporting|observation):(.+)$/.exec(f.client_reference||"");if(!m)return;
       const id=m[1]==="evidence"?m[2]:m[1]+":"+m[2],prev=was[id];
@@ -477,9 +475,11 @@
       if(c){const {data}=await c.auth.getSession();if(!data.session)return note({error:"signed-out"})}
       if(c)try{await refreshDetails(c,e)}catch(err){console.warn("Evia: Nisia details",err&&err.message)}
       if(c)try{await fetchTargets(c,e)}catch(err){console.warn("Evia: Nisia targets",err&&err.message)}
-      if(c)try{await fetchFeedback(c)}catch(err){console.warn("Evia: Nisia feedback",err&&err.message)}
-      if(c)try{await fetchEmployer(c,e)}catch(err){console.warn("Evia: Nisia employer feedback",err&&err.message)}
-      if(c)try{await sendKept();await fetchRegisters()}catch(err){console.warn("Evia: Nisia registers",err&&err.message)}
+      /* Everything Nisia has for the learner, in one request (whatsNew): registers, attendance, days off, feedback. */
+      if(c)try{await sendKept();const w=await fetchRegisters();
+        try{await fetchFeedback(w.feedback||[])}catch(err){console.warn("Evia: Nisia feedback",err&&err.message)}
+        try{await fetchEmployer(w.employer,e)}catch(err){console.warn("Evia: Nisia employer feedback",err&&err.message)}
+      }catch(err){console.warn("Evia: Nisia registers",err&&err.message)}
       /* Game leaderboards: scores waiting to go, and prizes from last month (leaderboard.js). */
       if(c&&window.eviaLeaderboard)try{await window.eviaLeaderboard.onSync()}catch(err){console.warn("Evia: Nisia leaderboards",err&&err.message)}
       /* Records: small, on any connection, in batches. (The demo keeps them on the phone.) */
@@ -540,7 +540,7 @@
     const c=await sb(),{data,error}=await c.rpc(name,Object.assign({p_enrolment:e.enrolmentId},args||{}));if(error)throw error;return data;
   }
   window.eviaNisia={pair,accept,joined,sync,status,statusText,clean,rpc,checkIn,onStatus:fn=>listeners.push(fn),
-    sessions,classNow,waitingCheckIns,checkInProblems,seenCheckInProblems,absences,bookAbsence,cancelAbsence,absenceKinds:KINDS};
+    sessions,classNow,waitingCheckIns,attendance:()=>((readJson(ATT_KEY,null)||{}).list)||null,checkInProblems,seenCheckInProblems,absences,bookAbsence,cancelAbsence,absenceKinds:KINDS};
 
   /* ---------- Notifications ----------
      Course things only, and only if the learner turns them on: evidence signed off or sent back, new targets, reviews,

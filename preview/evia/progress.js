@@ -150,6 +150,59 @@
     body.querySelectorAll(".pv-deep-acts [data-act]").forEach(b=>b.onclick=()=>{const a=ACTS[id][+b.dataset.act];document.getElementById("modal-root").innerHTML="";a[1]()});
   }
   const openDeep=id=>{deep(id,gather());addActs(id)};
+  /* ---------- Attendance: the percentage, and a calendar of every day ---------- */
+  const ATT_KEY=[["here","Here"],["late","Late"],["holiday","Holiday"],["ill","Ill"],["reason","Other reason"],["none","Absent, no reason"],["booked","Booked off"],["coming","Class coming up"]];
+  const dkey=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  function markKind(m){
+    if(m.status==="present")return m.late?"late":"here";
+    const why=String(m.reason||"");
+    if(m.kind==="holiday"||/holiday/i.test(why))return "holiday";
+    if(m.kind==="ill"||/\bill\b|sick/i.test(why))return "ill";
+    return why||m.kind?"reason":"none";
+  }
+  function attendanceData(){
+    const N=window.eviaNisia;if(!N||!N.attendance||!N.joined||!N.joined()||!N.joined().live)return null;
+    const list=N.attendance()||[],marks=list.map(m=>Object.assign({},m,{k:markKind(m)})),n=marks.length,here=marks.filter(m=>m.k==="here"||m.k==="late").length,t=dkey(new Date());
+    return {marks,n,here,late:marks.filter(m=>m.k==="late").length,why:marks.filter(m=>["holiday","ill","reason"].includes(m.k)).length,none:marks.filter(m=>m.k==="none").length,
+      pct:n?Math.round(here/n*100):null,booked:N.absences?N.absences():[],coming:(N.sessions?N.sessions():[]).filter(x=>x.session_date>=t&&!x.checked_in_at&&x.status!=="finished")};
+  }
+  function attendanceSheet(){
+    const AT=attendanceData();if(!AT)return;
+    const first=AT.marks.length?new Date(AT.marks[0].date+"T12:00:00"):new Date(),now=new Date();
+    const minM=first.getFullYear()*12+first.getMonth(),maxM=now.getFullYear()*12+now.getMonth()+1;let cur=now.getFullYear()*12+now.getMonth();
+    const el=sheet("MY PROGRESS","Attendance",
+      '<div class="pv-deep-hero">'+(AT.pct==null?"–":num(AT.pct,"%"))+'<span>'+(AT.n?"at college · "+AT.here+" of "+AT.n+" sessions":"No college registers yet")+'</span></div>'+
+      '<div class="pv-stats">'+stat("Here",AT.here-AT.late)+stat("Late",AT.late)+stat("Off, with a reason",AT.why)+stat("Missed, no reason",AT.none)+'</div>'+
+      '<div class="pv-acal" id="pv-acal"></div><p class="pv-acal-day" id="pv-acal-day" aria-live="polite">Tap a day to see what happened.</p>'+
+      '<div class="pv-acal-key">'+ATT_KEY.map(([k,t])=>'<span><i class="pv-a-'+k+'"></i>'+t+'</span>').join("")+'</div>'+
+      (AT.none?note("Missed a class? If there was a reason, tell your tutor. You can book days off ahead in Evia’s chat: “Can’t make college?”."):""));
+    const DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],LABEL=Object.fromEntries(ATT_KEY);
+    const draw=()=>{
+      const y=Math.floor(cur/12),m=cur%12,start=new Date(y,m,1),days=new Date(y,m+1,0).getDate(),lead=(start.getDay()+6)%7,today=dkey(new Date());
+      const byDay={};
+      AT.marks.forEach(x=>{(byDay[x.date]=byDay[x.date]||{marks:[]}).marks.push(x)});
+      AT.booked.forEach(a=>{for(let d=new Date(a.starts_on+"T12:00:00");dkey(d)<=a.ends_on;d.setDate(d.getDate()+1)){const k=dkey(d);(byDay[k]=byDay[k]||{marks:[]}).booked=a}});
+      AT.coming.forEach(x=>{(byDay[x.session_date]=byDay[x.session_date]||{marks:[]}).coming=x});
+      let cells="";for(let i=0;i<lead;i++)cells+='<span class="pv-acal-blank"></span>';
+      for(let d=1;d<=days;d++){
+        const k=dkey(new Date(y,m,d)),o=byDay[k],c=o?(o.marks.length?(o.marks.find(x=>x.k==="none")||o.marks[0]).k:o.booked?"booked":o.coming?"coming":""):"";
+        cells+='<button type="button" class="pv-acal-d'+(c?" pv-a-"+c:"")+(k===today?" pv-today":"")+'" data-day="'+k+'" aria-label="'+esc(new Date(k+"T12:00:00").toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})+(c?": "+LABEL[c]:""))+'">'+d+'</button>';
+      }
+      const box=el.querySelector("#pv-acal");
+      box.innerHTML='<div class="pv-acal-head"><button type="button" class="pv-acal-nav" data-m="-1" aria-label="Previous month"'+(cur<=minM?" disabled":"")+'>‹</button><strong>'+start.toLocaleDateString("en-GB",{month:"long",year:"numeric"})+'</strong><button type="button" class="pv-acal-nav" data-m="1" aria-label="Next month"'+(cur>=maxM?" disabled":"")+'>›</button></div>'+
+        '<div class="pv-acal-grid">'+DAYS.map(x=>'<span class="pv-acal-dow">'+x+'</span>').join("")+cells+'</div>';
+      box.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{cur+=+b.dataset.m;draw()});
+      box.querySelectorAll("[data-day]").forEach(b=>b.onclick=()=>{
+        box.querySelectorAll(".pv-picked").forEach(x=>x.classList.remove("pv-picked"));b.classList.add("pv-picked");
+        const k=b.dataset.day,o=byDay[k],when=new Date(k+"T12:00:00").toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"});
+        const lines=o?o.marks.map(x=>esc(x.class)+": <strong>"+esc(LABEL[x.k])+"</strong>"+(x.k==="here"||x.k==="late"?(x.minutes?" · "+Math.floor(x.minutes/60)+"h"+(x.minutes%60?" "+(x.minutes%60)+"m":""):""):x.reason&&x.reason.toLowerCase()!==LABEL[x.k].toLowerCase()?" · "+esc(x.reason):"")):[];
+        if(o&&o.booked&&!o.marks.length)lines.push("<strong>Booked off</strong> · "+esc(o.booked.reason));
+        if(o&&o.coming&&!o.marks.length)lines.push(esc(o.coming.class)+(o.coming.starts_at?" at "+new Date(o.coming.starts_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}):"")+": <strong>class coming up</strong>");
+        el.querySelector("#pv-acal-day").innerHTML="<span>"+esc(when)+"</span>"+(lines.length?lines.join("<br>"):"No class that day.");
+      });
+    };
+    draw();
+  }
   const BEH=["","Needs support","Developing","Good","Excellent"],WIT=["","Getting there","Competent","Excellent"];
   const behName=k=>{try{const o=window.EVIA_KSB_OFFICIAL||{},c=typeof course==="string"?course:"",m=o[c]||o[c==="trowel3"?"bricklayer":c]||{};return m[k]||""}catch(_){return ""}};
   window.eviaOpenEmployer=()=>{if(typeof nav==="function")nav("learning");setTimeout(()=>openDeep("employer"),250)};
@@ -206,6 +259,11 @@
     // Teach me: average score, areas completed, and the medals popping in bronze, then silver, then gold.
     const TR=window.eviaTeach&&window.eviaTeach.report?window.eviaTeach.report():null;
     if(TR&&TR.total)out.push(card("teach","Teach me",TR.avg==null?"–":num(TR.avg,"%"),TR.avg==null?"Finish a lesson to get a score":"average score · "+TR.areasDone+" of "+TR.areasTotal+" areas completed",medalRow(TR.medals)));
+    // Attendance at college (the tutor's registers in Symi), for learners connected to a college.
+    const AT=attendanceData();
+    if(AT)out.push(card("attendance","Attendance",AT.pct==null?"–":num(AT.pct,"%"),
+      AT.n?AT.here+" of "+AT.n+" session"+(AT.n===1?"":"s")+(AT.late?" · "+AT.late+" late":"")+(AT.none?" · "+AT.none+" missed with no reason":""):"No college registers yet",
+      AT.n?'<span class="pv-adots" aria-hidden="true">'+AT.marks.slice(-14).map((m,i)=>'<i class="pv-a-'+m.k+'" style="--d:'+(i*45)+'ms"></i>').join("")+'</span>':empty("Your tutor’s registers show here"),AT.none?" pv-warn":""));
     // From the employer (Paros): how they rate the behaviours, and their witness testimonies.
     const EM=window.eviaEmployer&&window.eviaEmployer.get();
     if(EM){
@@ -237,6 +295,7 @@
 
   function deep(id,D){
     if(id==="guide"){window.eviaStrength.guide();return}
+    if(id==="attendance"){attendanceSheet();return}
     if(id==="employer"){
       const EM=window.eviaEmployer&&window.eviaEmployer.get();if(!EM)return;
       window.eviaEmployer.markSeen();

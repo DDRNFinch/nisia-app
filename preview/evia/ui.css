@@ -2749,3 +2749,37 @@ html[data-a11y-motion="reduce"] #chat .td-done circle,html[data-a11y-motion="red
 .sd-emp-row span{min-width:0}
 .sd-emp-row em{flex:none;font-style:normal;font-weight:800;font-size:13px;padding:3px 10px;border-radius:999px;background:#eaf8f0;color:#2f7d56}
 .sd-emp-row em.l1{background:#fde8e6;color:#b3261e}.sd-emp-row em.l2{background:#fff4d6;color:#8a6100}
+
+/* Attendance: the tile's dots, the calendar and its key. One colour per kind of day, readable in both themes. */
+:root{--at-here:#2e9e6a;--at-late:#e2a429;--at-hol:#3b82f6;--at-ill:#8b5cf6;--at-why:#64748b;--at-none:#dc4c3e}
+.pv-adots{display:flex;gap:5px;flex-wrap:wrap;margin-top:12px}
+.pv-adots i{width:14px;height:14px;border-radius:50%;animation:pvDot .4s cubic-bezier(.3,1.6,.4,1) both;animation-delay:var(--d,0ms)}
+@keyframes pvDot{from{transform:scale(0)}}
+.pv-a-here{--at:var(--at-here)}.pv-a-late{--at:var(--at-late)}.pv-a-holiday{--at:var(--at-hol)}.pv-a-ill{--at:var(--at-ill)}.pv-a-reason{--at:var(--at-why)}.pv-a-none{--at:var(--at-none)}
+.pv-adots i,.pv-acal-key i{background:var(--at,#cbd5e1)}
+.pv-card.pv-warn .pv-big{color:var(--at-none)}
+.pv-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:4px 0 14px}
+.pv-stats .pv-stat{flex-direction:column;align-items:flex-start;gap:2px}
+.pv-acal{border:1px solid var(--ui-line,#e4e7ec);border-radius:18px;padding:12px}
+.pv-acal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.pv-acal-head strong{font-size:16px}
+.pv-acal-nav{width:38px;height:38px;border-radius:50%;border:1px solid var(--ui-line,#e4e7ec);background:var(--ui-card,#fff);color:inherit;font-size:20px;line-height:1;cursor:pointer}
+.pv-acal-nav:disabled{opacity:.35;cursor:default}
+.pv-acal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.pv-acal-dow{text-align:center;font-size:11.5px;font-weight:700;color:var(--ui-muted,#667085);padding-bottom:2px}
+.pv-acal-d{aspect-ratio:1;max-width:100%;border:0;border-radius:12px;background:var(--ui-soft,#f2f4f7);color:var(--ui-ink,#101828);font:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:transform .12s ease;animation:pvDot .35s ease both}
+.pv-acal-d:active{transform:scale(.92)}
+.pv-acal-d[class*="pv-a-"]:not(.pv-a-booked):not(.pv-a-coming){background:var(--at);color:#fff}
+.pv-acal-d.pv-a-booked{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--at-hol) 22%,transparent) 0 5px,transparent 5px 10px);box-shadow:inset 0 0 0 2px var(--at-hol)}
+.pv-acal-d.pv-a-coming{box-shadow:inset 0 0 0 2px var(--at-here)}
+.pv-acal-d.pv-today{outline:2px solid var(--ui-ink,#101828);outline-offset:1px}
+.pv-acal-d.pv-picked{transform:scale(1.08)}
+.pv-acal-day{margin:12px 2px 4px;font-size:14.5px;line-height:1.5;min-height:2.6em}
+.pv-acal-day span{display:block;font-weight:800}
+.pv-acal-key{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:8px;font-size:13px;color:var(--ui-muted,#667085)}
+.pv-acal-key span{display:inline-flex;align-items:center;gap:6px}
+.pv-acal-key i{width:12px;height:12px;border-radius:4px}
+.pv-acal-key .pv-a-booked{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--at-hol) 30%,transparent) 0 3px,transparent 3px 6px);box-shadow:inset 0 0 0 1.5px var(--at-hol)}
+.pv-acal-key .pv-a-coming{background:transparent;box-shadow:inset 0 0 0 1.5px var(--at-here)}
+@media (max-width:380px){.pv-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (prefers-reduced-motion:reduce){.pv-adots i,.pv-acal-d{animation:none}}
