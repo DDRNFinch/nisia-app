@@ -322,8 +322,7 @@
   };
   /* College hours: each session the tutor finished in Symi, with what was taught. They're in the learning log,
      confirmed by the tutor, so the learner can't change or delete them; a session later marked absent goes. */
-  async function fetchCollege(c){
-    const {data,error}=await c.rpc("nisia_my_college");if(error)throw error;
+  async function fetchCollege(data){
     const D=window.eviaData,have=new Map(D.list("hours").filter(h=>h.source==="college").map(h=>[h.id,h])),keep=new Set();let changed=false;
     for(const s of data||[]){
       if(!(s.minutes>0)||s.status==="absent")continue;
@@ -338,68 +337,69 @@
     if(changed){D.markSynced(D.changesSince().filter(ch=>ch.collection==="hours"&&String(ch.record.id).startsWith("college-")));if(typeof persist==="function")try{persist()}catch(_){}}
   }
   /* ---------- Registers: this week's classes, checking in with no signal, and days off ----------
-     Evia keeps the learner's classes for the next week, so she knows when to say "Check in" even with no signal.
-     A scan with no signal is kept and sent when there is one: the code proves when it was on the classroom screen,
-     so Nisia records the check-in at that time (and tells the tutor it was made offline). Days off are booked here
-     and everyone with the learner is told: their tutor, assessor and employer. */
-  const SESS_KEY="evia7-nisia-sessions",CQ_KEY="evia7-nisia-checkin-queue",CR_KEY="evia7-nisia-checkin-results",ABS_KEY="evia7-nisia-absences",AQ_KEY="evia7-nisia-absence-queue";
+     All through the shared Nisia actions (nisia-actions.js, the same file every Nisia app uses): one request for
+     everything about the learner's registers (whatsNew), and check-ins and days off that are kept with no signal and
+     sent when there is. A kept scan goes with when it was scanned: the code proves when it was on the classroom
+     screen, so Nisia records the check-in at that time (and tells the tutor it was made offline). Days off tell
+     everyone with the learner: their tutor, assessor and employer. */
+  const A=window.NisiaActions;
+  A.use(async(fn,args)=>{const c=await sb(),{data,error}=await c.rpc(fn,args);if(error)throw new Error(error.message||"That didn’t work. Try again.");return data},{app:"evia"});
+  const SESS_KEY="evia7-nisia-sessions",CR_KEY="evia7-nisia-checkin-results",ABS_KEY="evia7-nisia-absences";
+  /* Kept by an older Evia (before the shared actions): moved across once. */
+  try{const q=readJson("evia7-nisia-checkin-queue",[])||[],b=readJson("evia7-nisia-absence-queue",[])||[];
+    if(q.length||b.length){const K="nisia-outbox-v1:evia",o=readJson(K,[])||[];
+      q.forEach(x=>o.push({name:"checkIn",args:{p_code:x.code},tag:"checkin:"+(x.session||"unknown"),at:x.at}));
+      b.forEach(x=>o.push({name:"bookAbsence",args:x.args,tag:"absence:"+x.local.id,at:new Date().toISOString()}));
+      writeJson(K,o);localStorage.removeItem("evia7-nisia-checkin-queue");localStorage.removeItem("evia7-nisia-absence-queue")}}catch(_){}
   const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
-  const noSignal=err=>!navigator.onLine||/failed to fetch|network|load failed|fetch failed|timed? ?out/i.test(String(err&&err.message||err||""));
   const sessions=()=>((readJson(SESS_KEY,null)||{}).list)||[];
-  async function fetchSessions(c){const {data,error}=await c.rpc("nisia_my_sessions",{p_days:7});if(error)throw error;writeJson(SESS_KEY,{at:Date.now(),list:data||[]})}
+  const keptCheckIns=()=>A.waiting().filter(x=>x.name==="checkIn");
   function markChecked(r){
     if(!r||!r.session)return;
     const st=readJson(SESS_KEY,null);if(!st)return;
     st.list.forEach(s=>{if(s.id===r.session){s.checked_in_at=s.checked_in_at||r.at;s.late=!!r.late}});writeJson(SESS_KEY,st);
   }
+  /* Everything about the learner's registers, in one request: college hours, this week's classes, days off. */
+  async function fetchRegisters(){
+    const w=await A.send("whatsNew")||{};
+    await fetchCollege(w.college||[]);
+    writeJson(SESS_KEY,{at:Date.now(),list:w.sessions||[]});
+    const kept=new Set(A.waiting().filter(x=>x.name==="bookAbsence").map(x=>x.tag));
+    writeJson(ABS_KEY,(w.absences||[]).concat((readJson(ABS_KEY,[])||[]).filter(a=>a.local&&kept.has("absence:"+a.id))));
+  }
+  /* Kept with no signal, now sent. A check-in Nisia turns down is kept as a problem for the learner to see. */
+  async function sendKept(){
+    if(!A.waiting().length)return;
+    const res=readJson(CR_KEY,[])||[];
+    for(const x of await A.flush()){
+      if(x.name==="checkIn"){if(x.ok)markChecked(x.result);else res.push({at:x.at,class:(sessions().find(s=>"checkin:"+s.id===x.tag)||{}).class||"",message:x.error||"",seen:false})}
+      else if(!x.ok)console.warn("Evia: Nisia",x.name,x.error);
+    }
+    writeJson(CR_KEY,res.slice(-5));
+  }
   /* The class on now: from 30 minutes before it starts until it ends, not checked in (or waiting to send) and not booked off. */
   function classNow(){
-    const t=Date.now(),q=readJson(CQ_KEY,[])||[];
+    const t=Date.now(),kept=new Set(keptCheckIns().map(x=>x.tag));
     return sessions().find(s=>s.starts_at&&!s.checked_in_at&&!s.reason&&s.status!=="finished"&&t>=Date.parse(s.starts_at)-30*60e3&&
-      t<=(Date.parse(s.ends_at||"")||Date.parse(s.starts_at)+3*36e5)&&!q.some(x=>x.session===s.id)&&!absences().some(a=>s.session_date>=a.starts_on&&s.session_date<=a.ends_on))||null;
-  }
-  function keepCheckIn(code){
-    const m=/^NISI:IN:\d+:([0-9a-f-]{36}):/.exec(code),now=classNow(),sid=m?m[1]:now&&now.id,s=sessions().find(x=>x.id===sid);
-    const q=readJson(CQ_KEY,[])||[],at=new Date().toISOString();q.push({code,at,session:sid||null});writeJson(CQ_KEY,q);
-    return {queued:true,class:s&&s.class||"",lesson:s&&s.lesson||"",at};
-  }
-  async function sendCheckIns(c){
-    const q=readJson(CQ_KEY,[])||[];if(!q.length)return;
-    const left=[],res=readJson(CR_KEY,[])||[];
-    for(const x of q){
-      const {data,error}=await c.rpc("nisia_check_in",{p_code:x.code,p_scanned_at:x.at});
-      if(error&&noSignal(error)){left.push(x);continue}
-      if(data)markChecked(data);
-      else res.push({at:x.at,class:(sessions().find(s=>s.id===x.session)||{}).class||"",message:error&&error.message||"",seen:false});
-    }
-    writeJson(CQ_KEY,left);writeJson(CR_KEY,res.slice(-5));
+      t<=(Date.parse(s.ends_at||"")||Date.parse(s.starts_at)+3*36e5)&&!kept.has("checkin:"+s.id)&&!absences().some(a=>s.session_date>=a.starts_on&&s.session_date<=a.ends_on))||null;
   }
   /* Checking in to a class: the code on the classroom screen (Symi), checked by Nisia. With no signal, kept. */
   async function checkIn(code){
     const e=joined();if(!e||!e.live)throw new Error("Connect Evia to your college first.");
     code=String(code||"").trim();
-    if(!navigator.onLine)return keepCheckIn(code);
-    const c=await sb(),{data:s}=await c.auth.getSession();if(!s||!s.session)throw new Error("Evia isn’t signed in to your college. Ask your assessor for a new code.");
-    let r;try{r=await c.rpc("nisia_check_in",{p_code:code})}catch(err){if(noSignal(err))return keepCheckIn(code);throw err}
-    if(r.error){if(noSignal(r.error))return keepCheckIn(code);throw new Error(r.error.message||"That didn’t work. Try again.")}
-    markChecked(r.data);
-    return r.data;
+    const m=/^NISI:IN:\d+:([0-9a-f-]{36}):/.exec(code),now=classNow(),sid=m?m[1]:now&&now.id;
+    if(navigator.onLine){const c=await sb(),{data:s}=await c.auth.getSession();if(!s||!s.session)throw new Error("Evia isn’t signed in to your college. Ask your assessor for a new code.")}
+    const r=await A.send("checkIn",{p_code:code},{tag:"checkin:"+(sid||"unknown")});
+    if(r&&r.kept){const s=sessions().find(x=>x.id===sid);return {queued:true,class:s&&s.class||"",lesson:s&&s.lesson||"",at:r.at}}
+    markChecked(r);
+    return r;
   }
   /* Check-ins that didn't go through once there was signal: the learner should tell their tutor. */
   const checkInProblems=()=>(readJson(CR_KEY,[])||[]).filter(x=>!x.seen);
   function seenCheckInProblems(){writeJson(CR_KEY,(readJson(CR_KEY,[])||[]).map(x=>Object.assign(x,{seen:true})))}
-  const waitingCheckIns=()=>(readJson(CQ_KEY,[])||[]).length;
+  const waitingCheckIns=()=>keptCheckIns().length;
 
-  /* Days off: the learner's own, newest first; booked ones waiting for signal too. */
-  async function fetchAbsences(c){
-    const {data,error}=await c.rpc("nisia_absences");if(error)throw error;
-    writeJson(ABS_KEY,(data||[]).concat((readJson(AQ_KEY,[])||[]).map(x=>x.local)));
-  }
-  async function sendAbsences(c){
-    const q=readJson(AQ_KEY,[])||[];if(!q.length)return;const left=[];
-    for(const x of q){const {error}=await c.rpc("nisia_book_absence",x.args);if(error&&noSignal(error))left.push(x);else if(error)console.warn("Evia: Nisia absence",error.message)}
-    writeJson(AQ_KEY,left);
-  }
+  /* Days off: the learner's own, soonest first; booked ones waiting for signal too. */
   const absences=()=>(readJson(ABS_KEY,[])||[]).filter(a=>a&&a.ends_on>=today()).sort((a,b)=>a.starts_on<b.starts_on?-1:1);
   const KINDS={ill:"Ill",holiday:"Holiday",appointment:"Appointment",work:"At work",other:"Other"};
   async function bookAbsence(from,to,kind,reason){
@@ -408,22 +408,16 @@
     if(!KINDS[kind])throw new Error("Choose a reason.");
     reason=String(reason||"").trim().slice(0,200);
     if(kind==="other"&&!reason)throw new Error("Say what the reason is.");
-    const args={p_from:from,p_to:to,p_kind:kind,p_reason:reason||null};
     const local={id:"local-"+Date.now(),starts_on:from,ends_on:to,kind,reason:reason||KINDS[kind],booked_by:"You",booked_by_role:"learner",local:true};
-    let sent=null;
-    if(navigator.onLine){
-      try{const c=await sb(),{data,error}=await c.rpc("nisia_book_absence",args);if(error&&!noSignal(error))throw new Error(error.message);if(!error)sent=data}
-      catch(err){if(!noSignal(err))throw err}
-    }
-    if(!sent){const q=readJson(AQ_KEY,[])||[];q.push({args,local});writeJson(AQ_KEY,q)}
+    const r=await A.send("bookAbsence",{p_from:from,p_to:to,p_kind:kind,p_reason:reason||null},{tag:"absence:"+local.id}),sent=r&&!r.kept?r:null;
     writeJson(ABS_KEY,(readJson(ABS_KEY,[])||[]).concat(sent?Object.assign({},local,{id:sent.id,local:false}):local));
     /* Classes those days: no "Check in" card. */
     const st=readJson(SESS_KEY,null);if(st){st.list.forEach(s=>{if(s.session_date>=from&&s.session_date<=to&&!s.checked_in_at)s.reason=local.reason});writeJson(SESS_KEY,st)}
     return {sent:!!sent,reason:local.reason};
   }
   async function cancelAbsence(id){
-    if(String(id).startsWith("local-")){writeJson(AQ_KEY,(readJson(AQ_KEY,[])||[]).filter(x=>x.local.id!==id))}
-    else{if(!navigator.onLine)throw new Error("You need signal to cancel it.");const c=await sb(),{error}=await c.rpc("nisia_cancel_absence",{p_id:id});if(error)throw new Error(error.message)}
+    if(String(id).startsWith("local-"))A.drop("absence:"+id);
+    else{if(!navigator.onLine)throw new Error("You need signal to cancel it.");await A.send("cancelAbsence",{p_id:id})}
     const gone=(readJson(ABS_KEY,[])||[]).find(a=>a.id===id);
     writeJson(ABS_KEY,(readJson(ABS_KEY,[])||[]).filter(a=>a.id!==id));
     const st=readJson(SESS_KEY,null);if(st&&gone){st.list.forEach(s=>{if(s.session_date>=gone.starts_on&&s.session_date<=gone.ends_on&&s.reason===gone.reason)s.reason=null});writeJson(SESS_KEY,st)}
@@ -484,9 +478,8 @@
       if(c)try{await refreshDetails(c,e)}catch(err){console.warn("Evia: Nisia details",err&&err.message)}
       if(c)try{await fetchTargets(c,e)}catch(err){console.warn("Evia: Nisia targets",err&&err.message)}
       if(c)try{await fetchFeedback(c)}catch(err){console.warn("Evia: Nisia feedback",err&&err.message)}
-      if(c)try{await fetchCollege(c)}catch(err){console.warn("Evia: Nisia college hours",err&&err.message)}
       if(c)try{await fetchEmployer(c,e)}catch(err){console.warn("Evia: Nisia employer feedback",err&&err.message)}
-      if(c)try{await sendCheckIns(c);await sendAbsences(c);await fetchSessions(c);await fetchAbsences(c)}catch(err){console.warn("Evia: Nisia registers",err&&err.message)}
+      if(c)try{await sendKept();await fetchRegisters()}catch(err){console.warn("Evia: Nisia registers",err&&err.message)}
       /* Game leaderboards: scores waiting to go, and prizes from last month (leaderboard.js). */
       if(c&&window.eviaLeaderboard)try{await window.eviaLeaderboard.onSync()}catch(err){console.warn("Evia: Nisia leaderboards",err&&err.message)}
       /* Records: small, on any connection, in batches. (The demo keeps them on the phone.) */
