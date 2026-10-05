@@ -341,14 +341,16 @@
      everyone with the learner: their tutor, assessor and employer. */
   const A=window.NisiaActions;
   A.use(async(fn,args)=>{const c=await sb(),{data,error}=await c.rpc(fn,args);if(error)throw new Error(error.message||"That didn’t work. Try again.");return data},{app:"evia"});
-  /* The learner's course pack from Nisia (its topics and KSBs), kept on the phone. Evia still uses its own built-in
-     topics: they're the same as your packs; a college's own pack (coming) is when Evia's topics follow it. */
+  /* The learner's course pack from Nisia (its topics and KSBs), kept on the phone. With your packs Evia's topics stay
+     its own (they're the same); with a college's own pack, Evia's topics follow it (packs.js). */
   const PACK_KEY="evia7-nisia-pack";
   const pack=()=>readJson(PACK_KEY,null);
   async function fetchPack(c){
     const have=pack(),{data,error}=await c.rpc("nisia_my_pack",{p_have:have&&have.hash||null});
     if(error)throw error;
-    if(data&&!data.unchanged)writeJson(PACK_KEY,data);
+    if(data&&!data.unchanged){writeJson(PACK_KEY,data);
+      /* A college's own pack: Evia's topics follow it now (and back again if the learner returns to yours). */
+      try{if(window.eviaPacks&&window.eviaPacks.followKept(typeof course==="string"?course:"")&&typeof render==="function"&&!document.querySelector(".chat-sheet"))render()}catch(err){console.warn("Evia: pack",err&&err.message)}}
   }
   /* Whether Nisia's pack has the same topics and KSBs as Evia's own for the course (true for your packs). */
   function packMatches(){

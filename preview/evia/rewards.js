@@ -98,8 +98,18 @@
     try{(window.eviaTargets?window.eviaTargets.mine():[]).filter(t=>t&&t.done).forEach(t=>out.push({key:"tg|"+t.id,coins:TARGET_PAY,why:"Target met: "+t.title}))}catch(_){}
     return out;
   }
+  /* Evidence moved to a renamed or regrouped topic (following a college's pack): what was paid, and the strong-evidence
+     news already given, carry over to the new name. names = {newName: [old names]}. */
+  function carry(c,names,r0){
+    const r=r0||read();r.paid=r.paid||{};r.strong=r.strong||{};
+    Object.keys(names).forEach(to=>{const k="ev|"+c+"|"+to;
+      names[to].forEach(from=>{const o="ev|"+c+"|"+from;if(o===k)return;
+        if((r.paid[o]||0)>(r.paid[k]||0))r.paid[k]=r.paid[o];if(r.strong[o])r.strong[k]=1})});
+    if(!r0)write(r);return r;
+  }
   function sync(){
     const r=read(),x=xp(),d=today(),gained=[];
+    (window.eviaRewardsCarry||[]).splice(0).forEach(([c,names])=>carry(c,names,r));
     if(r.day!==d){r.day=d;r.dayEarned=0}
     /* The first time: tokens for what they've already done (up to 200), and keep anything already chosen. */
     if(r.lastXp==null){
@@ -353,7 +363,7 @@
   /* The expression in use goes on <html>, so every Evia in the app shows it (moods still win for a moment). */
   function applyExpr(){const r=read(),on=r.expr&&owns("expr-"+r.expr);if(on)document.documentElement.setAttribute("data-evia-expr",r.expr);else document.documentElement.removeAttribute("data-evia-expr")}
   applyExpr();
-  window.eviaRewards={coin:()=>coin,gameCoins,prize,gameRoom,GAME_DAILY,owns,page,later,XP_PER_COIN,EV_PAY,applyExpr,kitHtml,fitAll,locked,openItem,hatHtml,hatSvg,wearOn,sync,balance,catalogue,FIT};
+  window.eviaRewards={carry,coin:()=>coin,gameCoins,prize,gameRoom,GAME_DAILY,owns,page,later,XP_PER_COIN,EV_PAY,applyExpr,kitHtml,fitAll,locked,openItem,hatHtml,hatSvg,wearOn,sync,balance,catalogue,FIT};
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)sync()});
   setTimeout(()=>{sync();wearOn()},500);
   /* Keep the hat on when Evia's shape changes. */
