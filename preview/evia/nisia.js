@@ -115,7 +115,7 @@
         const rm=r.media||[],type=ch.collection==="evidence"?((r.photoIds||[]).length?"photo":rm.some(m=>m.kind==="video")?"video":rm.length?"audio":"written"):(EVIDENCE_TYPES.includes(r.type)?r.type:"document");
         const {error:ee}=await c.from("evidence").upsert(Object.assign({},base,{id,course_id:e.courseId,created_by_member_id:e.memberId,evidence_type:type,
           title:String(r.unit||r.title||"Evidence").slice(0,300),client_reference:ch.collection+":"+r.id,
-          source_metadata:{collection:ch.collection,unit:r.unit||null,text:r.text||null,ksbs:r.ksbs||r.criteria||[],photoIds:r.photoIds||[],
+          source_metadata:{collection:ch.collection,unit:r.unit||null,unitId:r.unitId||null,text:r.text||null,ksbs:r.ksbs||r.criteria||[],photoIds:r.photoIds||[],
             media:rm.map(m=>({id:m.id,kind:m.kind,secs:m.secs||0})),transcript:r.transcript||null}}));
         if(ee)console.warn("Evia: Nisia evidence",ee.message);
       }
@@ -130,7 +130,7 @@
         ksb:{met:a.met,total:a.total,pct:a.ksbPct,timePct:a.timePct,evidenced:[...(a.evidenced||[])],signoff:!!a.signoff,waiting:[...(a.possible||[])],aims:(a.aims||[]).slice()},
         units:(a.units||[]).map(u=>({name:u.name,total:(u.codes||[]).length,missing:(u.missing||[]).slice(),started:!!u.started,packs:(u.entries||[]).length,
           strength:typeof unitStrengthForCourse==="function"?unitStrengthForCourse(u.name):window.eviaStrength?window.eviaStrength.unit(u.name):null})),
-        packs:S.packs,daysSince:S.daysSince,lastUpload:S.lastUpload?new Date(S.lastUpload).toISOString():null,
+        packs:S.packs,coursePack:pack()?{code:pack().code,version:pack().version,hash:pack().hash,matches:packMatches()}:null,daysSince:S.daysSince,lastUpload:S.lastUpload?new Date(S.lastUpload).toISOString():null,
         otj:{total:S.otjTotal,month:S.otjMonth,week:S.otjWeek},streak:S.streak,writeupCoverage:S.coverage,
         tests:(S.tests||[]).map(t=>({type:t.type,name:t.name,count:t.count,best:t.best,latest:t.latest?{pct:t.latest.pct,takenAt:t.latest.takenAt}:null})),
         confidence:S.confidence,teach:S.teach,maths:S.maths,english:S.english,ppeDone:S.ppeDone,
@@ -341,6 +341,21 @@
      everyone with the learner: their tutor, assessor and employer. */
   const A=window.NisiaActions;
   A.use(async(fn,args)=>{const c=await sb(),{data,error}=await c.rpc(fn,args);if(error)throw new Error(error.message||"That didn’t work. Try again.");return data},{app:"evia"});
+  /* The learner's course pack from Nisia (its topics and KSBs), kept on the phone. Evia still uses its own built-in
+     topics: they're the same as your packs; a college's own pack (coming) is when Evia's topics follow it. */
+  const PACK_KEY="evia7-nisia-pack";
+  const pack=()=>readJson(PACK_KEY,null);
+  async function fetchPack(c){
+    const have=pack(),{data,error}=await c.rpc("nisia_my_pack",{p_have:have&&have.hash||null});
+    if(error)throw error;
+    if(data&&!data.unchanged)writeJson(PACK_KEY,data);
+  }
+  /* Whether Nisia's pack has the same topics and KSBs as Evia's own for the course (true for your packs). */
+  function packMatches(){
+    const p=pack(),mine=window.eviaPacks&&p&&p.course!=="trowel3"&&window.eviaPacks.pack(p.course);
+    if(!p||!mine)return null;
+    return JSON.stringify(p.topics.map(t=>[t.id,t.name,t.ksbs.map(k=>k.code)]))===JSON.stringify(mine.units.map(u=>[u.id,u.name,u.ksbs.map(k=>k.code)]));
+  }
   const SESS_KEY="evia7-nisia-sessions",CR_KEY="evia7-nisia-checkin-results",ABS_KEY="evia7-nisia-absences",ATT_KEY="evia7-nisia-attendance";
   /* Kept by an older Evia (before the shared actions): moved across once. */
   try{const q=readJson("evia7-nisia-checkin-queue",[])||[],b=readJson("evia7-nisia-absence-queue",[])||[];
@@ -480,6 +495,7 @@
         /* Only what Nisia actually sent replaces what Evia has: an older Nisia without these parts leaves them alone. */
         try{await fetchFeedback(Array.isArray(w.feedback)?w.feedback:await c.rpc("nisia_my_feedback").then(r=>{if(r.error)throw r.error;return r.data||[]}))}catch(err){console.warn("Evia: Nisia feedback",err&&err.message)}
         try{if(w.employer)await fetchEmployer(w.employer,e)}catch(err){console.warn("Evia: Nisia employer feedback",err&&err.message)}
+        try{await fetchPack(c)}catch(err){console.warn("Evia: Nisia pack",err&&err.message)}
       }catch(err){console.warn("Evia: Nisia registers",err&&err.message)}
       /* Game leaderboards: scores waiting to go, and prizes from last month (leaderboard.js). */
       if(c&&window.eviaLeaderboard)try{await window.eviaLeaderboard.onSync()}catch(err){console.warn("Evia: Nisia leaderboards",err&&err.message)}
@@ -541,7 +557,7 @@
     const c=await sb(),{data,error}=await c.rpc(name,Object.assign({p_enrolment:e.enrolmentId},args||{}));if(error)throw error;return data;
   }
   window.eviaNisia={pair,accept,joined,sync,status,statusText,clean,rpc,checkIn,onStatus:fn=>listeners.push(fn),
-    sessions,classNow,waitingCheckIns,attendance:()=>((readJson(ATT_KEY,null)||{}).list)||null,checkInProblems,seenCheckInProblems,absences,bookAbsence,cancelAbsence,absenceKinds:KINDS};
+    sessions,classNow,waitingCheckIns,coursePack:pack,coursePackMatches:packMatches,attendance:()=>((readJson(ATT_KEY,null)||{}).list)||null,checkInProblems,seenCheckInProblems,absences,bookAbsence,cancelAbsence,absenceKinds:KINDS};
 
   /* ---------- Notifications ----------
      Course things only, and only if the learner turns them on: evidence signed off or sent back, new targets, reviews,
