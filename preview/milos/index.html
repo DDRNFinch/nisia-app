@@ -1,64 +1,10 @@
 <!doctype html>
-<html lang="en-GB">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="robots" content="noindex">
-<meta name="theme-color" content="#2C85F7">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Milos">
-<title>Milos</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='17' fill='%23fff' stroke='%232C85F7' stroke-width='4'/%3E%3Cellipse cx='15' cy='20' rx='2.6' ry='4' fill='none' stroke='%232C85F7' stroke-width='2.4'/%3E%3Cellipse cx='25' cy='20' rx='2.6' ry='4' fill='none' stroke='%232C85F7' stroke-width='2.4'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="../packages/ui/nisia.css">
-<link rel="stylesheet" href="milos.css">
-</head>
-<body>
-<div id="app"><div class="auth"><p class="muted" id="booting">Loading Milos…</p></div></div>
+<html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Milos has moved</title><meta name="robots" content="noindex">
+<meta http-equiv="refresh" content="0;url=https://ddrnfinch.github.io/nisia-app/milos/">
 <script>
-/* A backstop: if Milos hasn’t opened in 20 seconds, say why, and offer a reload or a fresh copy of the app. */
-(function () {
-  var errs = [];
-  addEventListener("error", function (e) { errs.push((e.message || (e.target && (e.target.src || e.target.href)) || "error") + ""); }, true);
-  addEventListener("unhandledrejection", function (e) { errs.push(String(e.reason && e.reason.message || e.reason)); });
-  setTimeout(function () {
-    var b = document.getElementById("booting"); if (!b) return;
-    b.parentNode.innerHTML = '<div class="box"><h2>Milos is taking too long to open</h2><p class="muted">' + (navigator.onLine ? "It may be a slow connection, or an old copy of Milos on this phone." : "You’re offline.") + '</p>' +
-      (errs.length ? '<p class="small muted">' + errs.slice(-3).join("<br>").replace(/[<>&]/g, "") + '</p>' : "") +
-      '<button class="btn primary wide" id="bootReload">Reload</button><button class="btn ghost wide" id="bootReset">Reset Milos</button>' +
-      '<p class="small muted">Reset gets a fresh copy of the app. Your learners and anything waiting to send stay on the phone.</p></div>';
-    document.getElementById("bootReload").onclick = function () { location.reload(); };
-    document.getElementById("bootReset").onclick = function () {
-      var jobs = [];
-      if (navigator.serviceWorker) jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }));
-      if (window.caches) jobs.push(caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return /^milos-/.test(k); }).map(function (k) { return caches.delete(k); })); }));
-      Promise.all(jobs).catch(function () {}).then(function () { location.replace(location.pathname + "?fresh=" + Date.now()); });
-    };
-  }, 20000);
-})();
+/* The preview copies are switched off: everything is on the live apps now. Keep any code in the address (?pair=...). */
+location.replace("https://ddrnfinch.github.io/nisia-app/milos/" + location.search + location.hash);
 </script>
-<noscript><p style="padding:20px">Milos needs JavaScript switched on.</p></noscript>
-<script>window.NISIA_AUTH_KEY = "milos-auth";</script>
-<script src="../packages/vendor/supabase-2.45.4.js"></script>
-<script src="../packages/core/nisia-actions.js"></script>
-<script src="../packages/vendor/qrcode-generator-1.4.4.js"></script>
-<script src="../packages/vendor/jspdf-2.umd.min.js"></script>
-<script type="module" src="app.js"></script>
-<script>
-/* The offline copy (sw.js). When a new version of Milos has downloaded, a bar offers to switch to it. */
-if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").then((reg) => {
-  const offer = (w) => { if (!w || !navigator.serviceWorker.controller || document.getElementById("upd")) return;
-    const b = document.createElement("div"); b.id = "upd"; b.className = "update-bar"; b.setAttribute("role", "status");
-    b.innerHTML = '<span>A new version of Milos is ready.</span><button class="btn primary">Update</button>';
-    b.querySelector("button").onclick = () => { b.querySelector("button").disabled = true; w.postMessage("update"); };
-    document.body.appendChild(b); };
-  if (reg.waiting) offer(reg.waiting);
-  reg.addEventListener("updatefound", () => { const w = reg.installing; w.addEventListener("statechange", () => { if (w.state === "installed") offer(w); }); });
-  let reloading = false;
-  navigator.serviceWorker.addEventListener("controllerchange", () => { if (reloading || !document.getElementById("upd")) return; reloading = true; location.reload(); });
-  setInterval(() => reg.update().catch(() => {}), 30 * 60000);
-}).catch(() => {}));
-</script>
-</body>
-</html>
+<style>body{font-family:system-ui,sans-serif;background:#f7f6f3;color:#172033;display:grid;place-items:center;min-height:100vh;margin:0;padding:16px;text-align:center}a{color:#1b5fb8;font-weight:700}</style>
+</head><body><p>Milos has moved to <a href="https://ddrnfinch.github.io/nisia-app/milos/">https://ddrnfinch.github.io/nisia-app/milos/</a></p></body></html>
