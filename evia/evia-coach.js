@@ -184,7 +184,7 @@
   function evidence(){
     const k=K(),a=k.analyse(),prompts=(window.eviaLearnerPrompts||{})[course]||{};
     const started=a.units.filter(u=>u.started);
-    if(!started.length){k.say("You haven’t saved any evidence yet. Pick a unit on My course, take a few photos and write what you did. I’ll check it for you after.");k.replies([{label:"Something else",run:k.somethingElse}]);return}
+    if(!started.length){k.say("You haven’t saved any evidence yet. Pick a topic on Topics, take a few photos and write what you did. I’ll check it for you after.");k.replies([{label:"Something else",run:k.somethingElse}]);return}
     const checks=started.map(u=>{const c=prompts[u.name]?k.checkUnit(u,prompts):null;const latest=u.entries.slice().sort((x,y)=>Date.parse(y.savedAt||0)-Date.parse(x.savedAt||0))[0];const photos=c?c.photos:(latest&&(latest.photoIds||latest.p||[]).length)||0,words=c?c.words:String(latest&&latest.w||"").trim().split(/\s+/).filter(Boolean).length;
       const issues=[];if(photos<5)issues.push(photos<3?"only "+k.plural(photos,"photo")+": add the start, middle and finished job":"add "+(5-photos)+" more photo"+(5-photos===1?"":"s"));
       if(c&&c.missing.length)issues.push("mention "+k.listText(c.missing.slice(0,3))+(c.missing.length>3?" and "+(c.missing.length-3)+" more":""));
@@ -200,47 +200,6 @@
     if(notStarted)k.say(k.plural(notStarted,"unit")+" still "+(notStarted===1?"has":"have")+" no evidence."+(a.quickest?" <strong>"+esc(a.quickest.name)+"</strong> would tick off the most.":""));
     k.replies([a.quickest?{label:"Open "+a.quickest.name,run:()=>k.openUnitFromChat(a.quickest)}:null,{label:"Something else",run:k.somethingElse}].filter(Boolean));
   }
-
-  /* ---------- The message box: understands the common things apprentices ask ---------- */
-  function understand(text){
-    const k=K(),t=text.toLowerCase();
-    const flows=window.eviaCoachFlows;
-    if(/\b(otj|glh|off.?the.?job|learning hours|hours?|log|toolbox|college day)\b/.test(t))return logHours();
-    if(/\b(test|quiz|question me|mock|exam|epa)\b/.test(t))return window.eviaTestMe&&window.eviaTestMe();
-    if(/\b(review)\b/.test(t))return K().reviewFromMenu();
-    if(/\b(confiden|rate|rating)\w*/.test(t))return flows.confidence();
-    if(/\b(evidence|write.?up|photos?|portfolio|weak|check)\b/.test(t))return flows.evidence();
-    if(/\b(task|improve|practi[sc]e|upskill|better|learn|scenario)\w*/.test(t))return flows.upskill();
-    /* "How do I…" about a unit: what to capture and what to mention. */
-    const units=data().u.map((u,i)=>({name:u[0],i})),words=t.split(/\W+/).filter(w=>w.length>3);
-    const hit=units.map(u=>({u,n:words.filter(w=>u.name.toLowerCase().includes(w)).length})).sort((x,y)=>y.n-x.n)[0];
-    if(hit&&hit.n){
-      const p=((window.eviaLearnerPrompts||{})[course]||{})[hit.u.name]||{};
-      k.say("For <strong>"+esc(hit.u.name)+"</strong>, take photos of: "+esc(String(p.photos||"the start, middle and end of the job").split("·").map(x=>x.trim()).filter(Boolean).join(", "))+".");
-      if(p.writeup)k.say("In your write-up, mention: "+esc(String(p.writeup).split("·").map(x=>x.trim()).filter(Boolean).join(", "))+".");
-      k.replies([{label:"Open "+hit.u.name,primary:true,run:()=>k.openUnitFromChat({index:hit.u.i})},{label:"Something else",run:k.somethingElse}]);
-      return;
-    }
-    if(/\b(hi|hello|hey|thanks|thank you|cheers)\b/.test(t)){k.say(k.pick(["Any time. What’s next?","Happy to help. Anything else?"]));return k.somethingElse()}
-    k.say("I’m still learning to understand everything, but I can help with these:");
-    k.somethingElse();
-  }
-  /* Ask Evia: typed questions go to her brain (evia-brain.js), which answers from Evia's own content. */
-  function input(sheet){
-    if(sheet.querySelector(".ui-ask"))return;
-    const form=document.createElement("form");form.className="ui-ask";
-    form.innerHTML='<input type="text" placeholder="Ask about tools, KSBs, sums…" aria-label="Message Evia" enterkeyhint="send" autocomplete="off"><button type="submit" aria-label="Send"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></button>';
-    sheet.appendChild(form);
-    const field=form.querySelector("input");
-    field.addEventListener("input",()=>{if(window.eviaLook)window.eviaLook(-4,-26,1600);form.classList.toggle("has-text",!!field.value.trim())});
-    form.onsubmit=e=>{
-      e.preventDefault();const text=field.value.trim();if(!text)return;
-      field.value="";form.classList.remove("has-text");
-      document.querySelectorAll("#chat .ui-actions,#chat .ui-replies").forEach(x=>x.remove());
-      K().userSays(text);if(window.eviaBrain)window.eviaBrain.answer(text);else understand(text);
-    };
-  }
-
 
   /* ---------- Shared: go to a place in the app from the chat ---------- */
   const nvqOn=()=>!!(window.eviaNvq&&window.eviaNvq.on());
@@ -267,8 +226,8 @@
     const latest=u=>Math.max(...u.entries.map(e=>Date.parse(e.savedAt||"")||0));
     const started=a.units.filter(u=>u.started).sort((x,y)=>latest(y)-latest(x));
     if(!started.length){
-      k.say("You haven’t saved any evidence yet. Pick a unit on My course, take a few photos and write what you did. Then I’ll check it for you.");
-      k.replies([{label:"Go to My course",primary:true,run:()=>{k.closeChat();setTimeout(()=>nav("course"),60)}},{label:"Something else",run:k.somethingElse}]);return;
+      k.say("You haven’t saved any evidence yet. Pick a topic on Topics, take a few photos and write what you did. Then I’ll check it for you.");
+      k.replies([{label:"Go to Topics",primary:true,run:()=>{k.closeChat();setTimeout(()=>nav("course"),60)}},{label:"Something else",run:k.somethingElse}]);return;
     }
     k.say("Which evidence shall I check? Your most recent is first.");
     k.replies(started.slice(0,5).map((u,i)=>({label:u.name,primary:!i,run:()=>{checkOne(u)}})).concat([{label:"Something else",run:k.somethingElse}]));
@@ -505,5 +464,5 @@
   /* EPA mode ends when the chat closes. */
   const mr=document.getElementById("modal-root");
   if(mr)new MutationObserver(()=>{if(!mr.querySelector(".chat-sheet"))epaMode(false)}).observe(mr,{childList:true});
-  window.eviaCoachFlows={hours:logHours,confidence,upskill,evidence,input,evidenceCheck,quickReview,prepare,targets,epa,epaMode};
+  window.eviaCoachFlows={hours:logHours,confidence,upskill,task:upskillTask,evidence,evidenceCheck,quickReview,prepare,targets,targetDo,epa,epaMode,openUnitAt};
 })();

@@ -34,7 +34,9 @@
     trowel3:{"Arches":"trowel3/arches","Chimney stack":"trowel3/chimney-stack","Fireplace":"trowel3/fireplace","Decorative features":"trowel3/decorative-features","Curved wall (on plan)":"trowel3/curved-wall-on-plan","Curved wall (in elevation)":"trowel3/curved-wall-in-elevation","Splayed wall":"trowel3/splayed-wall","Setting out a building":"trowel3/setting-out-a-building","Setting out angles and batters":"trowel3/setting-out-angles-and-batters","Setting out curves":"trowel3/setting-out-curves","Setting out openings":"trowel3/setting-out-openings","Cavity wall":"trowel3/cavity-wall","Blockwork":"trowel3/blockwork","Solid wall":"trowel3/solid-wall","Openings":"trowel3/openings","Cills, cappings and copings":"trowel3/cills-cappings-and-copings","Thin joint cavity wall":"trowel3/thin-joint-cavity-wall","Thin joint solid wall":"trowel3/thin-joint-solid-wall","Thin joint openings":"trowel3/thin-joint-openings","Cladding a timber frame":"trowel3/cladding-a-timber-frame","Cladding a concrete frame":"trowel3/cladding-a-concrete-frame","Cladding a steel frame":"trowel3/cladding-a-steel-frame","Cladding existing masonry":"trowel3/cladding-existing-masonry","Fire barriers and support angles":"trowel3/fire-barriers-and-support-angles","Brick soffit system":"trowel3/brick-soffit-system","Channel systems":"trowel3/channel-systems","Wind posts":"trowel3/wind-posts","Vapour and moisture barriers":"trowel3/vapour-and-moisture-barriers","Wall starter kits":"trowel3/wall-starter-kits","Replacing damaged brickwork":"trowel3/replacing-damaged-brickwork","Extending or tying into existing walls":"trowel3/extending-or-tying-into-existing-walls","New opening in an existing wall":"trowel3/new-opening-in-an-existing-wall","Drainage pipework":"trowel3/drainage-pipework","Inspection chamber":"trowel3/inspection-chamber","Surface water system":"trowel3/surface-water-system","Foul water system":"trowel3/foul-water-system"}
   };
   const slug=s=>String(s||"").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");
-  const unitId=(course,name)=>!course||!name?null:(UNIT_IDS[course]&&UNIT_IDS[course][name])||course+"/"+slug(name);
+  /* Topic ids from a college's pack the learner follows (name → id), before Evia's own. */
+  const PACK_IDS={};
+  const unitId=(course,name)=>!course||!name?null:(PACK_IDS[course]&&PACK_IDS[course][name])||(UNIT_IDS[course]&&UNIT_IDS[course][name])||course+"/"+slug(name);
   const loading={},done={};
   const plain=f=>f.split("?")[0];
   /* A file counts as loaded if a script for it is already on the page (storage.js adds the saved course's at boot). */
@@ -50,7 +52,7 @@
       document.head.appendChild(s);
     }));
   }
-  const ensure=course=>Promise.all(files(course).map(load)).then(()=>course);
+  const ensure=course=>Promise.all(files(course).map(load)).then(()=>{remapLessons(course);return course});
   function pack(course){
     const c=typeof C!=="undefined"&&C[course];if(!c)return null;
     const lessons=((window.EVIA_TEACH||{}).courses||{})[course]||[];
@@ -61,5 +63,76 @@
   }
   /* Downloaded courses use their own name; the rest the catalogue's. */
   const catalogue=()=>Object.keys(CATALOGUE).map(id=>{const c=typeof C!=="undefined"&&C[id];return {id,name:c?c.name:CATALOGUE[id].name,std:c?c.std:CATALOGUE[id].std}});
-  window.eviaPacks={VERSION,files,ensure,loaded,unitId,pack,catalogue,COURSES:Object.keys(FILES)};
+  /* ---------- Following a college's own pack (learners connected to Nisia only) ----------
+     Evia's topics for the course become the pack's. Each piece of the learner's evidence moves to its topic (by the
+     topic's id, its name, the topic it was copied from, or where its KSBs fit best) and is sent to Nisia again; Teach me
+     lessons go with the topic they were copied from, or the topic whose KSBs they fit best. Back on your pack, Evia's own
+     topics come back the same way. Offline learners, and the NVQ (set by the qualification), never change. */
+  const ORIG={},ORIG_TEACH={};
+  const own=course=>{if(!ORIG[course]&&typeof C!=="undefined"&&C[course])ORIG[course]=C[course].u.map(u=>[u[0],u[1].slice()]);return ORIG[course]||[]};
+  const ownTopics=course=>own(course).map(u=>({id:(UNIT_IDS[course]&&UNIT_IDS[course][u[0]])||course+"/"+slug(u[0]),name:u[0],ksbs:u[1].map(k=>split(k))}));
+  const split=k=>{const i=String(k).indexOf("|");return {code:i<0?String(k):String(k).slice(0,i),text:i<0?"":String(k).slice(i+1)}};
+  const following={};
+  /* The topic a piece of evidence (or a lesson's topic) belongs to among these topics. */
+  function place(topics,uid,name,codes,fromOf){
+    let i=uid?topics.findIndex(t=>t.id===uid):-1;
+    if(i<0&&uid)i=topics.findIndex(t=>t.from===uid);
+    if(i<0&&uid&&fromOf&&fromOf[uid])i=topics.findIndex(t=>t.id===fromOf[uid]);
+    if(i<0&&name)i=topics.findIndex(t=>t.name===name);
+    if(i<0&&codes&&codes.length){let most=0;topics.forEach((t,j)=>{const n=t.ksbs.filter(k=>codes.includes(k.code)).length;if(n>most){most=n;i=j}})}
+    return i;
+  }
+  function remapLessons(course){
+    const T=window.EVIA_TEACH&&window.EVIA_TEACH.courses;if(!T||!T[course])return;
+    if(!ORIG_TEACH[course])ORIG_TEACH[course]=T[course].slice();
+    const f=following[course];
+    if(!f){T[course]=ORIG_TEACH[course].slice();return}
+    /* Each of the pack's topics gets the lessons of the topic of yours it came from, or fits best by KSB. */
+    const mine=ownTopics(course),byName=Object.fromEntries(ORIG_TEACH[course].map(l=>[l.unit,l]));
+    T[course]=f.topics.map(t=>{let j=mine.findIndex(m=>m.id===(t.from||t.id));
+      if(j<0){let most=0;mine.forEach((m,k)=>{const n=m.ksbs.filter(x=>t.ksbs.some(y=>y.code===x.code)).length;if(n>most){most=n;j=k}})}
+      const l=j>=0&&byName[mine[j].name];return l?Object.assign({},l,{unit:t.name}):null}).filter(Boolean);
+  }
+  /* p: the learner's pack from Nisia (null: Evia's own). Returns true if Evia's topics changed. */
+  function follow(p,course){
+    if(typeof C==="undefined"||!course||!C[course]||course==="trowel3")return false;
+    const mine=ownTopics(course),use=p&&p.course===course&&Array.isArray(p.topics)&&p.topics.length?p.topics:null;
+    const sameAsMine=!use||JSON.stringify(use.map(t=>[t.id,t.name,t.ksbs.map(k=>k.code)]))===JSON.stringify(mine.map(t=>[t.id,t.name,t.ksbs.map(k=>k.code)]));
+    const target=sameAsMine?null:use,key=target?p.hash||JSON.stringify(target.map(t=>t.id)):"own";
+    if((following[course]?following[course].key:"own")===key)return false;
+    const official=Object.fromEntries((p&&p.ksbs||[]).map(([c,t])=>[c,t]));
+    const before=following[course]?following[course].topics:mine;
+    if(target){
+      C[course].u=target.map(t=>[t.name,t.ksbs.map(k=>k.code+"|"+(k.text||official[k.code]||""))]);
+      PACK_IDS[course]=Object.fromEntries(target.map(t=>[t.name,t.id]));
+      following[course]={key,topics:target,title:p.title||""};
+    }else{
+      C[course].u=own(course).map(u=>[u[0],u[1].slice()]);delete PACK_IDS[course];delete following[course];
+    }
+    const now=target||mine,fromOf=Object.fromEntries(before.filter(t=>t.from).map(t=>[t.id,t.from]));
+    /* The learner's evidence for the course, to its topic in the new list. */
+    if(typeof evidence!=="undefined"&&Array.isArray(evidence)){
+      let moved=0;const names={};
+      evidence.forEach(e=>{if(!e||e.c!==course)return;
+        const i=place(now,e.uid||null,e.u,(e.k||[]).map(k=>String(k).split("|")[0]),fromOf);if(i<0)return;
+        if(e.u!==now[i].name||e.uid!==now[i].id){if(e.u&&e.u!==now[i].name)(names[now[i].name]=names[now[i].name]||[]).push(e.u);e.u=now[i].name;e.uid=now[i].id;moved++}});
+      if(moved&&typeof persist==="function")persist();
+      /* Coins already paid for a topic's evidence go with it to its new name, so a rename never pays twice. */
+      if(Object.keys(names).length){const R=window.eviaRewards;if(R&&R.carry)R.carry(course,names);else(window.eviaRewardsCarry=window.eviaRewardsCarry||[]).push([course,names])}
+    }
+    remapLessons(course);
+    /* Teach me's lessons load after Evia starts: match them to the topics once they're here. */
+    if(!(window.EVIA_TEACH&&window.EVIA_TEACH.courses&&window.EVIA_TEACH.courses[course])){
+      const again=()=>remapLessons(course);window.addEventListener("load",again,{once:true});setTimeout(again,4000);
+    }
+    return true;
+  }
+  /* The pack kept from Nisia, for the learner's course, if they're connected. */
+  function followKept(course){
+    let p=null;
+    try{const e=window.eviaData&&window.eviaData.enrolment&&window.eviaData.enrolment();if(e&&e.live)p=JSON.parse(localStorage.getItem("evia7-nisia-pack")||"null")}catch(_){}
+    return follow(p,course);
+  }
+  const followingPack=course=>following[course]?{title:following[course].title,topics:following[course].topics.length}:null;
+  window.eviaPacks={VERSION,files,ensure,loaded,unitId,pack,catalogue,follow,followKept,followingPack,COURSES:Object.keys(FILES)};
 })();

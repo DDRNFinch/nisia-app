@@ -2,12 +2,12 @@
    installs, and served from here after that, so an update always arrives complete (never new files mixed with old
    ones). Learners' data isn't kept here: store.js keeps it in IndexedDB, and Nisia's own requests go straight through.
    VERSION is stamped with the commit when the site is published. */
-const VERSION = "a4041fb";
+const VERSION = "cal-ecf0fe7";
 const CACHE = "milos-" + VERSION;
 const FILES = ["./", "index.html", "milos.css", "fonts/inter-latin-wght-normal.woff2", "app.js", "review.js", "portfolio.js", "observe.js", "pack.js", "store.js", "draft.js", "match.js", "push.js", "manifest.webmanifest",
   "icons/icon.svg", "icons/icon-192.png", "icons/badge-96.png", "icons/icon-512.png", "icons/maskable-512.png", "icons/apple-touch-icon.png",
-  "../packages/core/nisia.js", "../packages/core/signin.js", "../packages/core/usage.js", "../packages/core/courses.js", "../packages/core/reviewdoc.js",
-  "../packages/core/strength.js", "../packages/core/prompts.js", "../packages/ui/nisia.css",
+  "../packages/core/nisia.js", "../packages/core/signin.js", "../packages/core/usage.js", "../packages/core/courses.js", "../packages/core/packs.js", "../packages/core/reviewdoc.js",
+  "../packages/core/strength.js", "../packages/core/prompts.js", "../packages/core/absences.js", "../packages/core/nisia-actions.js", "../packages/ui/nisia.css",
   "../packages/vendor/supabase-2.45.4.js", "../packages/vendor/qrcode-generator-1.4.4.js", "../packages/vendor/jspdf-2.umd.min.js"];
 
 self.addEventListener("install", (e) => e.waitUntil(caches.open(CACHE).then((c) =>

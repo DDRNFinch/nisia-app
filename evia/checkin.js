@@ -1,7 +1,8 @@
 /* Checking in to a class: the learner scans the code on the classroom screen (Symi, the tutor's app), or types the
    6 characters under it. Nisia checks it: the code changes every 20 seconds, so a photo of it sent to someone who
    isn't there has expired before they can use it. Checking in ticks the learner on the tutor's register; the tutor
-   confirms the hours at the end, and they arrive in the learning log (nisia.js).
+   confirms the hours at the end, and they arrive in the learning log (nisia.js). With no signal, the scan is kept
+   and sent later; Nisia records it at the time it was scanned (the code proves when it was on the screen).
    Phones with a built-in QR reader (Android) use it; others (iPhone) use jsQR, loaded only when it's needed.
    window.eviaCheckIn.open() */
 (function(){
@@ -70,6 +71,15 @@
     const el=frame('<section class="ci-sheet ci-wait"><span class="ci-spin" aria-hidden="true"></span><p>Checking you in…</p></section>');el.classList.add("ci-dim");
     try{
       const r=await window.eviaNisia.checkIn(code);
+      if(r&&r.queued){
+        frame('<section class="ci-sheet ci-done ci-saved"><span class="ci-tick" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7"/></svg></span>'+
+          '<h2>Saved: no signal here</h2><p class="ci-class">'+esc(r.class||"")+(r.lesson?'<br><span>'+esc(r.lesson)+'</span>':"")+'</p>'+
+          '<p class="ci-say">Evia sends your check-in as soon as she has signal, and it counts from now ('+esc(new Date(r.at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}))+'). Your tutor can see it was made offline.</p>'+
+          '<button type="button" class="primary" data-ci-close>Done</button></section>').classList.add("ci-dim");
+        layer.querySelector("[data-ci-close]").onclick=close;
+        if(window.eviaMood)try{window.eviaMood("happy")}catch(_){}
+        return;
+      }
       const at=r&&r.at?new Date(r.at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}):"";
       frame('<section class="ci-sheet ci-done"><span class="ci-tick" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7"/></svg></span>'+
         '<h2>'+(r&&r.again?"You’re already checked in":"You’re checked in")+'</h2><p class="ci-class">'+esc(r&&r.class||"")+(r&&r.lesson?'<br><span>'+esc(r.lesson)+'</span>':"")+'</p>'+

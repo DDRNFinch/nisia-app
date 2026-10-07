@@ -319,20 +319,7 @@
     scr.querySelectorAll("[data-ev-share]").forEach(b=>b.onclick=()=>{const x=items.find(i=>i.id===b.dataset.evShare);if(x)shareSupporting(x,()=>window.openSupportingEvidence())});
   };
 
-  /* ---------- My course: learning logs and progress reviews, under the units ---------- */
   const hmText=h=>window.eviaHM(h);
-  function logsGridHtml(){
-    const last=otjBatches[otjBatches.length-1],cutoff=Number(last?last.cutoff:0),fresh=hours.filter(x=>Number(x.createdAt)>cutoff).length;
-    const reviews=window.eviaGetReviews?window.eviaGetReviews().length:0,total=hours.reduce((n,x)=>n+Number(x.n||0),0),rd=window.eviaReviewDue&&window.eviaReviewDue();
-    const tile=(id,cls,iconSvg,value,label,sub)=>'<button type="button" class="ui-log-tile '+cls+'" id="'+id+'"><span class="ui-log-top"><span class="ui-log-icon">'+iconSvg+'</span><span class="ui-log-chev" aria-hidden="true">›</span></span><b class="ui-log-value">'+value+'</b><strong>'+label+'</strong><small>'+sub+'</small></button>';
-    return '<h2 class="ui-section-label">Learning logs</h2><div class="ui-logs-grid" id="ui-logs-grid">'+
-      tile("ui-open-logs","logs",icon(ICONS.clock),hours.length?escHtml(hmText(total)):"0 h","Learning logs",hours.length?(fresh&&last?fresh+" new to download":hours.length+" entr"+(hours.length===1?"y":"ies")):"No hours logged yet")+
-    '</div>';
-  }
-  function bindLogsGrid(){
-    const l=$("#ui-open-logs");if(l)l.onclick=()=>openLearningLogs();
-    const r=$("#ui-open-reviews");if(r)r.onclick=()=>openSavedReviews();
-  }
   /* Learning logs: every off-the-job entry, one button for the ones not downloaded yet, and past PDFs to get again. */
   function openLearningLogs(){
     withFade(()=>{
@@ -342,7 +329,7 @@
       const fresh=hours.filter(x=>Number(x.createdAt)>cutoff),total=hours.reduce((n,x)=>n+Number(x.n||0),0);
       const day=t=>new Date(Number(t)).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
       const batches=otjBatches.slice().reverse();
-      $("#screen").innerHTML='<button class="secondary ui-back" id="ui-logs-back" type="button">‹ My course</button><h1 class="ui-sub-title">Learning logs</h1>'+
+      $("#screen").innerHTML='<button class="secondary ui-back" id="ui-logs-back" type="button">‹ Calendar</button><h1 class="ui-sub-title">Learning logs</h1>'+
         '<div class="ui-page">'+'<button type="button" class="primary ui-log-add" id="ui-log-add">+ Log hours</button>'+
           '<section class="ui-card ui-hours-sum"><div><strong>'+escHtml(hmText(total))+'</strong><small>logged in total</small></div><div><strong>'+hours.length+'</strong><small>entr'+(hours.length===1?"y":"ies")+'</small></div></section>'+
           (hours.length?'<section class="ui-card ui-logs-dl"><div><strong>'+(fresh.length?fresh.length+" new entr"+(fresh.length===1?"y":"ies"):"Everything’s downloaded")+'</strong><small>'+(fresh.length?(last?"Since your last download on "+escHtml(savedDay(last.downloadedAt)):"Not downloaded yet"):"New entries will be ready to download here")+'</small></div>'+(fresh.length?'<button type="button" class="primary" id="download-otj">Download PDF</button>':"")+'</section>':"")+
@@ -351,7 +338,7 @@
             :'<div class="ui-card ui-empty"><span class="ui-icon-chip">'+icon(ICONS.clock)+'</span><p>No learning hours logged yet. Tap <strong>Log hours</strong> above to add some.</p></div>')+
           (batches.length?'<h2 class="ui-hours-h">Past downloads</h2><div class="ui-card ui-hours-list">'+batches.map(b=>'<div class="ui-hours-item ui-batch"><span class="ui-hours-copy"><strong>'+escHtml(savedDay(b.downloadedAt))+'</strong><small>'+(b.entryIds||[]).length+' entr'+((b.entryIds||[]).length===1?"y":"ies")+'</small></span><button type="button" class="secondary" data-batch="'+escHtml(b.id)+'">Download again</button></div>').join("")+'</div>':"")+
         '</div>';
-      $("#ui-logs-back").onclick=()=>nav("course");
+      $("#ui-logs-back").onclick=()=>nav("calendar");
       $("#ui-log-add").onclick=()=>{window.chat({quiet:true});setTimeout(()=>window.eviaCoachFlows&&window.eviaCoachFlows.hours(),120)};
       const dl=$("#download-otj");if(dl)dl.onclick=()=>downloadOTJPDF("new");
       document.querySelectorAll("[data-batch]").forEach(b=>b.onclick=()=>downloadOTJPDF(b.dataset.batch));
@@ -400,8 +387,14 @@
     queue=queue.then(()=>{
       const c=chatBox();if(!c||gen!==chatGen)return;
       if(opt&&opt.turns!=null&&opt.turns!==userTurns)return;
+      /* Four at a time, the rest behind More. "Something else" is a small link back to Evia's list. */
+      const items=list.filter(Boolean),back=items.find(r=>r.back)||(items.some(r=>r.label==="Something else")?{label:"Back to my list",back:true,run:somethingElse}:null);
+      const shown=items.filter(r=>!r.back&&r.label!=="Something else");
+      if(!shown.length&&back){back.run();return}
       const box=document.createElement("div");box.className="chat-options ui-replies";
-      list.forEach(r=>{const b=document.createElement("button");b.type="button";b.className="chat-pill"+(r.primary?" ui-pill-primary":"");b.innerHTML="<strong>"+escHtml(r.label)+"</strong>";b.onclick=()=>{box.remove();userSays(r.label);r.run()};box.appendChild(b)});
+      shown.forEach((r,i)=>{const b=document.createElement("button");b.type="button";b.className="chat-pill"+(r.primary?" ui-pill-primary":"")+(i>=3&&shown.length>4?" ui-pill-extra":"");b.innerHTML="<strong>"+escHtml(r.label)+"</strong>";b.onclick=()=>{box.remove();userSays(r.label);r.run()};box.appendChild(b)});
+      if(shown.length>4){const m=document.createElement("button");m.type="button";m.className="chat-pill ui-pill-more";m.innerHTML="<strong>More</strong>";m.onclick=()=>{box.classList.add("show-all");m.remove();scrollChat()};box.appendChild(m)}
+      if(back){const b=document.createElement("button");b.type="button";b.className="ui-pill-back";b.textContent="‹ "+back.label;b.onclick=()=>{box.remove();back.run()};box.appendChild(b)}
       c.appendChild(box);scrollChat();
     });
   }
@@ -535,7 +528,7 @@
     const a=analyse(),prompts=(window.eviaLearnerPrompts||{})[course]||{};
     const checks=a.units.filter(u=>u.started&&prompts[u.name]).map(u=>checkUnit(u,prompts)).filter(c=>c.terms.length)
       .sort((x,y)=>(y.missing.length/y.terms.length)-(x.missing.length/x.terms.length));
-    if(!checks.length){say("You haven’t submitted a unit with a write-up yet. Once you do, I’ll check it covers the key points.");replies([{label:"Go to My course",primary:true,run:()=>{closeChat();setTimeout(()=>nav("course"),60)}},{label:"Something else",run:somethingElse}]);return}
+    if(!checks.length){say("You haven’t submitted a unit with a write-up yet. Once you do, I’ll check it covers the key points.");replies([{label:"Go to Topics",primary:true,run:()=>{closeChat();setTimeout(()=>nav("course"),60)}},{label:"Something else",run:somethingElse}]);return}
     const needsWork=checks.filter(c=>c.missing.length||c.words<50||c.photos<3);
     if(!needsWork.length){
       say(pick(["Your write-ups cover all the key points, with plenty of photos. Nice.","I’ve checked your write-ups: they mention everything they should and have good photos. Good job."]));
@@ -593,26 +586,11 @@
     replies([...(task?[{label:"Show me the task",primary:true,run:()=>{closeChat();setTimeout(()=>window.eviaPractice.openTask(0),60)}}]:[]),{label:"See all my stats",primary:!task,run:()=>{closeChat();setTimeout(showStats,60)}},{label:"Check my write-ups",run:writeups},{label:"Which KSBs am I missing?",run:ksbGaps},{label:"Something else",run:somethingElse}]);
   }
   const hrsText=n=>window.eviaHM(n);
-  /* Evia opens the chat with what she'd do today, from the same nudges as Home. */
-  /* Evia opens the chat with one suggestion: the same one she'd make on Home. */
-  function today(){
-    const S=window.eviaStats;if(!S)return;
-    let n;try{n=S.nudges(S.compute())[0]}catch(_){return}
-    if(!n)return;
-    if(n.celebrate&&window.eviaMood)window.eviaMood("happy");
-    say(n.celebrate?n.text:"Here’s what I’d do today: "+n.text);
-    if(n.achievements)S.markSeen(n.achievements);
-    const gen=chatGen,turns=userTurns;
-    queue=queue.then(()=>{
-      const c=chatBox();if(!c||gen!==chatGen||turns!==userTurns)return; /* they've already picked something else */
-      const box=document.createElement("div");box.className="chat-options ui-replies";
-      const b=document.createElement("button");b.type="button";b.className="chat-pill ui-pill-primary";b.innerHTML="<strong>"+escHtml(n.action.label)+"</strong>";
-      b.onclick=()=>{box.remove();if(!["test","confidence","targets","review"].includes(n.action.kind))userSays(n.action.label);runNudge(n)};
-      box.appendChild(b);c.appendChild(box);scrollChat();
-    });
+  /* "Something else" brings back what's left on Evia's list. */
+  function somethingElse(){
+    document.body.classList.remove("evia-epa");
+    if(window.eviaTodo)window.eviaTodo.show({again:true});
   }
-  let menuItems=[];
-  function somethingElse(){actionGrid()}
   function statsFromMenu(){userSays("My stats");myStats()}
   /* My targets: the targets from the latest review, or a new set from Evia if there aren't any. */
   function targetsFromMenu(){
@@ -670,53 +648,18 @@
     });
     return queue;
   }
-  /* A two-line catch-up: this week's hours and when the review is due, as a friend would put it. */
-  function catchUp(){
-    try{
-      const S=window.eviaStats.compute(),bits=[],rd=window.eviaReviewDue&&window.eviaReviewDue();
-      bits.push(S.otjWeek?"You’ve logged <strong>"+window.eviaHM(S.otjWeek)+"</strong> of learning this week.":"No learning hours this week yet.");
-      if(rd)bits.push(rd.days<0?"Your progress review is <strong>overdue</strong>.":rd.days<=14?"Your progress review is due in <strong>"+plural(rd.days,"day")+"</strong>.":"");
-      return bits.filter(Boolean).join(" ");
-    }catch(_){return""}
-  }
-  /* Evia's three things: check a piece of evidence, a quick review of every area, and targets. EPA practice is its
-     own tile in Teach me; hours, confidence, college tasks and scenarios open from their section of My progress. */
-  const ACTIONS=[
-    ["evidence","Evidence check",'<path d="m5 12.5 4.5 4.5L19 7.5"/>'],
-    ["prep","Get ready for review",'<path d="M9 4.5h6a1 1 0 0 1 1 1V7H8V5.5a1 1 0 0 1 1-1Z"/><path d="M8 5.5H6.5A1.5 1.5 0 0 0 5 7v12.5A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V7a1.5 1.5 0 0 0-1.5-1.5H16"/><path d="m8.5 13.5 2.3 2.3 4.7-4.8"/>'],
-    ["targets","Show targets",'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>'],
-    ["calc","Calculators",'<rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M8 7h8M8.5 11h.01M12 11h.01M15.5 11h.01M8.5 14.5h.01M12 14.5h.01M15.5 14.5h.01M8.5 18h.01M12 18h3.5"/>']
-  ];
-  /* Connected to a college: checking in to class comes first, full width (checkin.js). */
-  const CHECKIN=["checkin","Check in to class",'<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2.5v2.5H14zM17.5 17.5H20V20h-2.5zM14 19v1M19 14h1"/>'];
-  const actionList=()=>{const e=window.eviaNisia&&window.eviaNisia.joined();return e&&e.live&&window.eviaCheckIn?[CHECKIN].concat(ACTIONS):ACTIONS};
+  /* ---------- Above the message box: only what the chat alone does ----------
+     Everything else has its own place in the app (My progress, Teach me, the unit pages) and can be typed here. */
   /* The EPA tile in Teach me: Evia's chat, dark, straight into EPA practice. */
   window.eviaOpenEpa=()=>{window.chat({quiet:true});setTimeout(()=>{const C=window.eviaCoachFlows;if(C&&C.epa)C.epa()},60)};
-  function actionRun(id){
-    const C=window.eviaCoachFlows||{};
-    return {
-      evidence:()=>{userSays("Evidence check");C.evidenceCheck?C.evidenceCheck():writeups()},
-      prep:()=>{userSays("Get ready for my review");if(C.prepare)C.prepare()},
-      targets:()=>{userSays("Show targets");C.targets?C.targets():targetsFromMenu()},
-      checkin:()=>{closeChat();setTimeout(()=>window.eviaCheckIn&&window.eviaCheckIn.open(),80)},
-      calc:()=>{userSays("Calculators");if(window.eviaBrain)window.eviaBrain.calculators()},
-      epa:()=>{userSays((window.eviaNvq&&window.eviaNvq.on())?"Knowledge tests":"EPA mocks");if(C.epa)C.epa()}
-    }[id];
-  }
-  function actionGrid(){
-    document.body.classList.remove("evia-epa");
-    const gen=chatGen;
-    queue=queue.then(()=>{
-      const c=chatBox();if(!c||gen!==chatGen)return;
-      const box=document.createElement("div");box.className="chat-options ui-actions";
-      actionList().forEach(([id,label,path],i)=>{
-        const b=document.createElement("button");b.type="button";b.className="chat-pill ui-action"+(id==="checkin"?" ui-action-wide":"");b.style.setProperty("--i",i);b.dataset.action=id;
-        const n=id==="prep"?prepBadge():0;if(n)b.classList.add("ui-action-pulse");
-        b.innerHTML='<span class="ui-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true">'+path+'</svg></span><strong>'+escHtml(label)+'</strong>'+(n?'<span class="visually-hidden"> ('+n+' to do)</span>':"");
-        b.onclick=()=>{userTurns++;box.remove();actionRun(id)()};box.appendChild(b);
-      });
-      c.appendChild(box);scrollChat();
-    });
+  const connectedLive=()=>{const e=window.eviaNisia&&window.eviaNisia.joined();return !!(e&&e.live&&window.eviaCheckIn)};
+  /* Connected to a college: checking in to class sits under the chat. */
+  function buildBar(sheet){
+    if(sheet.querySelector(".ui-dock")||!connectedLive())return;
+    const dock=document.createElement("div");dock.className="ui-dock";
+    dock.innerHTML='<button type="button" class="ui-cat" data-quick="checkin"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2.5v2.5H14zM17.5 17.5H20V20h-2.5zM14 19v1M19 14h1"/></svg><span>Check in to class</span></button>';
+    sheet.appendChild(dock);
+    dock.querySelector("[data-quick]").onclick=()=>{closeChat();setTimeout(()=>window.eviaCheckIn&&window.eviaCheckIn.open(),80)};
   }
   /* ---------- Review coming up: a count on Evia's button and on "Get ready for review" ----------
      From 21 days before the review (or once it's overdue), the number of things to get ready. */
@@ -739,22 +682,12 @@
   function enhanceChat(opts){
     const c=chatBox();if(!c)return;
     queue=Promise.resolve();chatGen++;
-    const name=firstName(),sheet=c.closest(".chat-sheet");
-    const head=sheet&&sheet.querySelector(".sheet-head h2");if(head)head.textContent=name?"Hi "+name:"Hi there";
+    const sheet=c.closest(".chat-sheet");
+    const head=sheet&&sheet.querySelector(".sheet-head h2");if(head)head.innerHTML='<span class="evia-mini ev-head-face" aria-hidden="true"><span class="evia-face"><i></i><i></i></span></span>Evia';
     c.innerHTML="";
-    menuItems=ACTIONS.map(([id,label])=>({label,run:actionRun(id)}));
-    if(!(opts&&opts.quiet===true)){
-      /* Evia's day for the learner (evia-brain.js), her four actions, and ideas for what to ask. */
-      if(window.eviaBrain){
-        say(pick([partOfDay()+(name?" "+escHtml(name):"")+". Here’s your day.","Hi"+(name?" "+escHtml(name):"")+". Here’s where you are today.","Hey"+(name?" "+escHtml(name):"")+". Here’s your day."]));
-        window.eviaBrain.todayCard();actionGrid();
-        say("Or ask me anything: tools and materials, a KSB, or a calculation.");window.eviaBrain.suggest(true);
-      }else{
-        say(pick([partOfDay()+(name?" "+escHtml(name):"")+".","Hey"+(name?" "+escHtml(name):"")+"."])+" "+catchUp()+" What shall we do?");
-        actionGrid();today();
-      }
-    }
-    if(sheet&&window.eviaCoachFlows&&window.eviaCoachFlows.input)window.eviaCoachFlows.input(sheet);
+    /* Evia opens with what needs doing (evia-todo.js). */
+    if(!(opts&&opts.quiet===true)&&window.eviaTodo)window.eviaTodo.show();
+    if(sheet)buildBar(sheet);
   }
   /* After a test: celebrate a good score and offer what to do next. */
   window.addEventListener("evia:test-saved",e=>{
@@ -850,23 +783,23 @@
     originalCourses();
     const head=document.querySelector("#screen > .card:not(.unit-card)");
     if(head)head.remove();
-    document.getElementById("screen").insertAdjacentHTML("afterbegin",pageHead("My course").replace('class="ui-page-head"','class="ui-page-head" id="ui-course-head"'));
+    document.getElementById("screen").insertAdjacentHTML("afterbegin",pageHead("Topics").replace('class="ui-page-head"','class="ui-page-head" id="ui-course-head"'));
     /* The units sit together in one grouped list. */
     const scr=document.getElementById("screen"),units=[...scr.querySelectorAll(":scope > .unit-card[data-u]")];
     if(units.length){const list=document.createElement("div");list.className="ui-unit-list";units[0].before(list);units.forEach((u,i)=>{u.insertAdjacentHTML("afterbegin",'<span class="ui-unit-no" aria-hidden="true">'+(i+1)+'</span>');list.appendChild(u)});
-      list.insertAdjacentHTML("beforebegin",'<h2 class="ui-section-label">Units</h2>')}
+      list.insertAdjacentHTML("beforebegin",'<h2 class="ui-section-label">Topics</h2>')}
     /* Supporting evidence sits in its own grouped list, like the units. */
     const sup=scr.querySelector(":scope > .supporting-course-card");
     if(sup){const box=document.createElement("div");box.className="ui-unit-list ui-sup-list";sup.before(box);box.appendChild(sup);box.insertAdjacentHTML("beforebegin",'<h2 class="ui-section-label">Workplace evidence</h2>')}
     /* The summary at the top, in the same card style as My progress. */
     const top=document.getElementById("ui-course-head");if(top)top.insertAdjacentHTML("afterend",courseHero());
-    scr.insertAdjacentHTML("beforeend",logsGridHtml());bindLogsGrid();
+    /* Learning logs live on the Calendar now, and past reviews on My progress. */
     courseNudge();
   };
   function courseHero(){
     const nvq=window.eviaNvq&&window.eviaNvq.on(),us=data().u,lv=us.map(u=>unitStrengthForCourse(u[0])),n=lv.filter(Boolean).length,c=k=>lv.filter(l=>l===k).length,pct=us.length?Math.round(n/us.length*100):0;
-    return '<div class="pv-card pv-alert ui-hero"><span class="pv-head"><span class="pv-title">'+(nvq?"Site jobs with evidence":"Units with evidence")+'</span></span><span class="pv-big">'+n+'<small> / '+us.length+'</small></span>'+
-      '<span class="pv-sub">'+(n?c("strong")+" strong · "+c("good")+" good · "+c("weak")+" weak":"Open a "+(nvq?"job":"unit")+" to capture your first evidence")+'</span><i class="pv-bar ui-hero-bar"><i style="width:'+pct+'%"></i></i></div>';
+    return '<div class="pv-card pv-alert ui-hero"><span class="pv-head"><span class="pv-title">'+(nvq?"Site jobs with evidence":"Topics with evidence")+'</span></span><span class="pv-big">'+n+'<small> / '+us.length+'</small></span>'+
+      '<span class="pv-sub">'+(n?c("strong")+" strong · "+c("good")+" good · "+c("weak")+" weak":"Open a "+(nvq?"job":"topic")+" to capture your first evidence")+'</span><i class="pv-bar ui-hero-bar"><i style="width:'+pct+'%"></i></i></div>';
   }
   window.portfolio=()=>window.courses();
   /* Evia's bubble belongs to the course list: it goes when anything else (a unit, supporting evidence) replaces it. */

@@ -927,12 +927,6 @@ html body .chat-sheet .chat{flex:1 1 auto;height:auto!important;min-height:0;bac
 .ui-action-icon svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .chat-sheet .chat-options .ui-action:last-child:nth-child(odd){grid-column:auto}
 /* the message box */
-.ui-ask{flex:0 0 auto;display:flex;gap:8px;margin-top:10px}
-.ui-ask input{flex:1;min-width:0;height:46px;border:1.5px solid var(--ui-line);border-radius:23px;padding:0 16px;font-size:15px;background:#fff;transition:border-color .15s ease}
-.ui-ask input:focus{outline:none;border-color:var(--yellow)}
-.ui-ask button{flex:0 0 46px;height:46px;border-radius:50%;background:#eef1f5;color:var(--ui-muted);display:grid;place-items:center;transition:background .15s ease,transform .15s ease}
-.ui-ask.has-text button{background:var(--yellow);color:var(--ui-on-accent);transform:scale(1.05)}
-.ui-ask button svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 /* test answers stay, marked */
 #chat .rating-options.answered .rating-pill{opacity:.55}
 #chat .rating-options.answered .rating-pill.correct{opacity:1;background:var(--soft);border-color:var(--yellow);animation:ecFlash .5s ease}
@@ -2643,3 +2637,200 @@ html body .sd-evia{transform:scale(3.3);animation-name:sdBreathe3}
 .rm-type input{min-height:46px;padding:10px 12px;border-radius:14px;border:1px solid var(--ui-line);font:inherit;font-size:16px;letter-spacing:.08em;text-transform:uppercase}
 .rm-sheet .rm-go{background:#b42318!important;border-color:#b42318!important;color:#fff!important}
 .rm-sheet .rm-go:disabled{opacity:.45}
+
+/* ---------- Evia chat: a welcome, a category bar and short replies ---------- */
+
+.ui-dock{flex:0 0 auto;position:relative;margin-top:10px}
+.ui-cats{display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;padding:1px}
+.ui-cats::-webkit-scrollbar{display:none}
+.ui-cat{flex:0 0 auto;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:36px;padding:0 13px;border-radius:18px;border:1px solid var(--ui-line,#e4e7ec);background:#fff;color:var(--ink,#344054);font-size:13px;font-weight:700;white-space:nowrap;cursor:pointer;position:relative;transition:background .15s ease,border-color .15s ease,color .15s ease}
+.ui-cat svg{flex:0 0 auto;width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* Replies: three or four in a column, the rest behind More. */
+#chat .ui-replies{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+#chat .ui-replies .chat-pill{width:auto;max-width:88%;min-height:40px;padding:9px 16px;border-radius:20px;text-align:right}
+#chat .ui-replies .chat-pill strong{font-size:14px}
+#chat .ui-replies .ui-pill-extra{display:none}
+#chat .ui-replies.show-all .ui-pill-extra{display:inline-flex}
+#chat .ui-replies .ui-pill-more{background:transparent;border-style:dashed;box-shadow:none}
+
+body.evia-epa .ui-cat{background:#3a3f48;border-color:#4a505a;color:#eef0f3}
+.chat-sheet:not(.ui-test-mode) .sheet-head .chat-kicker{display:none}
+#chat .mi-compare{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#chat .mi-compare>div{min-width:0;display:flex;flex-direction:column;gap:4px}
+#chat .mi-compare>div+div{border-left:1px solid var(--ui-line,#edf0f4);padding-left:12px}
+#chat .mi-compare strong{font-size:14.5px}
+#chat .mi-compare .br-def{font-size:13.5px;margin:0}
+@media (max-width:360px){#chat .mi-compare{grid-template-columns:1fr}#chat .mi-compare>div+div{border-left:0;padding-left:0;border-top:1px solid var(--ui-line,#edf0f4);padding-top:10px}}
+#chat .mi-can p{margin:0;font-size:13.5px;line-height:1.45}
+#chat .mi-can b{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--yellow-ink,#7a5d00)}
+
+#chat .ui-replies .ui-pill-back{background:none;border:0;padding:6px 4px;color:var(--ui-muted,#667085);font-size:13.5px;font-weight:700;cursor:pointer}
+body.evia-epa #chat .ui-replies .ui-pill-back{color:#b7bdc8}
+
+/* Evia's list: what needs doing, three at a time, compact and alive. */
+#chat .td-list{display:flex;flex-direction:column;gap:6px}
+#chat .td-item{display:flex;align-items:center;gap:11px;width:100%;padding:9px 10px 9px 9px;border-radius:14px;border:1px solid var(--ui-line,#e4e7ec);background:#fff;text-align:left;cursor:pointer;color:var(--ink,#101828);
+  animation:tdIn .5s cubic-bezier(.2,1.4,.4,1) both;animation-delay:calc(.12s + var(--i,0)*.11s);transition:transform .15s ease,box-shadow .2s ease,opacity .2s ease}
+#chat .td-item:active{transform:scale(.97)}
+#chat .td-ic{position:relative;flex:0 0 auto;width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:var(--soft,#fff7d6);color:var(--yellow-ink,#7a5d00);
+  animation:tdPop .55s cubic-bezier(.3,1.8,.4,1) both;animation-delay:calc(.3s + var(--i,0)*.11s)}
+#chat .td-ic svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#chat .td-item.urgent .td-ic{background:#fde8e6;color:#c2382d}
+#chat .td-item.urgent .td-ic::after{content:"";position:absolute;top:-2px;right:-2px;width:9px;height:9px;border-radius:50%;background:#e2564b;box-shadow:0 0 0 2px #fff;animation:tdPing 1.8s ease-out infinite}
+#chat .td-copy{flex:1;display:flex;flex-direction:column;gap:1px;min-width:0}
+#chat .td-copy strong{font-size:14px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#chat .td-copy small{font-size:12.5px;line-height:1.3;color:var(--ui-muted,#667085);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#chat .td-go{flex:0 0 auto;color:var(--yellow-ink,#7a5d00);transition:transform .2s ease}
+#chat .td-go svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;display:block}
+#chat .td-item:first-child .td-go{animation:tdNudge 1.6s ease-in-out 1.2s 3}
+#chat .td-used .td-item{cursor:default}
+#chat .td-used .td-item:not(.td-picked){opacity:.4;transform:scale(.98)}
+#chat .td-item.td-picked{animation:tdGo .3s cubic-bezier(.5,0,.75,0) forwards;box-shadow:0 8px 24px rgba(16,24,40,.12)}
+#chat .td-count{display:inline-block;font-weight:800;animation:tdCount .6s cubic-bezier(.3,1.8,.4,1) .25s both}
+@keyframes tdIn{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes tdPop{0%{transform:scale(0) rotate(-20deg)}100%{transform:none}}
+@keyframes tdPing{0%{box-shadow:0 0 0 2px #fff,0 0 0 2px rgba(226,86,75,.6)}80%,100%{box-shadow:0 0 0 2px #fff,0 0 0 9px rgba(226,86,75,0)}}
+@keyframes tdNudge{0%,100%{transform:none}50%{transform:translateX(4px)}}
+@keyframes tdGo{to{opacity:0;transform:translateX(40px) scale(.98)}}
+@keyframes tdCount{0%{transform:scale(.3);opacity:0}100%{transform:none;opacity:1}}
+/* All caught up: a tick that draws itself, and confetti. */
+#chat .td-done{position:relative;display:grid;place-items:center;height:92px}
+#chat .td-done svg{width:64px;height:64px;fill:none;stroke-linecap:round;stroke-linejoin:round}
+#chat .td-done circle{stroke:#3cb371;stroke-width:3;stroke-dasharray:145;stroke-dashoffset:145;animation:tdDraw .6s ease-out .1s forwards;fill:#eaf8f0}
+#chat .td-done path{stroke:#3cb371;stroke-width:4;stroke-dasharray:40;stroke-dashoffset:40;animation:tdDraw .35s ease-out .6s forwards}
+#chat .td-confetti{position:absolute;left:50%;top:50%;pointer-events:none}
+#chat .td-confetti i{position:absolute;width:7px;height:11px;border-radius:2px;opacity:0;animation:tdBurst 1.1s cubic-bezier(.2,.8,.3,1) forwards;animation-delay:calc(.75s + var(--d))}
+@keyframes tdDraw{to{stroke-dashoffset:0}}
+@keyframes tdBurst{0%{opacity:1;transform:translate(0,0) rotate(0) scale(.6)}70%{opacity:1}100%{opacity:0;transform:translate(var(--x),calc(var(--y) + 40px)) rotate(var(--r)) scale(1)}}
+/* The class on now: check in, green and pulsing. */
+#chat .td-item.td-k-checkin{border-color:#bfe6cf;background:linear-gradient(90deg,#effaf3,#fff 70%)}
+#chat .td-item.td-k-checkin .td-ic{background:#3cb371;color:#fff;animation:tdPop .55s cubic-bezier(.3,1.8,.4,1) both,tdBeat 2s ease-in-out 1s infinite}
+#chat .td-item.td-k-checkin .td-ic::after{display:none}
+#chat .td-item.td-k-checkin .td-go{color:#2f8f57}
+@keyframes tdBeat{0%,100%{box-shadow:0 0 0 0 rgba(60,179,113,.45)}50%{box-shadow:0 0 0 7px rgba(60,179,113,0)}}
+/* Can't make college? Quiet, under the list. */
+#chat .td-away{display:flex;flex-direction:column;align-items:flex-start;gap:1px;margin:2px 0 0;padding:6px 4px;border:0;background:none;cursor:pointer;color:var(--ui-muted,#667085);font:inherit;text-align:left;animation:tdIn .5s ease .5s both}
+#chat .td-away span{font-size:13.5px;font-weight:700;text-decoration:underline;text-decoration-color:color-mix(in srgb,currentColor 35%,transparent);text-underline-offset:3px}
+#chat .td-away small{font-size:12px}
+#chat .td-days,#chat .td-note{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;animation:tdIn .4s ease both}
+#chat .td-days label{flex:1 1 130px;display:flex;flex-direction:column;gap:4px;font-size:12.5px;font-weight:700;color:var(--ui-muted,#667085)}
+#chat .td-days input,#chat .td-note input{font:inherit;font-size:16px;padding:10px 12px;border-radius:12px;border:1px solid var(--ui-line,#d0d5dd);background:#fff;color:var(--ink,#101828);min-width:0}
+#chat .td-note input{flex:1 1 180px}
+#chat .td-days button,#chat .td-note button{flex:0 0 auto;padding:10px 16px;border-radius:12px}
+body.evia-dark #chat .td-days input,body.evia-dark #chat .td-note input{background:#1c2230;color:#eef0f3;border-color:#343b4a}
+/* Evia in the header: she blinks. */
+.chat-sheet .sheet-head h2{display:flex;align-items:center;gap:10px}
+.chat-sheet .ev-head-face{width:30px;height:30px;border-width:2.5px;animation:evHeadIn .5s cubic-bezier(.3,1.8,.4,1) both}
+.chat-sheet .ev-head-face .evia-face{gap:4px}
+.chat-sheet .ev-head-face .evia-face i{width:6px!important;height:8px!important;transform-origin:50% 50%;animation:evBlink 4.2s ease-in-out 1s infinite}
+@keyframes evHeadIn{from{transform:scale(0) rotate(-30deg)}to{transform:none}}
+@keyframes evBlink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+/* The chat breathes: a soft glow drifts behind the conversation. */
+html body .chat-sheet .chat{background:radial-gradient(60% 45% at 15% 10%,color-mix(in srgb,var(--yellow,#f5c518) 9%,transparent),transparent 70%),radial-gradient(55% 40% at 90% 85%,color-mix(in srgb,var(--yellow,#f5c518) 7%,transparent),transparent 70%),#fafbfc;background-size:180% 180%;animation:evDrift 16s ease-in-out infinite alternate}
+@keyframes evDrift{0%{background-position:0% 0%,100% 100%}100%{background-position:60% 40%,30% 60%}}
+body.evia-epa .chat-sheet .chat{animation:none}
+@media (prefers-reduced-motion:reduce){#chat .td-away,#chat .td-days,#chat .td-note,#chat .td-item,#chat .td-ic,#chat .td-go,#chat .td-count,#chat .td-done circle,#chat .td-done path,.chat-sheet .ev-head-face,.chat-sheet .ev-head-face .evia-face i,html body .chat-sheet .chat,#chat .td-item.urgent .td-ic::after{animation:none!important}#chat .td-done circle,#chat .td-done path{stroke-dashoffset:0}}
+html[data-a11y-motion="reduce"] #chat .td-item,html[data-a11y-motion="reduce"] #chat .td-ic,html[data-a11y-motion="reduce"] #chat .td-go,html[data-a11y-motion="reduce"] #chat .td-count,html[data-a11y-motion="reduce"] .chat-sheet .ev-head-face,html[data-a11y-motion="reduce"] .chat-sheet .ev-head-face .evia-face i,html[data-a11y-motion="reduce"] body .chat-sheet .chat,html[data-a11y-motion="reduce"] #chat .td-item.urgent .td-ic::after{animation:none!important}
+html[data-a11y-motion="reduce"] #chat .td-done circle,html[data-a11y-motion="reduce"] #chat .td-done path{animation:none!important;stroke-dashoffset:0}
+
+/* From the employer (Paros): the witness testimony, and their view in My progress. */
+.sd-emp-meta{margin:0 0 10px;color:var(--muted,#667085);font-size:14px}
+.sd-emp-quote{margin:0;padding:14px 16px;border-radius:14px;background:var(--soft,#fff7d6);font-size:15.5px;line-height:1.55;white-space:pre-wrap}
+.sd-emp-ksbs{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.sd-emp-ksbs span{padding:4px 10px;border-radius:999px;border:1px solid var(--ui-line,#e4e7ec);font-size:13px;font-weight:700}
+.sd-emp-note{margin:12px 0 0;color:var(--muted,#667085);font-size:13.5px}
+.pv-h3{margin:14px 0 4px;font-size:16px}
+.pv-quote{margin:10px 0 0;padding:10px 14px;border-left:3px solid var(--yellow,#f5c518);font-size:14.5px;line-height:1.5;white-space:pre-wrap}
+.pv-witness{padding:10px 0;border-top:1px solid var(--ui-line,#edf0f4)}
+.pv-card.pv-new{box-shadow:0 0 0 2px var(--yellow,#f5c518)}
+.sd-emp-beh{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.sd-emp-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--ui-line,#edf0f4);font-size:14px}
+.sd-emp-row span{min-width:0}
+.sd-emp-row em{flex:none;font-style:normal;font-weight:800;font-size:13px;padding:3px 10px;border-radius:999px;background:#eaf8f0;color:#2f7d56}
+.sd-emp-row em.l1{background:#fde8e6;color:#b3261e}.sd-emp-row em.l2{background:#fff4d6;color:#8a6100}
+
+/* Attendance: the tile's dots, the calendar and its key. One colour per kind of day, readable in both themes. */
+:root{--at-here:#2e9e6a;--at-late:#e2a429;--at-hol:#3b82f6;--at-ill:#8b5cf6;--at-why:#64748b;--at-none:#dc4c3e}
+.pv-adots{display:flex;gap:5px;flex-wrap:wrap;margin-top:12px}
+.pv-adots i{width:14px;height:14px;border-radius:50%;animation:pvDot .4s cubic-bezier(.3,1.6,.4,1) both;animation-delay:var(--d,0ms)}
+@keyframes pvDot{from{transform:scale(0)}}
+.pv-a-here{--at:var(--at-here)}.pv-a-late{--at:var(--at-late)}.pv-a-holiday{--at:var(--at-hol)}.pv-a-ill{--at:var(--at-ill)}.pv-a-reason{--at:var(--at-why)}.pv-a-none{--at:var(--at-none)}
+.pv-a-present{--at:var(--at-here)}.pv-a-absent{--at:var(--at-none)}.pv-a-booked{--at:var(--at-hol)}
+.pv-stats.pv-stats3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.pv-adots i,.pv-acal-key i{background:var(--at,#cbd5e1)}
+.pv-card.pv-warn .pv-big{color:var(--at-none)}
+.pv-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:4px 0 14px}
+.pv-stats .pv-stat{flex-direction:column;align-items:flex-start;gap:2px}
+.pv-acal{border:1px solid var(--ui-line,#e4e7ec);border-radius:18px;padding:12px}
+.pv-acal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.pv-acal-head strong{font-size:16px}
+.pv-acal-nav{width:38px;height:38px;border-radius:50%;border:1px solid var(--ui-line,#e4e7ec);background:var(--ui-card,#fff);color:inherit;font-size:20px;line-height:1;cursor:pointer}
+.pv-acal-nav:disabled{opacity:.35;cursor:default}
+.pv-acal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.pv-acal-dow{text-align:center;font-size:11.5px;font-weight:700;color:var(--ui-muted,#667085);padding-bottom:2px}
+.pv-acal-d{aspect-ratio:1;max-width:100%;border:0;border-radius:12px;background:var(--ui-soft,#f2f4f7);color:var(--ui-ink,#101828);font:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:transform .12s ease;animation:pvDot .35s ease both}
+.pv-acal-d:active{transform:scale(.92)}
+.pv-acal-d[class*="pv-a-"]:not(.pv-a-booked):not(.pv-a-coming){background:var(--at);color:#fff}
+.pv-acal-d.pv-a-booked{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--at-hol) 22%,transparent) 0 5px,transparent 5px 10px);box-shadow:inset 0 0 0 2px var(--at-hol)}
+.pv-acal-d.pv-a-coming{box-shadow:inset 0 0 0 2px var(--at-here)}
+.pv-acal-d.pv-today{outline:2px solid var(--ui-ink,#101828);outline-offset:1px}
+.pv-acal-d.pv-picked{transform:scale(1.08)}
+.pv-acal-day{margin:12px 2px 4px;font-size:14.5px;line-height:1.5;min-height:2.6em}
+.pv-acal-day span{display:block;font-weight:800}
+.pv-acal-key{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:8px;font-size:13px;color:var(--ui-muted,#667085)}
+.pv-acal-key span{display:inline-flex;align-items:center;gap:6px}
+.pv-acal-key i{width:12px;height:12px;border-radius:4px}
+.pv-acal-key .pv-a-booked{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--at-hol) 30%,transparent) 0 3px,transparent 3px 6px);box-shadow:inset 0 0 0 1.5px var(--at-hol)}
+.pv-acal-key .pv-a-coming{background:transparent;box-shadow:inset 0 0 0 1.5px var(--at-here)}
+@media (max-width:380px){.pv-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (prefers-reduced-motion:reduce){.pv-adots i,.pv-acal-d{animation:none}}
+
+/* ---------- Calendar tab (calendar.js): this week on top, then the month ---------- */
+.cal-top{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:2px 0 14px}
+.cal-card{display:flex;flex-direction:column;gap:3px;padding:14px;border-radius:18px;background:var(--ui-card,#fff);border:1px solid var(--ui-line,#e9edf2);box-shadow:var(--ui-shadow)}
+.cal-label{font-size:12px;font-weight:700;color:var(--ui-muted,#667085)}
+.cal-card strong{font-size:18px;color:var(--ui-ink,#172033)}
+.cal-card strong small{font-size:13px;font-weight:600;color:var(--ui-muted,#667085)}
+.cal-card>small{font-size:13px;color:var(--ui-muted,#667085)}
+.cal-btn{margin-top:auto;padding:9px 12px;border-radius:12px;font:inherit;font-size:14px;cursor:pointer}
+.cal-card .cal-btn{margin-top:10px}
+.cal-bar{display:block;height:7px;border-radius:99px;background:var(--ui-soft,#f2f4f7);overflow:hidden;margin-top:4px}
+.cal-bar i{display:block;height:100%;border-radius:99px;background:var(--yellow,#f5c542);transition:width .4s ease}
+.cal-month{background:var(--ui-card,#fff)}
+.pv-acal-d.cal-h{position:relative}
+.pv-acal-d.cal-h::after{content:"";position:absolute;left:50%;bottom:4px;width:6px;height:6px;margin-left:-3px;border-radius:50%;background:var(--yellow-ink,#b7791f)}
+.pv-acal-d.cal-h[class*="pv-a-"]:not(.pv-a-booked):not(.pv-a-coming)::after{background:#fff}
+.cal-key .cal-key-h{border-radius:50%;width:8px;height:8px;background:var(--yellow-ink,#b7791f)}
+.cal-links{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 6px}
+.cal-link{padding:10px 14px;border-radius:999px;border:1px solid var(--ui-line,#e9edf2);background:var(--ui-card,#fff);color:var(--ui-ink,#172033);font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+@media (max-width:340px){.cal-top{grid-template-columns:1fr}}
+/* Learn: the Shop sits beside the coins. */
+.tg-pill.tg-shop{border:0;cursor:pointer;background:var(--yellow,#f5c542);color:var(--ui-on-accent,#172033);font-weight:800;padding:5px 12px}
+.tg-back{margin-bottom:8px}
+/* My progress: the short list under the four main cards. */
+.pv-more{display:flex;flex-direction:column;border-radius:18px;background:var(--ui-card,#fff);border:1px solid var(--ui-line,#e9edf2);overflow:hidden;margin-bottom:18px}
+.pv-more-row{display:flex;align-items:center;gap:10px;padding:14px 16px;border:0;border-top:1px solid var(--ui-line,#e9edf2);background:transparent;color:var(--ui-ink,#172033);font:inherit;font-size:15px;font-weight:700;text-align:left;cursor:pointer}
+.pv-more-row:first-child{border-top:0}
+.pv-more-row>span:first-child{flex:1}
+.pv-more-val{font-size:15px;color:var(--ui-muted,#667085);font-weight:700;white-space:nowrap}
+.pv-more-val b{font-weight:800;color:var(--ui-ink,#172033)}.pv-more-val small{font-size:12px;font-weight:600}
+.pv-more-row .pv-chev{display:inline-flex;color:var(--ui-faint,#98a2b3)}.pv-more-row .pv-chev svg{width:18px;height:18px}
+/* Calendar: a learner not connected to a college picks their college days. */
+.cal-days{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.cal-day{min-width:44px;padding:8px 0;border-radius:10px;border:1px solid var(--ui-line,#e9edf2);background:var(--ui-card,#fff);color:var(--ui-ink,#172033);font:inherit;font-size:13px;font-weight:700;cursor:pointer;flex:1 0 44px}
+.cal-day.on{background:var(--yellow,#f5c542);border-color:var(--yellow,#f5c542);color:var(--ui-on-accent,#172033)}
+.cal-card .cal-change{align-self:flex-start;margin-top:10px;padding:7px 12px;font-size:13px}
+.cal-wide{grid-column:1/-1}
+/* Calendar: the assessor's next visit (booked in Milos), and visit days on the month. */
+.cal-visit{display:flex;align-items:center;gap:12px;width:100%;text-align:left;margin:0 0 14px;padding:13px 14px;border-radius:18px;border:1px solid #c9dcfb;background:#eef5ff;color:var(--ui-ink,#172033);font:inherit;cursor:pointer}
+.cal-visit-ic{flex:none;width:40px;height:40px;border-radius:12px;background:#2c85f7;display:grid;place-items:center}
+.cal-visit-ic svg{width:22px;height:22px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.cal-visit span:last-child{display:flex;flex-direction:column;gap:1px}
+.cal-visit small{font-size:12px;font-weight:700;color:#1b5fb8}
+.cal-visit strong{font-size:16px}
+.cal-visit em{font-style:normal;font-size:13px;color:var(--ui-muted,#667085)}
+.pv-acal-d.cal-v::before{content:"";position:absolute;top:4px;right:5px;width:7px;height:7px;border-radius:50%;background:#2c85f7;box-shadow:0 0 0 1.5px #fff}
+.pv-acal-d.cal-v{position:relative}
+.cal-key .cal-key-v{border-radius:50%;width:9px;height:9px;background:#2c85f7}
+body.evia-dark .cal-visit{background:#1b2638;border-color:#2c4569}

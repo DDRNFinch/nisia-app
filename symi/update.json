@@ -1,8 +1,9 @@
 {
-  "version": "0.28.3",
-  "title": "Signing out always works",
+  "version": "0.31.0",
+  "title": "A simpler Symi",
   "details": [
-    "Signing out of Nisia always finishes, even if your sign-in had already run out",
-    "An invite link from your college opens the Nisia sign-in straight away"
+    "Registers, Learners, Resources and Timetable along the bottom",
+    "Tap Symi to see what needs doing today: registers to take, and learners off this week",
+    "Classes now sit with your registers, and courses and games with your resources"
   ]
 }

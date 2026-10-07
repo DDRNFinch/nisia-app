@@ -417,3 +417,42 @@ label.field{font-size:13px;font-weight:600;color:var(--ink-2)}
   .icard,.panel{box-shadow:none}
   .ihead{break-after:avoid}
 }
+
+/* Attendance */
+.att-stats{margin-bottom:14px}
+.att-stats .big{font-family:var(--display);font-size:28px;font-weight:700}
+.att-stats .big.bad{color:var(--bad)}
+.att-rules{margin-bottom:14px}
+.att-form{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:flex-end}
+.att-form label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--ink-2)}
+.att-form label span{display:flex;align-items:center;gap:8px;font-weight:500;color:var(--ink-2)}
+.att-form input{width:76px}
+.att-table tr.att-below td:first-child{box-shadow:inset 3px 0 0 var(--bad)}
+.att-table .att-bad{color:var(--bad);font-weight:700}
+.att-table th,.att-table td{padding-left:10px;padding-right:10px}
+.att-table .person b{white-space:nowrap}
+.att-table th{white-space:normal;max-width:90px;line-height:1.25}
+
+/* Standards library */
+.std-body{display:flex;flex-direction:column}
+.std-row{display:grid;grid-template-columns:72px 1fr;gap:12px;padding:9px 2px;border-top:1px solid var(--line);font-size:14px;line-height:1.5}
+.std-row b.mono{font-size:13px;color:var(--ink-2)}
+.std-unit-row{background:var(--surface-2);font-weight:600}
+.std-unit{border-top:1px solid var(--line);padding:6px 0}
+.std-unit>summary{cursor:pointer;padding:8px 2px;font-weight:600}
+.std-unit>summary .mono{margin-right:6px}
+.std-lo{margin:10px 0 2px;padding:6px 10px;border-radius:8px;background:var(--surface-2);font-size:14px;font-weight:600}
+.std-q .panel-head h2{margin:0}
+.modal.wide-modal>*{flex-shrink:0}
+.std-seg{flex-wrap:wrap;align-self:flex-start}
+
+/* College pack builder */
+.b-topic{padding:14px 16px}
+.b-head{display:flex;align-items:center;gap:8px}
+.b-head .b-name{flex:1;min-width:0;font-weight:700}
+.b-ksbs{margin-top:10px;align-items:center}
+.b-x{border:0;background:none;color:var(--ink-3);font-size:15px;line-height:1;padding:0 0 0 2px;cursor:pointer}
+.b-pick{cursor:pointer;grid-template-columns:24px 1fr}
+.b-pick input{margin-top:4px}
+.b-grid{grid-template-columns:minmax(0,2fr) minmax(260px,1fr);align-items:start}
+@media(max-width:900px){.b-grid{grid-template-columns:1fr}.b-cover{position:static!important}}

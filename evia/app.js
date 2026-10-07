@@ -45,6 +45,8 @@ let course=localStorage.getItem("evia7-course")||"bricklayer", screen="course", 
 hours=hours.map((x,i)=>Object.assign({id:"legacy-"+i,createdAt:x.createdAt||Date.parse(x.d)||Date.now(),savedAt:x.savedAt||x.d||""},x));
 const $=s=>document.querySelector(s), data=()=>C[course], code=x=>x.split("|")[0], text=x=>x.split("|").slice(1).join("|");
 function persist(){localStorage.setItem("evia7-course",course);localStorage.setItem("evia7-evidence",JSON.stringify(evidence));localStorage.setItem("evia7-hours",JSON.stringify(hours));localStorage.setItem("evia7-otj-batches",JSON.stringify(otjBatches))}
+/* A learner connected to Nisia whose college has its own pack follows its topics (packs.js); everyone else, Evia's own. */
+try{window.eviaPacks&&window.eviaPacks.followKept&&window.eviaPacks.followKept(course)}catch(err){console.warn("Evia: pack",err&&err.message)}
 function nav(s){screen=s;render();}
 function render(){
  const profileBtn=document.getElementById("profile-btn");
@@ -157,7 +159,7 @@ function supportingCardIcon(type){const icons={photo:'<svg viewBox="0 0 24 24" a
 async function openSupportingEvidence(){
  const base={course};
  $("#page-title").textContent="Supporting Evidence";
- $("#screen").innerHTML=`<button class="secondary" id="back-supporting-course" type="button">‹ My course</button><h1 class="ui-sub-title">Supporting evidence</h1><p class="ui-sub-lead">Witness testimony, photos and documents for your course.</p><div class="evidence-type-grid"><button type="button" class="evidence-type-tile" data-supporting-type="photo">${supportingCardIcon("photo")}<span class="evidence-type-copy"><strong>Take a photo</strong></span></button>${window.eviaRecordings?`<button type="button" class="evidence-type-tile" data-supporting-type="video">${supportingCardIcon("video")}<span class="evidence-type-copy"><strong>Record a video</strong></span></button><button type="button" class="evidence-type-tile" data-supporting-type="audio">${supportingCardIcon("audio")}<span class="evidence-type-copy"><strong>Record audio</strong></span></button>`:""}<button type="button" class="evidence-type-tile" data-supporting-type="document">${supportingCardIcon("document")}<span class="evidence-type-copy"><strong>Upload a file</strong></span></button></div>`;
+ $("#screen").innerHTML=`<button class="secondary" id="back-supporting-course" type="button">‹ Topics</button><h1 class="ui-sub-title">Supporting evidence</h1><p class="ui-sub-lead">Witness testimony, photos and documents for your course.</p><div class="evidence-type-grid"><button type="button" class="evidence-type-tile" data-supporting-type="photo">${supportingCardIcon("photo")}<span class="evidence-type-copy"><strong>Take a photo</strong></span></button>${window.eviaRecordings?`<button type="button" class="evidence-type-tile" data-supporting-type="video">${supportingCardIcon("video")}<span class="evidence-type-copy"><strong>Record a video</strong></span></button><button type="button" class="evidence-type-tile" data-supporting-type="audio">${supportingCardIcon("audio")}<span class="evidence-type-copy"><strong>Record audio</strong></span></button>`:""}<button type="button" class="evidence-type-tile" data-supporting-type="document">${supportingCardIcon("document")}<span class="evidence-type-copy"><strong>Upload a file</strong></span></button></div>`;
 
  $("#back-supporting-course").onclick=()=>nav("course");
  document.querySelectorAll("[data-supporting-type]").forEach(btn=>btn.onclick=()=>supportingPrepare(base,btn.dataset.supportingType));
@@ -280,10 +282,27 @@ function supportingPrepare(base,type){
    stopBtn.onclick=()=>{if(recorder&&recorder.state!=="inactive")recorder.stop()};
  }
 }
-function supportingSummary(x){if(x.observation)return ["Observed by "+(x.observation.by||"your assessor"),x.ksbs&&x.ksbs.length?x.ksbs.length+" signed off":""].filter(Boolean).join(" · ");return [x.witness&&x.witness.name?"Witness testimony · "+x.witness.name+(x.witness.role?", "+x.witness.role:""):supportingTypeLabel(x.type),x.nvqUnit?"Unit "+x.nvqUnit+(Array.isArray(x.ksbs)&&x.ksbs.length?" · "+x.ksbs.length+" criteria":""):""].filter(Boolean).join(" · ")}
+function supportingSummary(x){if(x.employer)return (x.witness&&x.witness.name||"Your employer")+" · "+(x.employer.kind==="behaviours"?"Behaviour ratings":"Witness testimony")+" · "+new Date(x.employer.at).toLocaleDateString("en-GB",{day:"numeric",month:"short"});if(x.observation)return ["Observed by "+(x.observation.by||"your assessor"),x.ksbs&&x.ksbs.length?x.ksbs.length+" signed off":""].filter(Boolean).join(" · ");return [x.witness&&x.witness.name?"Witness testimony · "+x.witness.name+(x.witness.role?", "+x.witness.role:""):supportingTypeLabel(x.type),x.nvqUnit?"Unit "+x.nvqUnit+(Array.isArray(x.ksbs)&&x.ksbs.length?" · "+x.ksbs.length+" criteria":""):""].filter(Boolean).join(" · ")}
 /* About this evidence: mark it as witness testimony and, on NVQ courses, link it to a unit and the criteria it shows. */
 function openSupportingDetails(id,fresh,after){
  const all=supportingMeta(),x=all.find(r=>r.id===id);if(!x)return;
+ /* An employer's witness testimony (Paros): read it here; the assessor signs off what it shows. */
+ if(x.employer&&x.employer.kind==="behaviours"){const E=x.employer,B=["","Needs support","Developing","Good","Excellent"],off=(window.EVIA_KSB_OFFICIAL||{})[course==="trowel3"?"bricklayer":course]||{};
+  $("#modal-root").innerHTML='<div class="overlay"><section class="sheet pr-sheet sd-sheet"><div class="sheet-head"><div><div class="chat-kicker">EMPLOYER FEEDBACK</div><h2>Your behaviours</h2></div><button class="close" id="sd-close" aria-label="Close">×</button></div><div class="pr-body">'+
+   '<p class="sd-emp-meta">'+esc((x.witness&&x.witness.name)||"Your employer")+' · '+esc(new Date(E.at).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}))+'</p>'+
+   '<div class="sd-emp-beh">'+Object.entries(E.ratings||{}).sort().map(([k,v])=>'<div class="sd-emp-row"><span><strong>'+esc(k)+'</strong> '+esc(off[k]||"")+'</span><em class="l'+Number(v)+'">'+esc(B[v]||v)+'</em></div>').join("")+'</div>'+
+   (E.comment?'<blockquote class="sd-emp-quote">'+esc(E.comment)+'</blockquote>':"")+
+   '<p class="sd-emp-note">Your assessor can see this too, and uses it at your progress reviews.</p>'+
+   '<div class="pr-save"><button type="button" class="primary" id="sd-skip">Done</button></div></div></section></div>';
+  const done=()=>{$("#modal-root").innerHTML="";if(after)after()};$("#sd-close").onclick=$("#sd-skip").onclick=done;return}
+ if(x.employer){const E=x.employer,R=["","Getting there","Competent","Excellent"];
+  $("#modal-root").innerHTML='<div class="overlay"><section class="sheet pr-sheet sd-sheet"><div class="sheet-head"><div><div class="chat-kicker">WITNESS TESTIMONY</div><h2>'+esc(E.unit||"From your employer")+'</h2></div><button class="close" id="sd-close" aria-label="Close">×</button></div><div class="pr-body">'+
+   '<p class="sd-emp-meta">'+esc((x.witness&&x.witness.name)||"Your employer")+' · '+esc(new Date(E.at).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}))+(R[E.rating]?' · <strong>'+esc(R[E.rating])+'</strong>':"")+'</p>'+
+   '<blockquote class="sd-emp-quote">'+esc(E.statement)+'</blockquote>'+
+   ((E.ksbs||[]).length?'<div class="sd-emp-ksbs">'+E.ksbs.map(k=>'<span>'+esc(k)+'</span>').join("")+'</div>':"")+
+   '<p class="sd-emp-note">'+(E.signed?"Signed by your employer as seen first hand. ":"")+'Your assessor checks it and signs off the KSBs it shows.</p>'+
+   '<div class="pr-save"><button type="button" class="primary" id="sd-skip">Done</button></div></div></section></div>';
+  const done=()=>{$("#modal-root").innerHTML="";if(after)after()};$("#sd-close").onclick=$("#sd-skip").onclick=done;return}
  const nvq=window.eviaNvq&&window.eviaNvq.on(),w=x.witness||{};
  const units=nvq?window.eviaNvq.selected():[];
  const critList=u=>{const list=u?window.eviaNvq.doCodesFor(u):[];return list.length?'<div class="sd-crit-head">What does it show? Tick what applies, your assessor will check it.</div>'+list.map(([c,t])=>'<label class="sd-crit"><input type="checkbox" value="'+esc(c)+'"'+((x.ksbs||[]).includes(c)?" checked":"")+'><span><strong>'+esc(c.split(".").slice(1).join("."))+'</strong> '+esc(t)+'</span></label>').join(""):""};
@@ -388,7 +407,7 @@ function ksbDetail(codeValue,wording,mapped,onClose){
 function openSavedReviews(){
  const reviews=window.eviaGetReviews?window.eviaGetReviews():[];
  $("#page-title").textContent="Reviews";
- $("#screen").innerHTML='<button class="secondary" id="back-reviews-portfolio" type="button">‹ My course</button><div class="card portfolio-intro"><div class="section-title">PORTFOLIO</div><h2>Saved Reviews</h2><p>All progress reviews saved for this course.</p></div>'+
+ $("#screen").innerHTML='<button class="secondary" id="back-reviews-portfolio" type="button">‹ Topics</button><div class="card portfolio-intro"><div class="section-title">PORTFOLIO</div><h2>Saved Reviews</h2><p>All progress reviews saved for this course.</p></div>'+
  (reviews.length?'<div class="saved-reviews-list">'+reviews.map((r,i)=>'<button type="button" class="card saved-review-item" data-review-id="'+esc(r.id||"")+'"><div><strong>Progress Review</strong><span>'+esc(new Date(r.date).toLocaleDateString("en-GB"))+'</span></div><b>›</b></button>').join("")+'</div>':'<div class="card"><p>No saved reviews yet.</p></div>');
  $("#back-reviews-portfolio").onclick=()=>nav("course");
  document.querySelectorAll("[data-review-id]").forEach(b=>b.onclick=()=>{

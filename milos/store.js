@@ -6,6 +6,10 @@
      and sent the next time there's signal; each job is sent a step at a time and picks up where it stopped.
    - Signing out clears it all from the phone. */
 import { db, rpc, me } from "../packages/core/nisia.js";
+import { loadPacks } from "../packages/core/packs.js";
+/* Requests to Nisia go through the shared actions where there is one (packages/core/nisia-actions.js). */
+const A = window.NisiaActions;
+A.use(rpc, { app: "milos" });
 import { hit } from "../packages/core/usage.js";
 import { loadLearner, reviewDue } from "./review.js";
 import { loadPortfolio } from "./portfolio.js";
@@ -63,6 +67,8 @@ export async function withPending(r, D) {
 /* ---------- Downloading from Nisia ---------- */
 async function download() {
   const who = await me();
+  /* The course packs (topics and KSBs) first, so learners open in the newest; with no change nothing is downloaded. */
+  try { await loadPacks(rpc); } catch (e) { console.warn("Milos: packs", e.message); }
   const orgs = (who.memberships || []).filter((m) => m.roles.some((x) => ["assessor", "tutor", "admin"].includes(x)));
   const rows = [];
   for (const o of orgs) {
@@ -90,8 +96,20 @@ async function download() {
   await put("kv", at, "syncedAt");
   return { who, rows };
 }
+/* What the employer sent from Paros: witness testimonies and behaviour ratings. */
+/* It never stops the learner's work downloading: if Nisia can't send it, the last copy is kept. */
+async function loadEmployer(r) {
+  try {
+    const d = await A.send("employerFeedback", { p_enrolment: r.enrolment_id }) || {};
+    return { witness: d.witness || [], ratings: d.ratings || [] };
+  } catch (e) {
+    console.warn("Milos: employer feedback", e.message);
+    const D = await get("learners", r.enrolment_id).catch(() => null);
+    return (D && D.E) || { witness: [], ratings: [] };
+  }
+}
 export async function refreshLearner(r) {
-  const L = await loadLearner(r), P = await loadPortfolio(L), D = { L, P, at: new Date().toISOString() };
+  const L = await loadLearner(r), P = await loadPortfolio(L), E = await loadEmployer(r), D = { L, P, E, at: new Date().toISOString() };
   await put("learners", D, r.enrolment_id); return D;
 }
 

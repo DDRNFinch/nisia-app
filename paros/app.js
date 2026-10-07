@@ -3,9 +3,13 @@
    testimonies and behaviour ratings. Nisia decides what an employer can see (paros_learners, paros_learner): never the
    apprentice's own records in Evia. The last download is kept on the device, so Paros opens without signal. */
 import { db, rpc, me, signOut, esc, ukDate, ago, courseName } from "../packages/core/nisia.js";
+/* Every request to Nisia goes through the shared actions (packages/core/nisia-actions.js, loaded by index.html). */
+const A = window.NisiaActions;
+A.use(rpc, { app: "paros" });
 import { startUsage, hit } from "../packages/core/usage.js";
 import { auth } from "../packages/core/signin.js";
-import { COURSE_DATA } from "../packages/core/courses.js";
+import { coursePack, loadPacks } from "../packages/core/packs.js";
+import { mountAbsences } from "../packages/core/absences.js";
 
 const root = document.getElementById("app");
 document.body.classList.add("milos", "paros");
@@ -35,7 +39,7 @@ const hm = (mins) => { const m = Math.round(Number(mins) || 0); return Math.floo
 const hrs = (h) => { const n = Math.round((Number(h) || 0) * 10) / 10; return n + (n === 1 ? " hour" : " hours"); };
 const day = (d) => { const t = Date.parse(d); return isNaN(t) ? "" : new Date(t).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }); };
 const ring = (pct) => { const p = Math.max(0, Math.min(100, Math.round(pct || 0))); return '<span class="m-ring" style="--p:' + p + '"><b>' + p + '<small>%</small></b></span>'; };
-const course = (r) => COURSE_DATA[r.course_code] || { name: r.course_title || courseName(r.course_code), units: [], ksbs: [] };
+const course = (r) => coursePack(r.course_code, r.enrolment_id) || { name: r.course_title || courseName(r.course_code), units: [], ksbs: [] };
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || "null") ?? d; } catch (_) { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} };
 function toast(msg) {
@@ -68,6 +72,7 @@ async function start(loud) {
       root.querySelector("#out").onclick = async () => { await signOut(); location.reload(); }; return;
     }
     rows = await rpc("paros_learners");
+    try { await loadPacks(rpc); } catch (e) { console.warn("Paros: packs", e.message); }
     write("paros-cache", { who, rows, at: new Date().toISOString() });
     details = {};
     if (loud) toast("Up to date");
@@ -176,9 +181,8 @@ async function drawHours() {
   });
 }
 async function confirmHours(x, decision, comment) {
-  const m = (who.memberships || []).find((mm) => mm.organisation_id === x.r.organisation_id);
-  const { error } = await db.from("otj_confirmations").insert({ organisation_id: x.r.organisation_id, otj_entry_id: x.o.id, confirmer_member_id: m && m.member_id, decision, comment: comment || null });
-  if (error) return toast("Couldn’t save: " + error.message);
+  try { await A.send("confirmHours", { p_otj: x.o.id, p_decision: decision, p_comment: comment || null }); }
+  catch (e) { return toast("Couldn’t save: " + e.message); }
   x.o.decision = decision; x.r.to_confirm = Math.max(0, (x.r.to_confirm || 0) - 1); write("paros-cache", { who, rows, at: (read("paros-cache", {}) || {}).at });
   toast(decision === "approved" ? "Confirmed" : "Sent to the college");
   if (view) apprentice(view, true); else drawHours();
@@ -216,13 +220,10 @@ async function witness(r) {
     if (text.split(/\s+/).length < 12) return (err.textContent = "Say a bit more about what you saw (a few sentences).");
     if (!rating) return (err.textContent = "Choose how well it was done.");
     if (!o.querySelector("#wSign").checked) return (err.textContent = "Tick to confirm you saw it yourself.");
-    const i = o.querySelector("#wUnit").value, m = (who.memberships || []).find((mm) => mm.organisation_id === r.organisation_id);
+    const i = o.querySelector("#wUnit").value;
     const b = o.querySelector("#wSave"); b.disabled = true; b.textContent = "Sending…";
     try {
-      const { data: en, error: ee } = await db.from("enrolments").select("course_id").eq("id", r.enrolment_id).single(); if (ee) throw ee;
-      const { error } = await db.from("witness_testimonies").insert({ organisation_id: r.organisation_id, enrolment_id: r.enrolment_id, course_id: en.course_id, witness_member_id: m && m.member_id,
-        statement: text, rating, signed_at: new Date().toISOString(), unit: i === "" ? null : units[+i][0], ksbs: [...o.querySelectorAll("#wKsbs .on")].map((c) => c.dataset.k) });
-      if (error) throw error;
+      await A.send("addWitness", { p_enrolment: r.enrolment_id, p_statement: text, p_rating: rating, p_unit: i === "" ? null : units[+i][0], p_ksbs: [...o.querySelectorAll("#wKsbs .on")].map((c) => c.dataset.k) });
       o.remove(); r.witness = (r.witness || 0) + 1; details[r.enrolment_id] = null; toast("Sent. " + first(r.name) + " and their assessor can see it."); draw();
     } catch (e) { b.disabled = false; b.textContent = "Sign and send"; err.textContent = "Couldn’t send: " + e.message; }
   };
@@ -240,9 +241,9 @@ async function rateBehaviours(r) {
   o.querySelectorAll(".p-beh").forEach((row) => row.querySelectorAll("[data-v]").forEach((b) => b.onclick = () => { got[row.dataset.k] = +b.dataset.v; row.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); }));
   o.querySelector("#bSave").onclick = async () => {
     if (Object.keys(got).length < B.length) return (o.querySelector("#bErr").textContent = "Rate each one (" + (B.length - Object.keys(got).length) + " to go).");
-    const m = (who.memberships || []).find((mm) => mm.organisation_id === r.organisation_id), b = o.querySelector("#bSave"); b.disabled = true;
-    const { error } = await db.from("behaviour_ratings").insert({ organisation_id: r.organisation_id, enrolment_id: r.enrolment_id, rater_member_id: m && m.member_id, ratings: got, comment: o.querySelector("#bNote").value.trim() || null });
-    if (error) { b.disabled = false; return (o.querySelector("#bErr").textContent = "Couldn’t send: " + error.message); }
+    const b = o.querySelector("#bSave"); b.disabled = true;
+    try { await A.send("rateBehaviours", { p_enrolment: r.enrolment_id, p_ratings: got, p_comment: o.querySelector("#bNote").value.trim() || null }); }
+    catch (e) { b.disabled = false; return (o.querySelector("#bErr").textContent = "Couldn’t send: " + e.message); }
     o.remove(); r.last_rating = new Date().toISOString(); details[r.enrolment_id] = null; toast("Thanks. " + first(r.name) + " and their assessor can see it."); draw();
   };
 }
@@ -281,9 +282,10 @@ async function apprentice(r, keep) {
     '</div>' +
     /* College */
     '<div class="m-pane" data-pane="college"' + (lTab === "college" ? "" : " hidden") + '>' +
+      '<div id="absBox"></div>' +
       (!college.length ? empty("No college registers yet", "When the tutor finishes a register in Symi, it shows here with what was taught.") :
         '<div class="card m-list">' + college.map((c) => { const here = (c.minutes || 0) > 0 && c.status !== "absent";
-          return '<div class="m-row p-sess"><span class="m-ic ' + (here ? "" : "bad") + '">' + IC.college + '</span><span class="m-row-main"><b>' + esc(day(c.date)) + ' · ' + esc(c.class) + '</b><span class="sub">' + esc(c.lesson || "") + '</span>' +
+          return '<div class="m-row p-sess" data-att="' + esc(c.id) + '"><span class="m-ic ' + (here ? "" : "bad") + '">' + IC.college + '</span><span class="m-row-main"><b>' + esc(day(c.date)) + ' · ' + esc(c.class) + '</b><span class="sub">' + esc(c.lesson || "") + '</span>' +
             ((c.ksbs || []).length ? '<span class="m-chips">' + c.ksbs.map((k) => '<span class="m-chip" title="' + esc((C.ksbs.find((x) => x[0] === k) || [k, ""])[1]) + '">' + esc(k) + '</span>').join("") + '</span>' : "") + '</span>' +
             (here ? '<span class="pill good">' + esc(hm(c.minutes)) + (c.late ? " · late" : "") + '</span>' : '<span class="pill bad">Absent</span>') + '</div>'; }).join("") + '</div>') +
     '</div>' +
@@ -303,6 +305,16 @@ async function apprentice(r, keep) {
   root.querySelectorAll("[data-lt]").forEach((b) => b.onclick = () => { lTab = b.dataset.lt; root.querySelectorAll("[data-lt]").forEach((x) => x.setAttribute("aria-selected", x === b)); root.querySelectorAll("[data-pane]").forEach((p) => p.hidden = p.dataset.pane !== lTab); });
   ["doWitness", "doWitness2"].forEach((id) => { const b = root.querySelector("#" + id); if (b) b.onclick = () => witness(r); });
   ["doRate", "doRate2"].forEach((id) => { const b = root.querySelector("#" + id); if (b) b.onclick = () => rateBehaviours(r); });
+  /* Days off, and why they weren't at college. */
+  mountAbsences(root.querySelector("#absBox"), { enrolment: r.enrolment_id, name: r.name, sheet, toast, hit });
+  reasons(r);
+}
+async function reasons(r) {
+  const key = "paros-reasons-" + r.enrolment_id;
+  let marks = read(key, null);
+  if (navigator.onLine) { try { marks = (await rpc("paros_absences", { p_enrolment: r.enrolment_id })).marks || []; write(key, marks); } catch (_) {} }
+  if (view !== r) return;
+  (marks || []).forEach((m) => { if (m.here || !m.reason) return; const p = root.querySelector('[data-att="' + m.id + '"] .pill.bad'); if (p) { p.textContent = "Off · " + m.reason; p.className = "pill warn"; } });
 }
 
 boot().catch((e) => { root.innerHTML = '<div class="auth"><p class="err">' + esc(e.message) + '</p></div>'; });
