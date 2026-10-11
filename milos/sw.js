@@ -2,9 +2,9 @@
    installs, and served from here after that, so an update always arrives complete (never new files mixed with old
    ones). Learners' data isn't kept here: store.js keeps it in IndexedDB, and Nisia's own requests go straight through.
    VERSION is stamped with the commit when the site is published. */
-const VERSION = "fresh-7ef7b24";
+const VERSION = "newid-3781432";
 const CACHE = "milos-" + VERSION;
-const FILES = ["./", "index.html", "milos.css", "fonts/inter-latin-wght-normal.woff2", "app.js", "review.js", "portfolio.js", "observe.js", "pack.js", "store.js", "draft.js", "match.js", "push.js", "manifest.webmanifest",
+const FILES = ["./", "index.html", "milos.css", "fonts/inter-latin-wght-normal.woff2", "app.js", "review.js", "portfolio.js", "observe.js", "pack.js", "store.js", "draft.js", "match.js", "push.js", "app.webmanifest",
   "icons/icon.svg", "icons/icon-192.png", "icons/badge-96.png", "icons/icon-512.png", "icons/maskable-512.png", "icons/apple-touch-icon.png",
   "../packages/core/nisia.js", "../packages/core/signin.js", "../packages/core/usage.js", "../packages/core/courses.js", "../packages/core/packs.js", "../packages/core/reviewdoc.js",
   "../packages/core/strength.js", "../packages/core/prompts.js", "../packages/core/absences.js", "../packages/core/nisia-actions.js", "../packages/ui/nisia.css",
@@ -19,7 +19,7 @@ self.addEventListener("fetch", (e) => {
   const u = new URL(e.request.url);
   if (e.request.method !== "GET" || u.origin !== location.origin) return;
   /* The install settings always come fresh (with the copy here when there's no signal), so the phone sees the app's own name. */
-  if (u.pathname.endsWith("/manifest.webmanifest")) { e.respondWith(fetch(e.request, { cache: "no-store" }).catch(() => caches.match(e.request, { ignoreSearch: true }))); return; }
+  if (/\/(app|manifest)\.webmanifest$/.test(u.pathname)) { e.respondWith(fetch(e.request, { cache: "no-store" }).catch(() => caches.match(e.request, { ignoreSearch: true }))); return; }
   e.respondWith(caches.open(CACHE).then((c) => c.match(e.request, { ignoreSearch: true }).then((hit) => hit ||
     (e.request.mode === "navigate" ? c.match("./") : null)).then((hit) => hit || fetch(e.request))));
 });

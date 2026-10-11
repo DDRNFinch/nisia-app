@@ -1,4 +1,4 @@
-const BUILD='0.34.5';
+const BUILD='0.34.7';
 const CACHE=`symi-${BUILD}`;
 const ASSETS=[
   './','./index.html',
@@ -30,6 +30,7 @@ const ASSETS=[
   '../packages/core/packs.js','../packages/core/courses.js','./fonts/inter-latin-wght-normal.woff2',`./nisia-link.js?v=${BUILD}`,
   '../packages/vendor/supabase-2.45.4.js','../packages/core/nisia.js','../packages/core/nisia-actions.js','../packages/core/signin.js','../packages/core/usage.js',
   `./manifest.json?v=${BUILD}`,
+  `./app.webmanifest?v=${BUILD}`,
   `./manifest.webmanifest?v=${BUILD}`,
   `./icon-192.png?v=${BUILD}`,
   `./icon-512.png?v=${BUILD}`,
@@ -41,7 +42,8 @@ const ASSETS=[
 
 self.addEventListener('install',event=>event.waitUntil((async()=>{
   const cache=await caches.open(CACHE);
-  await cache.addAll(ASSETS);
+  /* Fresh from the server (not the browser's 10-minute copy), so a new version never keeps an old page. */
+  await cache.addAll(ASSETS.map(u=>new Request(u,{cache:'reload'})));
   await self.skipWaiting();
 })()));
 
@@ -62,7 +64,7 @@ self.addEventListener('fetch',event=>{
   if(url.origin!==location.origin)return;
 
   /* The install settings always come fresh (with the copy here when there's no signal), so the phone sees Symi's own name. */
-  if(/\/manifest\.(json|webmanifest)$/.test(url.pathname)){
+  if(/\/(manifest\.json|manifest\.webmanifest|app\.webmanifest)$/.test(url.pathname)){
     event.respondWith(fetch(request,{cache:'no-store'}).catch(()=>caches.match(request,{ignoreSearch:true})));
     return;
   }
