@@ -1,8 +1,8 @@
 /* Milos works offline. The whole app is kept here as one version: every file is fetched fresh when a new version
    installs, and served from here after that, so an update always arrives complete (never new files mixed with old
-   ones). Learners' data isn't kept here: store.js keeps it in IndexedDB, and Nisia's own requests go straight through.
+   ones). Learners' data isn't kept here: store.js keeps it in IndexedDB, and Evia Portal's own requests go straight through.
    VERSION is stamped with the commit when the site is published. */
-const VERSION = "202610121514-b4c1fb6";
+const VERSION = "202610122317-ebd8456";
 const CACHE = "milos-" + VERSION;
 const FILES = ["./", "index.html", "milos.css", "fonts/inter-latin-wght-normal.woff2", "app.js", "review.js", "portfolio.js", "observe.js", "pack.js", "store.js", "draft.js", "match.js", "push.js", "app.webmanifest",
   "icons/icon.svg", "icons/icon-192.png", "icons/badge-96.png", "icons/icon-512.png", "icons/maskable-512.png", "icons/apple-touch-icon.png",
@@ -24,7 +24,7 @@ self.addEventListener("fetch", (e) => {
     (e.request.mode === "navigate" ? c.match("./") : null)).then((hit) => hit || fetch(e.request))));
 });
 
-/* Notifications from Nisia (the assessor turned them on). Tapping one opens Milos on the right tab: the open Milos if
+/* Notifications from Evia Portal (the assessor turned them on). Tapping one opens Milos on the right tab: the open Milos if
    there is one, otherwise a new one. */
 self.addEventListener("push", (e) => {
   let m = {};
