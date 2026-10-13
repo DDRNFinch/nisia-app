@@ -1,0 +1,96 @@
+const BUILD='0.34.16';
+const CACHE=`symi-${BUILD}`;
+const ASSETS=[
+  './','./index.html',
+  `./style.css?v=${BUILD}`,
+  `./staff-style.css?v=${BUILD}`,
+  `./samos-theme.css?v=${BUILD}`,
+  `./symi-week-calendar-v023.css?v=${BUILD}`,
+  `./symi-standard-ui-v024.css?v=${BUILD}`,
+  `./symi-calendar-manager-v025.css?v=${BUILD}`,
+  `./symi-home-polish-v025.css?v=${BUILD}`,
+  `./symi-home-scale-v027.css?v=${BUILD}`,
+  `./evia-animations.js?v=${BUILD}`,
+  `./qr-engine.js?v=${BUILD}`,
+  `./app.js?v=${BUILD}`,
+  `./naxos-controller.js?v=${BUILD}`,
+  `./symi-brand-v017.js?v=${BUILD}`,
+  `./symi-otj-share-v017.js?v=${BUILD}`,
+  `./symi-course-hub-v018.js?v=${BUILD}`,
+  `./symi-teaching-v019.js?v=${BUILD}`,
+  `./symi-attendance-cap-v020.js?v=${BUILD}`,
+  `./symi-data-hub-v021.js?v=${BUILD}`,
+  `./symi-course-first-v021.js?v=${BUILD}`,
+  `./symi-week-calendar-v023.js?v=${BUILD}`,
+  `./symi-standard-ui-v024.js?v=${BUILD}`,
+  `./symi-home-polish-v025.js?v=${BUILD}`,
+  `./symi-updater-v027.js?v=${BUILD}`,
+  `./symi-nisia.css?v=${BUILD}`,`./symi-look.css?v=${BUILD}`,`./symi-look.js?v=${BUILD}`,`./symi-teach.js?v=${BUILD}`,`./symi-library.js?v=${BUILD}`,`./symi-library.css?v=${BUILD}`,`./symi-teach.css?v=${BUILD}`,`./symi-teach-pics.css?v=${BUILD}`,
+  `../evia/teach-kit.js?v=${BUILD}`,`../evia/teach-pics.js?v=${BUILD}`,`../evia/practice-tasks.js?v=${BUILD}`,`../evia/teach-bricklayer.js?v=${BUILD}`,`../evia/teach-joiner.js?v=${BUILD}`,`../evia/teach-site.js?v=${BUILD}`,`../evia/teach-trowel3.js?v=${BUILD}`,
+  '../packages/core/packs.js','../packages/core/courses.js','./fonts/inter-latin-wght-normal.woff2',`./nisia-link.js?v=${BUILD}`,
+  '../packages/vendor/supabase-2.45.4.js','../packages/core/nisia.js','../packages/core/nisia-actions.js','../packages/core/install-chip.js','../packages/core/signin.js','../packages/core/usage.js',
+  `./manifest.json?v=${BUILD}`,
+  `./app.webmanifest?v=${BUILD}`,
+  `./manifest.webmanifest?v=${BUILD}`,
+  `./icon-192.png?v=${BUILD}`,
+  `./icon-512.png?v=${BUILD}`,
+  `./icon-maskable-192.png?v=${BUILD}`,
+  `./icon-maskable-512.png?v=${BUILD}`,
+  `./apple-touch-icon.png?v=${BUILD}`,
+  `./favicon-32.png?v=${BUILD}`
+];
+
+self.addEventListener('install',event=>event.waitUntil((async()=>{
+  const cache=await caches.open(CACHE);
+  /* Fresh from the server (not the browser's 10-minute copy), so a new version never keeps an old page. */
+  await cache.addAll(ASSETS.map(u=>new Request(u,{cache:'reload'})));
+  await self.skipWaiting();
+})()));
+
+self.addEventListener('activate',event=>event.waitUntil((async()=>{
+  const keys=await caches.keys();
+  await Promise.all(keys.filter(k=>/^(?:samos|symi)-/i.test(k)&&k!==CACHE).map(k=>caches.delete(k)));
+  await self.clients.claim();
+})()));
+
+self.addEventListener('message',event=>{
+  if(event.data==='SKIP_WAITING'||event.data?.type==='SKIP_WAITING')self.skipWaiting();
+});
+
+self.addEventListener('fetch',event=>{
+  const request=event.request;
+  if(request.method!=='GET')return;
+  const url=new URL(request.url);
+  if(url.origin!==location.origin)return;
+
+  /* The install settings always come fresh (with the copy here when there's no signal), so the phone sees Symi's own name. */
+  if(/\/(manifest\.json|manifest\.webmanifest|app\.webmanifest)$/.test(url.pathname)){
+    event.respondWith(fetch(request,{cache:'no-store'}).catch(()=>caches.match(request,{ignoreSearch:true})));
+    return;
+  }
+  if(url.pathname.endsWith('/service-worker.js')||url.pathname.endsWith('/update.json')){
+    event.respondWith(fetch(request,{cache:'no-store'}));
+    return;
+  }
+
+  if(request.mode==='navigate'){
+    event.respondWith((async()=>{
+      const cache=await caches.open(CACHE);
+      const cached=(await cache.match('./index.html'))||(await cache.match('./'));
+      if(cached)return cached;
+      try{return await fetch(request,{cache:'no-store'});}catch(_){return Response.error();}
+    })());
+    return;
+  }
+
+  event.respondWith((async()=>{
+    const cache=await caches.open(CACHE);
+    const cached=await cache.match(request,{ignoreSearch:true});
+    if(cached)return cached;
+    try{
+      const response=await fetch(request,{cache:'no-store'});
+      if(response&&response.ok)await cache.put(request,response.clone());
+      return response;
+    }catch(_){return Response.error();}
+  })());
+});
