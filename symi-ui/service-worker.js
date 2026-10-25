@@ -1,4 +1,4 @@
-const BUILD='.10251438';
+const BUILD='0.34.29.10251438';
 const CACHE=`symiui-${BUILD}`;
 const ASSETS=[
   './','./index.html',
