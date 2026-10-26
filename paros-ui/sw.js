@@ -1,7 +1,7 @@
 /* Paros works offline from its last download: the app is kept here as one version (fetched fresh when a new version
    installs). Apprentices' details are kept by the app itself; Evia Portal's own requests go straight through.
    VERSION is stamped with the commit when the site is published. */
-const VERSION = "ui10252030";
+const VERSION = "ui10261037";
 const CACHE = "parosui-" + VERSION;
 const FILES = ["./", "index.html", "paros.css", "app.js", "push.js", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-512.png", "icons/apple-touch-icon.png",
   "../milos-ui/milos.css", "../milos-ui/fonts/inter-latin-wght-normal.woff2",
