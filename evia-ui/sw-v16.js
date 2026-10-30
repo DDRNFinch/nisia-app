@@ -1,4 +1,4 @@
-const VERSION = "2026-10-27-evia7-v306-ui10271011";
+const VERSION = "2026-10-30-evia7-v309-t1-ui10301957";
 const CACHE_NAME = "eviaui-offline-" + VERSION;
 
 const APP_SHELL = [
@@ -13,7 +13,7 @@ const APP_SHELL = [
   "./vendor/fonts/lexend-latin-400-normal.woff2",
   "./vendor/fonts/lexend-latin-600-normal.woff2",
   "./vendor/fonts/inter-latin-wght-normal.woff2",
-  "./errors.js","./install.js","./blank-guard.js","./packs.js","./nisia-actions.js","./nisia.js","./checkin.js","./class-quiz.js","./mic-hint.js","./battle.js","./messages-ui.js","./evia-messages.js","./future.js","./review-prep.js","./goodbye.js","./ui-tidy.js","./helper.js","./journey-pack.js","./own-attendance.js","./feedback.js","./desktop.js","./vendor/supabase-2.45.4.js",
+  "./errors.js","./install.js","./blank-guard.js","./packs.js","./nisia-actions.js","./nisia.js","./checkin.js","./class-quiz.js","./mic-hint.js","./battle.js","./messages-ui.js","./evia-messages.js","./future.js","./review-prep.js","./goodbye.js","./ui-tidy.js","./simple.js","./helper.js","./journey-pack.js","./own-attendance.js","./feedback.js","./desktop.js","./vendor/supabase-2.45.4.js",
   "./storage.js",
   "./app.js",
   "./data.js",
@@ -75,12 +75,12 @@ const APP_SHELL = [
 
 /* Offline-first: the app always opens from the copy saved on the phone, so it loads instantly with or without
    signal. Each release bumps VERSION; the browser then downloads the whole new version in the background, and
-   it is used from the next time Evia opens. */
+   it is used once the learner taps Update available, or from the next time Evia opens. */
 self.addEventListener("install", event => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
     await cache.addAll(APP_SHELL.map(url => new Request(url, { cache: "reload" })));
-    await self.skipWaiting();
+    /* Then it waits: the Update available button (SKIP_WAITING below) or the next launch switches to it. */
   })());
 });
 
