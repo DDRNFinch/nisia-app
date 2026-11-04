@@ -7,14 +7,13 @@
                 first, to carry on.
      Activity   the areas (KSB topics, topics.js) it gets evidence for, with how many times each is in the portfolio,
                 then Begin evidence.
-     Guide      the square camera, one photo at a time in the order of the job, saying what's next (on screen and out
-                loud); Skip any, back one, Finish. Each photo is kept as it's taken.
+     Guide      the square camera, one photo at a time in the order of the job, saying what's next; Skip any, back one, Finish. Each photo is kept as it's taken.
      Talk       for each area with photos, what to talk about, and each photo with a box for what it shows; None of
                 these also asks its questions. Save makes one PDF for the day, and Evia says they're done for today.
      Progress   the KSBs with evidence, how far through the course, and each KSB's meaning. Your details.
      Learn      Teach me (Evia's lessons, taken from Evia as they are) and EPA practice (10 questions at a time).
      Portfolio  the PDFs, newest first. Tap one to see it, then Share.
-   Evia sits in the top right of the other pages: tap her and she shows and says what to do. */
+   Evia sits in the top right of the other pages: tap her and she shows what to do. */
 (function(){
   const T=window.EB_TOPICS,COURSE=window.EB_COURSE;
   const app=document.getElementById("app");
@@ -72,12 +71,9 @@
     const steps=HELP[which||page]||[];
     const w=document.createElement("div");w.className="bubble-wrap";
     w.innerHTML='<div class="bubble" role="dialog" aria-label="Evia says"><ol>'+steps.map(s=>'<li>'+esc(s)+'</li>').join("")+'</ol><button type="button">OK</button></div>';
-    const close=()=>{w.remove();try{speechSynthesis.cancel()}catch(_){}document.querySelectorAll(".evia").forEach(e=>e.classList.remove("talk"))};
+    const close=()=>{w.remove();hush()};
     w.onclick=e=>{if(e.target===w||e.target.tagName==="BUTTON")close()};
     document.body.appendChild(w);
-    /* Said out loud too: many learners won't read it. */
-    try{if(window.speechSynthesis){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(steps.join(" "));u.lang="en-GB";u.rate=.95;
-      document.querySelectorAll(".evia").forEach(e=>e.classList.add("talk"));u.onend=()=>document.querySelectorAll(".evia").forEach(e=>e.classList.remove("talk"));speechSynthesis.speak(u)}}catch(_){}
   }
   const wireEvia=which=>{const e=document.getElementById("evia");if(e)e.onclick=()=>help(which)};
   function toast(t){document.querySelectorAll(".toast").forEach(x=>x.remove());const o=document.createElement("div");o.className="toast";o.textContent=t;document.body.appendChild(o);setTimeout(()=>o.remove(),2600)}
@@ -95,8 +91,9 @@
   const routesOf=p=>p.routes||(p.route!=null?[p.route]:[]);
   const timesDone=r=>S.pf.filter(p=>routesOf(p).includes(r)).length;
   const first=()=>String(S.name||"").trim().split(/\s+/)[0];
-  /* Evia says it (on screen, and out loud for anyone who won't read it). */
-  function say(text){try{if(window.speechSynthesis&&!S.quiet){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text.replace(/<[^>]+>/g,""));u.lang="en-GB";u.rate=.97;speechSynthesis.speak(u)}}catch(_){}}
+  /* Evia doesn't speak: her words are on screen only. say() and hush() are kept so the pages read the same. */
+  function hush(){}
+  function say(){}
 
   /* ---------- Home: Evia asks what they're doing today, then floats up to show the practical activities ----------
      The first time each time the app opens, she's big in the middle; then she shrinks to the top and the activities
@@ -115,7 +112,7 @@
         '<div class="ev-acts ev-more">'+[["see-pf","📂","See my portfolio"],["go-progress","📈","My progress"],["go-learn","📚","Learn"]].map(([id,ic,t],k)=>'<button type="button" class="ev-act" id="'+id+'" style="--d:'+((A.length+k)*45)+'ms"><span class="ev-ic">'+ic+'</span><strong>'+t+'</strong><span class="ev-go" aria-hidden="true">›</span></button>').join("")+'</div>'+
       '</div></section>';
     wireEvia("home");
-    if(intro){say(hi.replace(/<[^>]+>/g,""));setTimeout(()=>{const h=app.querySelector(".ev-home");if(h){h.classList.remove("intro");h.classList.add("up")}},1700)}
+    if(intro){say("hello");setTimeout(()=>{const h=app.querySelector(".ev-home");if(h){h.classList.remove("intro");h.classList.add("up")}},1700)}
     app.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>activity(+b.dataset.a));
     document.getElementById("see-pf").onclick=()=>portfolio();
     document.getElementById("go-progress").onclick=()=>progress();
@@ -172,7 +169,7 @@
     const keep=async(blob,at)=>{
       const c=L[s.step],id=uid("p");await put(id,blob);urls[id]=URL.createObjectURL(blob);
       s.photos.push({id,at,step:s.step,route:c?c.r:null,label:c?c.say:""});
-      if(s.step<L.length){s.step++;const nx=L[s.step];if(nx)say("Next, "+nx.say+".");else say("That’s all the photos. Tap Finish.")}
+      if(s.step<L.length){s.step++;const nx=L[s.step];if(nx)say("next:"+nx.say);else say("last")}
       save();refresh();
     };
     el.querySelector("[data-prev]").onclick=()=>{if(s.step>0){s.step--;save();refresh()}};
@@ -196,7 +193,7 @@
       .catch(err=>{el.querySelector(".cam-stage").insertAdjacentHTML("beforeend",'<div class="cam-msg">'+(err&&err.name==="NotAllowedError"?"Allow the camera in your phone settings, then try again.":"The camera didn’t start. Use the gallery button instead.")+'</div>')})
       :el.querySelector(".cam-stage").insertAdjacentHTML("beforeend",'<div class="cam-msg">Use the gallery button to add photos.</div>');
     refresh();
-    const c=L[s.step];if(c)say((s.photos.length?"Let’s carry on. ":"Let’s start. ")+"First, "+c.say+".");
+    const c=L[s.step];if(c)say(s.photos.length?"carry":"start","next:"+c.say);
   }
   function square(file){
     return new Promise(res=>{const img=new Image(),u=URL.createObjectURL(file);img.onload=()=>{const side=Math.min(img.naturalWidth,img.naturalHeight),px=Math.min(side,1600),c=document.createElement("canvas");c.width=c.height=px;
@@ -220,7 +217,7 @@
         t.ask.map((q,k)=>'<div class="ask"><strong>'+esc(q)+'</strong><textarea rows="3" data-q="'+r+':'+k+'" placeholder="Your answer">'+esc(s.answers[r+":"+k]||"")+'</textarea></div>').join("")+'</div></section>'}).join("")+
       dock('<button type="button" class="big alt" id="more">'+ICON.cam+'Photos</button><button type="button" class="big" id="save">'+ICON.save+'Save</button>');
     wireEvia("talk");
-    say(s.photos.length?"Now tell me what each photo shows.":"Answer a few questions in your own words.");
+    say(s.photos.length?"talk":"questions");
     for(const row of app.querySelectorAll(".wu-row")){const u=await url(row.dataset.p);row.querySelector("img").src=u}
     app.querySelectorAll(".wu-row textarea").forEach(ta=>ta.oninput=()=>{s.notes[ta.closest(".wu-row").dataset.p]=ta.value;save()});
     app.querySelectorAll("[data-q]").forEach(ta=>ta.oninput=()=>{s.answers[ta.dataset.q]=ta.value;save()});
@@ -256,7 +253,7 @@
     w.innerHTML='<div class="hello-in"><span class="evia huge happy"><span class="face"><i></i><i></i></span></span><h2>That’s you done for today'+(first()?", "+esc(first()):"")+'!</h2><p>Your '+esc(act.name.toLowerCase())+' evidence is saved in your portfolio. You can do another one if you want to.</p>'+
       '<button type="button" class="big" id="dn-another">Do another one</button><button type="button" class="big alt" id="dn-pf">See my portfolio</button></div>';
     document.body.appendChild(w);confetti();try{navigator.vibrate&&navigator.vibrate([15,60,15])}catch(_){}
-    say("That’s you done for today. Your evidence is saved in your portfolio.");
+    say("done");
     const go=f=>{w.classList.add("out");setTimeout(()=>w.remove(),300);f()};
     w.querySelector("#dn-another").onclick=()=>go(home);w.querySelector("#dn-pf").onclick=()=>go(()=>portfolio(id));
   }
